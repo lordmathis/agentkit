@@ -5,6 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "huggingface-hub>=0.36.0",
+    "isort>=7.0.0",
+    "mcp>=1.25.0",
+    "pydantic>=2.12.5",
     "python-dotenv>=1.2.1",
-    "smolagents[openai,toolkit]>=1.23.0",
+    "smolagents[mcp,openai,toolkit]>=1.23.0",
 ]
