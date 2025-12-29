@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from agentkit.config import AppConfig, load_config
+from agentkit.mcp_manager import MCPManager
 from agentkit.server import app
 from agentkit.registry import PluginRegistry
 
@@ -17,6 +18,7 @@ if __name__ == "__main__":
     load_dotenv(override=True)
     app_config: AppConfig = load_config('config.yaml')
 
+    MCPManager.configure(app_config.mcps)
     PluginRegistry.discover_plugins(app_config.server.plugins_dir)
 
     observer = Observer()
@@ -30,3 +32,4 @@ if __name__ == "__main__":
     finally:
         observer.stop()
         observer.join()
+        MCPManager.close_all()
