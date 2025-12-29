@@ -1,5 +1,7 @@
 import os
 
+from typing import List, Dict, Optional
+
 import yaml
 from pydantic import BaseModel
 
@@ -10,12 +12,12 @@ class ServerConfig(BaseModel):
 
 class MCPConfig(BaseModel):
     command: str
-    args: list[str] = []
-    env: dict[str, str] = {}
+    args: List[str] = []
+    env: Dict[str, str] = {}
 
 class AppConfig(BaseModel):
-    server: ServerConfig
-    mcps: dict[str, MCPConfig] = {}
+    server: ServerConfig = ServerConfig()
+    mcps: Dict[str, MCPConfig] = {}
 
 
 def load_config(path: str) -> AppConfig:

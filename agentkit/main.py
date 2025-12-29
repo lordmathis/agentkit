@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import gradio as gr
 from agentkit.config import AppConfig, load_config
 from agentkit.mcp_manager import MCPManager
 from agentkit.server import app
@@ -7,6 +8,8 @@ from agentkit.registry import PluginRegistry
 
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
+
+from agentkit.webui import create_ui
 
 class PluginDirEventHandler(FileSystemEventHandler):
     def on_any_event(self, event: FileSystemEvent) -> None:
@@ -27,6 +30,9 @@ if __name__ == "__main__":
     observer.start()
 
     try:
+        demo = create_ui()
+        gr.mount_gradio_app(app, demo, path="/ui")
+
         import uvicorn
         uvicorn.run(app, host=app_config.server.host, port=app_config.server.port)
     finally:

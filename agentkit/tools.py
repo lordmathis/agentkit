@@ -12,6 +12,8 @@ def to_chat_completion(result: RunResult, model_name: str) -> dict:
     """
     import time
 
+    print(type(result))
+
     content = str(result.output) if result.output is not None else ""
     finish_reason = "stop" if result.state == "success" else "length"
 
@@ -25,9 +27,7 @@ def to_chat_completion(result: RunResult, model_name: str) -> dict:
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": content,
-                    "refusal": None,
-                    "annotations": []
+                    "content": content
                 },
                 "logprobs": None,
                 "finish_reason": finish_reason
