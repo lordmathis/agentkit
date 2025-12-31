@@ -1,6 +1,6 @@
 import gradio as gr
 from typing import List, Dict, Any
-from agentkit.registry import PluginRegistry
+from agentkit.models import ModelRegistry
 
 
 def create_ui() -> gr.Blocks:
@@ -10,7 +10,7 @@ def create_ui() -> gr.Blocks:
 
         with gr.Row():
             model_dropdown = gr.Dropdown(
-                label="Select Agent",
+                label="Select Model",
                 choices=[],
                 value=None,
                 interactive=True,
@@ -36,21 +36,21 @@ def create_ui() -> gr.Blocks:
 
         def load_models():
             """Load available models."""
-            models = PluginRegistry.list_plugins()
+            models = list(ModelRegistry.list_models().keys())
             return gr.Dropdown(choices=models, value=models[0] if models else None)
 
-        def respond(message: str, chat_history: List[Dict[str, Any]], model: str):
+        def respond(message: str, chat_history: List[Dict[str, Any]], model_name: str):
             """Handle chat response."""
             if not message.strip():
                 return chat_history, ""
 
-            if not model:
+            if not model_name:
                 chat_history.append({"role": "assistant", "content": "Please select a model first."})
                 return chat_history, ""
 
-            agent = PluginRegistry.get_plugin(model)
-            if agent is None:
-                chat_history.append({"role": "assistant", "content": f"Model {model} not found."})
+            model = ModelRegistry.get_model(model_name)
+            if model is None:
+                chat_history.append({"role": "assistant", "content": f"Model {model_name} not found."})
                 return chat_history, ""
 
             # Convert Gradio's message format to OpenAI format
@@ -59,9 +59,9 @@ def create_ui() -> gr.Blocks:
                 messages.append({"role": msg["role"], "content": msg["content"]})
             messages.append({"role": "user", "content": message})
 
-            # Get response from agent
+            # Get response from model
             try:
-                response = agent.chat(messages)
+                response = model.chat(messages)
                 # Extract content from OpenAI chat completion format
                 if isinstance(response, dict) and "choices" in response:
                     choices = response.get("choices", [])
@@ -95,5 +95,3 @@ def create_ui() -> gr.Blocks:
         clear_btn.click(clear_chat, outputs=chatbot)
 
     return demo
-
-
