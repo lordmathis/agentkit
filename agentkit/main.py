@@ -1,8 +1,11 @@
 import os
 from dotenv import load_dotenv
 import gradio as gr
+from agentkit.agents.registry import AgentRegistry
 from agentkit.config import AppConfig, load_config
 from agentkit.mcps import MCPManager
+from agentkit.models.registry import ModelRegistry
+from agentkit.providers.registry import ProviderRegistry
 from agentkit.server import app
 
 from agentkit.webui import create_ui
@@ -13,6 +16,8 @@ if __name__ == "__main__":
     app_config: AppConfig = load_config('config.yaml')
 
     MCPManager.configure(app_config.mcps)
+    ProviderRegistry.register_all(app_config.providers)
+    AgentRegistry.register_all()
 
     try:
         demo = create_ui()

@@ -5,13 +5,8 @@ from typing import List, Dict, Optional
 import yaml
 from pydantic import BaseModel
 
-class AgentConfig(BaseModel):
-    class_name: str
-    module: str
-    kwargs: Dict[str, Optional[str]] = {}
-
-class ModelsConfig(BaseModel):
-    model_id: str
+class ProviderConfig(BaseModel):
+    model_ids: Optional[List[str]] = None
     api_key: str
     api_base: str
 
@@ -26,8 +21,7 @@ class MCPConfig(BaseModel):
 
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
-    agents: Dict[str, AgentConfig] = {}
-    models: Dict[str, ModelsConfig] = {}
+    providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
 
 

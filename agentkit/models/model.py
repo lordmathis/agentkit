@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from agentkit.agents import AgentRegistry
+from agentkit.providers import Provider
 
 
 class BaseModel:
@@ -16,10 +17,13 @@ class BaseModel:
     system_prompt: str = ""
     allowed_agents: Optional[List[str]] = None
 
-    def __init__(self, model_id: str, api_key: str, api_base: str):
-        self.model_id = model_id
+    provider: Optional[Provider] = None
+    model_id: str = ""
+
+    client: OpenAI
+
+    def __init__(self):
         self.messages: List[ChatCompletionMessageParam] = []
-        self.client = OpenAI(api_key=api_key, base_url=api_base)
 
     def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         """Send messages and get completion response with agent tool calling.
