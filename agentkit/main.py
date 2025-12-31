@@ -18,6 +18,7 @@ if __name__ == "__main__":
     MCPManager.configure(app_config.mcps)
     ProviderRegistry.register_all(app_config.providers)
     AgentRegistry.register_all()
+    ModelRegistry.register_all()
 
     try:
         demo = create_ui()

@@ -75,23 +75,14 @@ class AgentRegistry:
     def list_agents(cls) -> List[Dict[str, Any]]:
         """List all registered agents as OpenAI tool definitions."""
         tools = []
-        for agent_name in cls._agents.keys():
+        for agent_name, agent in cls._agents.items():
             tools.append(
                 {
                     "type": "function",
                     "function": {
                         "name": agent_name,
-                        "description": f"Run the {agent_name} agent",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The prompt to send to the agent",
-                                }
-                            },
-                            "required": ["prompt"],
-                        },
+                        "description": agent.get_description(),
+                        "parameters": agent.get_parameters(),
                     },
                 }
             )
