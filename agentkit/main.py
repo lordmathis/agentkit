@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     try:
         demo = create_ui()
-        gr.mount_gradio_app(app, demo, path="/ui")
+        gr.mount_gradio_app(app, demo, path="/")
 
         import uvicorn
         uvicorn.run(app, host=app_config.server.host, port=app_config.server.port)
