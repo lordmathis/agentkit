@@ -1,8 +1,9 @@
-from agentkit.models import BaseModel
-from typing import Dict, Optional
-import os
 import importlib.util
 import inspect
+import os
+from typing import Dict, Optional
+
+from agentkit.models import BaseModel
 
 
 class ModelRegistry():

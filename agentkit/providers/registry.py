@@ -1,6 +1,8 @@
-from agentkit.providers import Provider
+from typing import Any, Dict
+
 from agentkit.config import ProviderConfig
-from typing import Dict, Any
+from agentkit.providers import Provider
+
 
 class ProviderRegistry:
     _providers: Dict[str, Provider] = {}

@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI
+
 from agentkit.models import ModelRegistry
 
 app = FastAPI()

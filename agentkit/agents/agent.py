@@ -1,4 +1,5 @@
-from typing import Protocol, runtime_checkable, Dict, Any
+from typing import Any, Dict, Protocol, runtime_checkable
+
 
 @runtime_checkable
 class Agent(Protocol):

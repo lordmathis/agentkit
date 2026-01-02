@@ -1,7 +1,8 @@
-from smolagents import MCPClient
 from mcp import StdioServerParameters
+from smolagents import MCPClient
 
 from agentkit.config import MCPConfig
+
 
 class MCPManager:
 

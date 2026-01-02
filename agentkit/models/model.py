@@ -1,7 +1,9 @@
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
+
 from agentkit.agents import AgentRegistry
 from agentkit.providers import Provider
 

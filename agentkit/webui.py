@@ -1,11 +1,16 @@
+from sqlite3 import Connection
+from typing import Any, Dict, List
+
 import gradio as gr
-from gradio import themes
-from gradio.themes.utils import colors, sizes
-from typing import List, Dict, Any
+
+from agentkit.conversation_db import (create_conversation, get_conversation,
+                                      get_conversation_messages,
+                                      list_conversations,
+                                      save_conversation_messages)
 from agentkit.models import ModelRegistry
 
 
-def create_ui() -> gr.Blocks:
+def create_ui(conn: Connection) -> gr.Blocks:
     """Create and return the Gradio interface."""
 
     with gr.Blocks(title="⚡ AGENTKIT NEURAL INTERFACE") as demo:
@@ -19,7 +24,6 @@ def create_ui() -> gr.Blocks:
                 interactive=True,
                 scale=3
             )
-            refresh_btn = gr.Button("🔄 Refresh Models", scale=1)
 
         chatbot = gr.Chatbot(
             label="Chat",
@@ -35,12 +39,29 @@ def create_ui() -> gr.Blocks:
             )
             send_btn = gr.Button("Send", scale=1, variant="primary")
 
-        clear_btn = gr.Button("Clear Chat")
-
         def load_models():
             """Load available models."""
             models = list(ModelRegistry.list_models().keys())
             return gr.Dropdown(choices=models, value=models[0] if models else None)
+        
+        def load_conversations():
+            """Load existing conversations from the database."""
+            conversations = list_conversations(conn)
+            return conversations
+
+        def load_messages(conversation_id: str):
+            """Load messages for a given conversation."""
+            conversation = get_conversation(conn, conversation_id)
+            if conversation is None:
+                return []
+            messages = get_conversation_messages(conn, conversation_id)
+            chat_history = [{"role": role, "content": content} for _, role, content, _ in messages]
+            return chat_history
+        
+        def new_conversation():
+            """Start a new conversation."""
+            conversation_id = create_conversation(conn, "New Conversation")
+            return conversation_id, []
 
         def respond(message: str, chat_history: List[Dict[str, Any]], model_name: str):
             """Handle chat response."""
@@ -91,10 +112,7 @@ def create_ui() -> gr.Blocks:
 
         # Event handlers
         demo.load(load_models, outputs=model_dropdown)
-        refresh_btn.click(load_models, outputs=model_dropdown)
-
         msg.submit(respond, inputs=[msg, chatbot, model_dropdown], outputs=[chatbot, msg])
         send_btn.click(respond, inputs=[msg, chatbot, model_dropdown], outputs=[chatbot, msg])
-        clear_btn.click(clear_chat, outputs=chatbot)
 
     return demo

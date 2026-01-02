@@ -1,7 +1,8 @@
-from typing import Dict, Optional, List, Any
-import os
 import importlib.util
 import inspect
+import os
+from typing import Any, Dict, List, Optional
+
 from agentkit.agents import Agent
 
 

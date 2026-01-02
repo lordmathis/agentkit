@@ -1,9 +1,9 @@
 import os
-
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel
+
 
 class ProviderConfig(BaseModel):
     model_ids: Optional[List[str]] = None
@@ -23,6 +23,7 @@ class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
+    conversation_db_path: str = "agentkit.db"
 
 
 def load_config(path: str) -> AppConfig:

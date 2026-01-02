@@ -1,5 +1,7 @@
 from openai import OpenAI
+
 from agentkit.config import ProviderConfig
+
 
 class Provider:
     def __init__(self, config: ProviderConfig):
