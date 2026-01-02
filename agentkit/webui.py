@@ -5,60 +5,10 @@ from typing import List, Dict, Any
 from agentkit.models import ModelRegistry
 
 
-# Create Cyberpunk 2077 inspired theme using Gradio's theme builder
-cyberpunk_theme = themes.Base(
-    primary_hue=colors.yellow,
-    secondary_hue=colors.cyan,
-    neutral_hue=colors.slate,
-    radius_size=sizes.radius_sm,
-).set(
-    body_background_fill='*neutral_950',
-    body_background_fill_dark='*neutral_950',
-
-    # Primary button (yellow/gold like CP2077)
-    button_primary_background_fill='*primary_500',
-    button_primary_background_fill_hover='*primary_400',
-    button_primary_text_color='*neutral_950',
-    button_primary_border_color='*primary_500',
-
-    # Secondary buttons (cyan accents)
-    button_secondary_background_fill='*neutral_800',
-    button_secondary_background_fill_hover='*neutral_700',
-    button_secondary_text_color='*secondary_400',
-    button_secondary_border_color='*secondary_500',
-
-    # Input fields
-    input_background_fill='*neutral_900',
-    input_background_fill_dark='*neutral_900',
-    input_border_color='*secondary_500',
-    input_border_color_focus='*primary_500',
-
-    # Panels and containers
-    panel_background_fill='*neutral_900',
-    panel_background_fill_dark='*neutral_900',
-    panel_border_color='*secondary_600',
-
-    background_fill_primary='*neutral_900',
-    background_fill_primary_dark='*neutral_900',
-    background_fill_secondary='*neutral_800',
-    background_fill_secondary_dark='*neutral_800',
-
-    # Border colors
-    border_color_primary='*secondary_500',
-    border_color_primary_dark='*secondary_500',
-
-    # Text colors
-    body_text_color='*secondary_200',
-    body_text_color_subdued='*secondary_400',
-    block_label_text_color='*primary_400',
-    block_title_text_color='*primary_400',
-)
-
-
 def create_ui() -> gr.Blocks:
     """Create and return the Gradio interface."""
 
-    with gr.Blocks(title="⚡ AGENTKIT NEURAL INTERFACE", theme=cyberpunk_theme) as demo:
+    with gr.Blocks(title="⚡ AGENTKIT NEURAL INTERFACE") as demo:
         gr.Markdown("# ⚡ AGENTKIT NEURAL INTERFACE ⚡")
 
         with gr.Row():
