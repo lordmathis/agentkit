@@ -9,8 +9,7 @@ from agentkit.models import BaseModel
 class ModelRegistry():
     _models: Dict[str, BaseModel] = {}
 
-    @classmethod
-    def register_all(cls):
+    def register_all(self):
         # Discover and register all models in this folder
         models_folder = os.path.dirname(__file__)
         skip_files = ["registry.py", "model.py", "__init__.py"]
@@ -52,23 +51,20 @@ class ModelRegistry():
                     if model_name.endswith("Model"):
                         model_name = model_name[:-5]
                     model_name = model_name.lower()
-                    cls.register_model(model_name, model_instance)
+                    self.register_model(model_name, model_instance)
                 except Exception as e:
                     print(f"Warning: Failed to instantiate model from {filename}: {e}")
 
-    @classmethod
-    def register_model(cls, name: str, model: BaseModel) -> None:
+    def register_model(self, name: str, model: BaseModel) -> None:
         """Register a new model."""
-        if name in cls._models:
+        if name in self._models:
             return
-        cls._models[name] = model
+        self._models[name] = model
 
-    @classmethod
-    def get_model(cls, name: str) -> Optional[BaseModel]:
+    def get_model(self, name: str) -> Optional[BaseModel]:
         """Retrieve a model by name."""
-        return cls._models.get(name)
-
-    @classmethod
-    def list_models(cls) -> Dict[str, BaseModel]:
+        return self._models.get(name)
+    
+    def list_models(self) -> Dict[str, BaseModel]:
         """List all registered models."""
-        return cls._models.copy()
+        return self._models.copy()

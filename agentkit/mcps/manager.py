@@ -6,22 +6,21 @@ from agentkit.config import MCPConfig
 
 class MCPManager:
 
-    _clients: dict[str, MCPClient] = {}
-    _mcp_config: dict[str, MCPConfig] = {}
+    _clients: dict[str, MCPClient]
+    _mcp_config: dict[str, MCPConfig]
 
-    @classmethod
-    def configure(cls, config: dict[str, MCPConfig]):
-        cls._mcp_config = config
+    def __init__(self, config: dict[str, MCPConfig]) -> None:
+        self._mcp_config = config
+        self._clients = {}
 
-    @classmethod
-    def get_client(cls, name: str) -> MCPClient | None:
-        if name in cls._clients:
-            return cls._clients[name]
+    def get_client(self, name: str) -> MCPClient | None:
+        if name in self._clients:
+            return self._clients[name]
         
-        if name not in cls._mcp_config:
+        if name not in self._mcp_config:
             return None
         
-        cfg = cls._mcp_config[name]
+        cfg = self._mcp_config[name]
 
         # Patch MCP tools to add empty properties if missing
         import mcpadapt.smolagents_adapter
@@ -42,11 +41,10 @@ class MCPManager:
             args=cfg.args,
             env=cfg.env,
         )
-        cls._clients[name] = MCPClient([server], structured_output=False)
-        return cls._clients[name]
+        self._clients[name] = MCPClient([server], structured_output=False)
+        return self._clients[name]
     
-    @classmethod
-    def close_all(cls):
-        for client in cls._clients.values():
+    def close_all(self):
+        for client in self._clients.values():
             client.disconnect()
-        cls._clients.clear()
+        self._clients.clear()

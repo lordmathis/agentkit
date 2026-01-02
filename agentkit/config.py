@@ -23,7 +23,7 @@ class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
-    conversation_db_path: str = "agentkit.db"
+    history_db_path: str = "agentkit.db"
 
 
 def load_config(path: str) -> AppConfig:
