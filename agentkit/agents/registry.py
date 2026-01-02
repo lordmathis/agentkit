@@ -1,11 +1,10 @@
-# agentkit/agents/registry.py
 import importlib
 import inspect
 import pkgutil
 from pathlib import Path
 from typing import Any, Dict, List
 
-from agentkit.agents.agent import BaseAgent  # Not Protocol anymore
+from agentkit.agents.agent import BaseAgent
 from agentkit.mcps import MCPManager
 from agentkit.providers import ProviderRegistry
 
