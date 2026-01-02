@@ -47,7 +47,7 @@ class ChatHistory:
         
         # Create tables
         Base.metadata.create_all(self.engine)
-    
+
     def create_chat(self, title: str) -> Chat:
         with self.SessionLocal() as session:
             chat = Chat(id=str(uuid.uuid4()), title=title)
@@ -121,3 +121,7 @@ class ChatHistory:
             if chat:
                 session.delete(chat)
                 session.commit()
+
+    def close(self):
+        """Close database connections and dispose of the engine"""
+        self.engine.dispose()

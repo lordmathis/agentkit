@@ -1,2 +1,2 @@
-from .agent import Agent
+from .agent import BaseAgent
 from .registry import AgentRegistry

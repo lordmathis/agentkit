@@ -5,10 +5,12 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 from agentkit.agents import AgentRegistry
+from agentkit.mcps.manager import MCPManager
 from agentkit.providers import Provider
+from agentkit.providers.registry import ProviderRegistry
 
 
-class BaseModel:
+class BaseModel():
     """Base model for OpenAI-compatible chat with agent tool calling.
 
     Subclasses should define:
@@ -17,15 +19,19 @@ class BaseModel:
     """
 
     system_prompt: str = ""
-    allowed_agents: Optional[List[str]] = None
+    allowed_agents: List[str] = []
 
     provider: Optional[Provider] = None
     model_id: str = ""
 
     client: OpenAI
 
-    def __init__(self):
+    def __init__(self, provider_registry: ProviderRegistry, agent_registry: AgentRegistry, mcp_manager: MCPManager):
+        self.provider_registry = provider_registry
+        self.agent_registry = agent_registry
+        self.mcp_manager = mcp_manager
         self.messages: List[ChatCompletionMessageParam] = []
+
 
     def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         """Send messages and get completion response with agent tool calling.
@@ -44,7 +50,7 @@ class BaseModel:
         self.messages = messages
 
         # Get agent tools from registry
-        all_tools = AgentRegistry.list_agents()
+        all_tools = self.agent_registry.list_tools()
 
         # Filter tools if allowed_agents is specified
         if self.allowed_agents is not None:
@@ -53,7 +59,7 @@ class BaseModel:
                 if tool["function"]["name"] in self.allowed_agents
             ]
         else:
-            tools = all_tools
+            tools = None
 
         # Prepare API call params
         api_params: Dict[str, Any] = {
@@ -94,7 +100,7 @@ class BaseModel:
                 prompt = args.get("prompt", "")
 
                 # Get and run the agent
-                agent = AgentRegistry.get_agent(agent_name)
+                agent = self.agent_registry.get_agent(agent_name)
                 if agent:
                     try:
                         result = agent.run(prompt)
