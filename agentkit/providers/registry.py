@@ -14,3 +14,7 @@ class ProviderRegistry:
 
     def get_provider(self, name: str) -> Provider | None:
         return self._providers.get(name)
+
+    def list_providers(self) -> Dict[str, Provider]:
+        """List all registered providers."""
+        return self._providers.copy()

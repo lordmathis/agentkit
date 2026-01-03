@@ -14,3 +14,6 @@ wheels/
 
 # MCP binaries
 gitea-mcp
+
+# Database files
+*.db

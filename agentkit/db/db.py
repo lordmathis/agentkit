@@ -1,37 +1,13 @@
-from sqlalchemy import Index, UniqueConstraint, create_engine, String, Text, DateTime, ForeignKey, Integer, func, select, text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import uuid
 
-class Base(DeclarativeBase):
-    pass
-
-class Chat(Base):
-    __tablename__ = "chats"
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    title: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class Message(Base):
-    __tablename__ = "messages"
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    chat_id: Mapped[str] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"))
-    sequence: Mapped[int] = mapped_column(Integer, nullable=False)  # Order within chat
-    role: Mapped[str] = mapped_column(String)
-    content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
-    __table_args__ = (
-        # Ensure unique sequence per chat
-        UniqueConstraint('chat_id', 'sequence', name='uq_chat_sequence'),
-        # Index for efficient ordering
-        Index('idx_chat_sequence', 'chat_id', 'sequence'),
-    )
+from agentkit.db.models import Base, Chat, Message
 
 
-class ChatHistory:
+class Database:
     def __init__(self, db_path: str):
         self.engine = create_engine(
             f"sqlite:///{db_path}",
@@ -48,7 +24,7 @@ class ChatHistory:
         # Create tables
         Base.metadata.create_all(self.engine)
 
-    def create_chat(self, title: str) -> Chat:
+    def create_chat(self, title: Optional[str] = None) -> Chat:
         with self.SessionLocal() as session:
             chat = Chat(id=str(uuid.uuid4()), title=title)
             session.add(chat)
@@ -105,6 +81,10 @@ class ChatHistory:
             result = session.execute(stmt)
             return list(result.scalars().all())
     
+    def get_chat(self, chat_id: str) -> Optional[Chat]:
+        with self.SessionLocal() as session:
+            return session.get(Chat, chat_id)
+
     def list_chats(self, limit: int = 20) -> List[Chat]:
         with self.SessionLocal() as session:
             stmt = (
