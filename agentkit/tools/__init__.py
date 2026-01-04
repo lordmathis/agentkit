@@ -1,2 +1,3 @@
 from .registry import ToolRegistry
-from .tool import Tool, ModelConfig
+from .smolagents import ModelConfig
+from .tool import AgentKitTool

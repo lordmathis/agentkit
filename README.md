@@ -1,3 +1,3 @@
-# Agentkit
+# AgentKit
 
 Chat with [smolagents](https://github.com/huggingface/smolagents)

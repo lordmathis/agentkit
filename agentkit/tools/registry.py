@@ -1,34 +1,32 @@
-from typing import Dict, List, Tuple
+from typing import Dict, Optional
+
 
 from agentkit.config import MCPConfig
-from agentkit.tools.mcp_manager import MCPManager
+from agentkit.tools.mcp import MCPServerTool
 from agentkit.tools.notes_agent import NotesAgent
-from agentkit.tools.tool import Tool, ToolSource
+from agentkit.tools.tool import AgentKitTool
 
 class ToolRegistry:
     def __init__(self, config: Dict[str, MCPConfig]):
-        self._tool_sources = Dict[str, ToolSource] = {}
-        self._tools: Dict[str, Tool] = {}
+        self._tools: Dict[str, AgentKitTool] = {}
+        self._register_tools()
+        self._register_mcps(config)
     
-        # Later: load OpenAPI tools, custom functions, etc.
-
     def _register_tools(self):
         notes_agent = NotesAgent(self)
-        self._tools["Notes Agent"] = notes_agent
+        self._tools["notes_agent"] = notes_agent
 
-    def _register_mcps(self):
-        # Register MCP tools from MCPManager
-        for mcp_name in self.mcp_manager._mcp_config.keys():
-            mcp_client = self.mcp_manager.get_client(mcp_name)
-            if mcp_client:
-                tool = Tool.from_mcp_client(mcp_name, mcp_client)
-                self._tools[mcp_name] = tool
+    def _register_mcps(self, config: Dict[str, MCPConfig]):
+        for mcp_name, mcp_config in config.items():
+            mcp_tool = MCPServerTool(
+                command=mcp_config.command,
+                args=mcp_config.args,
+                env=mcp_config.env
+            )
+            self._tools[mcp_name] = mcp_tool
     
-    def get_tool(self, name: str) -> Tool | None:
+    def get_tools(self) -> Dict[str, AgentKitTool]:    
+        return self._tools
+
+    def get_tool(self, name: str) -> Optional[AgentKitTool]:
         return self._tools.get(name)
-    
-    def list_tool_sources(self) -> List[Tuple[str, str]]:
-        pass
-
-    def get_llm_tools(self) -> List[Tool]:
-        pass

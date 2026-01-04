@@ -1,2 +1,2 @@
-from .model import BaseModel
+from .model import ChatSession
 from .registry import ModelRegistry

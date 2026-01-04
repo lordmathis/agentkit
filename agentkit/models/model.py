@@ -1,148 +1,153 @@
+from contextlib import AsyncExitStack
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple
 
+from mcp import ClientSession
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionDeveloperMessageParam,
+)
 
-from agentkit.agents import AgentRegistry
-from agentkit.mcps.manager import MCPManager
-from agentkit.providers import Provider
-from agentkit.providers.registry import ProviderRegistry
+from agentkit.config import ProviderConfig
+from agentkit.tools import ToolRegistry
+from agentkit.tools.mcp import MCPServerTool
+from agentkit.tools import AgentKitTool
+from agentkit.tools.smolagents import ModelConfig, SmolAgentsTool
 
 
-class BaseModel():
+class ChatSession:
     """Base model for OpenAI-compatible chat with agent tool calling.
-
-    Subclasses should define:
-    - system_prompt: str - The system prompt for the model
-    - allowed_agents: Optional[List[str]] - List of allowed agent names (None = all agents)
     """
 
     system_prompt: str = ""
-    allowed_agents: Optional[List[str]] = None
 
-    provider: Optional[Provider] = None
+    provider_cfg: ProviderConfig
     model_id: str = ""
+
+    allowed_tools: List[AgentKitTool] = []
+
+    max_iterations: int = 5
 
     client: OpenAI
 
-    def __init__(self, provider_registry: ProviderRegistry, agent_registry: AgentRegistry, mcp_manager: MCPManager):
-        self.provider_registry = provider_registry
-        self.agent_registry = agent_registry
-        self.mcp_manager = mcp_manager
-        self.messages: List[ChatCompletionMessageParam] = []
+    def __init__(
+        self,
+        system_prompt: str,
+        provider_cfg: ProviderConfig,
+        model_id: str,
+        tool_registry: ToolRegistry,
+        allowed_tool_names: List[str] = [],
+        max_iterations: int = 5,
+    ):
+        self.system_prompt = system_prompt
+        self.provider = provider_cfg
+        self.model_id = model_id
+        self.tool_registry = tool_registry
+        self.max_iterations = max_iterations
 
+        for tool_name, tool in self.tool_registry.get_tools().items():
+            if tool_name in allowed_tool_names:
+                self.allowed_tools.append(tool)
 
-    def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
-        """Send messages and get completion response with agent tool calling.
+        self.client = OpenAI(
+            api_key=self.provider.api_key, base_url=self.provider.api_base
+        )
 
-        Args:
-            messages: List of message dicts with 'role' and 'content'
+    async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
+        async with AsyncExitStack() as stack:
+            if self.system_prompt:
+                if not messages or messages[0].get("role") != "system":
+                    messages = [
+                        ChatCompletionDeveloperMessageParam(
+                            content=self.system_prompt, role="developer"
+                        )
+                    ] + messages
 
-        Returns:
-            OpenAI chat completion response dict
-        """
-        print(f"[DEBUG] Starting chat with {len(messages)} messages")
-
-        # Add system prompt if defined and not already present
-        if self.system_prompt:
-            if not messages or messages[0].get("role") != "system":
-                print("[DEBUG] Adding system prompt to messages")
-                messages = [{"role": "system", "content": self.system_prompt}] + messages  # type: ignore
-
-        self.messages = messages
-
-        # Get agent tools from registry
-        all_tools = self.agent_registry.list_tools()
-        print(f"[DEBUG] Retrieved {len(all_tools)} tools from agent registry")
-
-        # Filter tools if allowed_agents is specified
-        if self.allowed_agents is not None:
-            tools = [
-                tool for tool in all_tools
-                if tool["function"]["name"] in self.allowed_agents
-            ]
-            print(f"[DEBUG] Filtered to {len(tools)} allowed tools: {[t['function']['name'] for t in tools]}")
-        else:
-            tools = all_tools
-            print("[DEBUG] No tool filtering applied")
-
-        # Prepare API call params
-        api_params: Dict[str, Any] = {
-            "model": self.model_id,
-            "messages": messages
-        }
-
-        if tools:
-            api_params["tools"] = tools
-
-        print(f"[DEBUG] Calling OpenAI API with model={self.model_id}, tools={'enabled' if tools else 'disabled'}")
-
-        # Call API
-        response = self.client.chat.completions.create(**api_params)
-        message = response.choices[0].message
-
-        print(f"[DEBUG] Received response, has tool_calls={bool(message.tool_calls)}")
-
-        # Handle tool calls
-        if message.tool_calls:
-            print(f"[DEBUG] Processing {len(message.tool_calls)} tool calls")
-
-            # Add assistant message with tool calls
-            self.messages.append({
-                "role": "assistant",
-                "content": message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in message.tool_calls
-                ]
-            })  # type: ignore
-
-            # Execute tool calls (run agents)
-            for tool_call in message.tool_calls:
-                agent_name = tool_call.function.name
-                args = json.loads(tool_call.function.arguments)
-                prompt = args.get("prompt", "")
-
-                print(f"[DEBUG] Executing tool call: {agent_name} with prompt={prompt[:100]}...")
-
-                # Get and run the agent
-                agent = self.agent_registry.get_agent(agent_name)
-                if agent:
-                    try:
-                        print(f"[DEBUG] Running agent: {agent_name}")
-                        result = agent.run(prompt)
-                        print(f"[DEBUG] Agent {agent_name} completed successfully")
-                    except Exception as e:
-                        print(f"[ERROR] Error running agent {agent_name}: {str(e)}")
-                        result = f"Error running agent: {str(e)}"
-                else:
-                    print(f"[WARNING] Agent {agent_name} not found")
-                    result = f"Agent {agent_name} not found"
-
-                # Add tool result
-                self.messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": str(result)
-                })  # type: ignore
-
-            print("[DEBUG] Getting final response after tool execution")
-
-            # Get final response after tool execution
-            response = self.client.chat.completions.create(
-                model=self.model_id,
-                messages=self.messages
+            # Prepare tools for API call
+            tools: List[Dict[str, Any]] = []
+            sessions: Dict[str, Tuple[ClientSession, AgentKitTool]] = {}
+            model_config = ModelConfig(
+                api_base=self.provider.api_base,
+                api_key=self.provider.api_key,
+                model_id=self.model_id,
+                model_kwargs={},
             )
+            for tool in self.allowed_tools:
+                if isinstance(tool, SmolAgentsTool):
+                    pass  # TODO:
+                elif isinstance(tool, MCPServerTool):
+                    session = await stack.enter_async_context(tool.connect(model_config=model_config))
+                    raw_tools = await tool.list_tools(session)
+                    for t in raw_tools:
+                        prefixed_name = f"{tool.server_params.command}_{t['function']['name']}"
+                        t["function"]["name"] = prefixed_name
+                        tools.append(t)
+                        sessions[prefixed_name] = (session, tool)
 
-            print("[DEBUG] Final response received")
+            # Prepare API call params
+            api_params: Dict[str, Any] = {"model": self.model_id, "messages": messages}
 
-        print("[DEBUG] Chat completed successfully")
-        return response.model_dump()
+            if tools:
+                api_params["tools"] = tools
+
+            iteration = 0
+
+            for iteration in range(self.max_iterations):
+                print(f"[DEBUG] Chat iteration {iteration + 1}/{self.max_iterations}")
+
+                # Call API
+                response = self.client.chat.completions.create(**api_params)
+                message = response.choices[0].message
+
+                if not message.tool_calls or len(message.tool_calls) == 0:
+                    return response.model_dump()
+
+                print(f"[DEBUG] Processing {len(message.tool_calls)} tool calls")
+
+                # Add assistant message with tool calls
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": message.content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in message.tool_calls
+                        ],
+                    }
+                )
+
+                # Execute tool calls (run agents)
+                for tool_call in message.tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_args = json.loads(tool_call.function.arguments)
+
+                    if tool_name not in sessions:
+                        print(f"[WARNING] No session found for tool '{tool_name}'")
+                        continue
+
+                    session, tool = sessions[tool_name]
+                    result = await tool.call_tool(session, tool_name.split('_', 1)[1], **tool_args)
+
+                    # Add tool result
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": str(result),
+                        }
+                    )
+
+                    api_params["messages"] = messages
+
+                # Get response after tool execution
+                response = self.client.chat.completions.create(**api_params)
+
+            return response.model_dump()
