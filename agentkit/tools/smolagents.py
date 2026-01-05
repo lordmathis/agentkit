@@ -1,24 +1,11 @@
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncGenerator, List
+from typing import Any, List
 
+from mcp import StdioServerParameters
 from smolagents import OpenAIModel, ToolCallingAgent, MCPClient
 
 from agentkit.tools.mcp import MCPServerTool
 from agentkit.tools.registry import ToolRegistry
-from agentkit.tools.tool import AgentKitTool
-
-class SmolAgentsSession:
-    def __init__(self, agent):
-        self.agent = agent
-    
-    async def __aenter__(self):
-        # Setup logic here if needed
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # Cleanup logic here if needed
-        pass
 
 @dataclass
 class ModelConfig:
@@ -27,54 +14,68 @@ class ModelConfig:
     model_id: str
     model_kwargs: dict
 
-class SmolAgentsTool(AgentKitTool):
-    name: str
-    description: str
-    parameters: dict
+class SmolAgentsInstance:
 
-    def __init__(self, tool_registry: ToolRegistry, name: str, description: str, parameters: dict, system_prompt: str = "", tool_names: List[str] = []):
-        self.tool_registry = tool_registry
-        self.tool_names = tool_names
-        self.name = name
-        self.description = description
-        self.parameters = parameters
-        self.system_prompt = system_prompt
+    model: OpenAIModel
+    agent: ToolCallingAgent
+    tools: list[StdioServerParameters | dict[str, Any]]
+    system_prompt: str = ""
 
-    @asynccontextmanager
-    async def connect(self, model_config: ModelConfig) -> AsyncGenerator[SmolAgentsSession, None]:
-        """Connect to the underlying MCP session if applicable."""
-        model = OpenAIModel(
+    def __init__(self, model_config: ModelConfig, tool_registry: ToolRegistry, mcp_ids: List[str] = [], system_prompt: str = ""):
+
+        self.model = OpenAIModel(
             model_id=model_config.model_id,
             api_base=model_config.api_base,
             api_key=model_config.api_key,
             **model_config.model_kwargs
         )
+        self.system_prompt = system_prompt
 
-        all_tools = []
-        for tool_name in self.tool_names:
-            tool = self.tool_registry.get_tool(tool_name)
+        self.tools = []
+        for mcp_id in mcp_ids:
+            tool = tool_registry.get_mcp(mcp_id)
             if tool is None:
-                print(f"Tool {tool_name} not found in tool registry")
+                print(f"Tool {mcp_id} not found in tool registry")
                 continue
             if not isinstance(tool, MCPServerTool):
-                print(f"Non-MCP tool {tool_name} cannot be used with Smolagents")
+                print(f"Non-MCP tool {mcp_id} cannot be used with Smolagents")
                 continue
-            all_tools.append(tool.server_params)
+            self.tools.append(tool.server_params)
 
-        with MCPClient(all_tools) as tools:
+       
+    def run(self, prompt: str) -> dict:
 
-            self.agent = ToolCallingAgent(
-                    tools=tools,
-                    model=model,
-                    add_base_tools=True,
-                )
+        with MCPClient(self.tools) as mcp_tools:
+            if self.system_prompt:
+                prompt = f"INSTRUCTIONS: {self.system_prompt}\n\nUSER QUERY: {prompt}"
 
-            session = SmolAgentsSession(self.agent)
-            async with session as s:
-                yield s
-                
-    async def call_tool(self, session: SmolAgentsSession, _, prompt: str) -> dict:
-        """Call a tool by name with given arguments."""
-        if self.system_prompt:
-            prompt = f"INSTRUCTIONS: {self.system_prompt}\n\nUSER QUERY: {prompt}"
-        return session.agent.run(prompt)
+            agent = ToolCallingAgent(
+                model=self.model,
+                tools=mcp_tools
+            )
+            response = agent.run(prompt)
+            return response.dict()
+
+
+class SmolAgentsTool():
+    name: str
+    description: str
+    parameters: dict
+
+    def __init__(self, tool_registry: ToolRegistry, name: str, description: str, parameters: dict, system_prompt: str = "", mcp_ids: List[str] = []):
+        self.tool_registry = tool_registry
+        self.mcp_ids = mcp_ids
+        self.name = name
+        self.description = description
+        self.parameters = parameters
+        self.system_prompt = system_prompt
+
+    def create_instance(self, model_config: ModelConfig) -> SmolAgentsInstance:
+        """Factory method - creates a new agent instance"""
+        return SmolAgentsInstance(
+            model_config=model_config,
+            tool_registry=self.tool_registry,
+            mcp_ids=self.mcp_ids,
+            system_prompt=self.system_prompt
+        )
+

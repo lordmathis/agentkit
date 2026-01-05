@@ -1,6 +1,6 @@
 from contextlib import AsyncExitStack
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from mcp import ClientSession
 from openai import OpenAI
@@ -12,8 +12,13 @@ from openai.types.chat import (
 from agentkit.config import ProviderConfig
 from agentkit.tools import ToolRegistry
 from agentkit.tools.mcp import MCPServerTool
-from agentkit.tools import AgentKitTool
-from agentkit.tools.smolagents import ModelConfig, SmolAgentsTool
+from agentkit.tools.registry import BaseTool, ToolType
+from agentkit.tools.smolagents import ModelConfig, SmolAgentsInstance, SmolAgentsTool
+
+class _ToolHandler(NamedTuple):
+    session: Optional[ClientSession]
+    tool: MCPServerTool | SmolAgentsInstance
+    tool_type: ToolType
 
 
 class ChatSession:
@@ -25,7 +30,6 @@ class ChatSession:
     provider_cfg: ProviderConfig
     model_id: str = ""
 
-    allowed_tools: List[AgentKitTool] = []
 
     max_iterations: int = 5
 
@@ -37,7 +41,7 @@ class ChatSession:
         provider_cfg: ProviderConfig,
         model_id: str,
         tool_registry: ToolRegistry,
-        allowed_tool_names: List[str] = [],
+        tool_ids: List[str] = [],
         max_iterations: int = 5,
     ):
         self.system_prompt = system_prompt
@@ -45,9 +49,10 @@ class ChatSession:
         self.model_id = model_id
         self.tool_registry = tool_registry
         self.max_iterations = max_iterations
+        self.allowed_tools: List[Tuple[ToolType, BaseTool]] = []
 
         for tool_name, tool in self.tool_registry.get_tools().items():
-            if tool_name in allowed_tool_names:
+            if tool_name in tool_ids:
                 self.allowed_tools.append(tool)
 
         self.client = OpenAI(
@@ -64,32 +69,47 @@ class ChatSession:
                         )
                     ] + messages
 
-            # Prepare tools for API call
-            tools: List[Dict[str, Any]] = []
-            sessions: Dict[str, Tuple[ClientSession, AgentKitTool]] = {}
             model_config = ModelConfig(
                 api_base=self.provider.api_base,
                 api_key=self.provider.api_key,
                 model_id=self.model_id,
                 model_kwargs={},
             )
-            for tool in self.allowed_tools:
-                if isinstance(tool, SmolAgentsTool):
-                    pass  # TODO:
-                elif isinstance(tool, MCPServerTool):
-                    session = await stack.enter_async_context(tool.connect(model_config=model_config))
-                    raw_tools = await tool.list_tools(session)
+
+            tool_handlers: Dict[str, _ToolHandler] = {}
+            api_tools = []
+
+            for tool_type, tool in self.allowed_tools:
+                if tool_type == ToolType.SMOLAGENTS and isinstance(tool, SmolAgentsTool):
+
+                    smol_tool: SmolAgentsTool = tool
+                    smol_instance: SmolAgentsInstance = smol_tool.create_instance(model_config=model_config)
+                    tool_handlers[tool.name] = _ToolHandler(session=None, tool=smol_instance, tool_type=ToolType.SMOLAGENTS)
+                    api_tools.append({
+                        "type": "function",
+                        "function": {
+                            "name": smol_tool.name,
+                            "description": smol_tool.description,
+                            "parameters": smol_tool.parameters
+                        }
+                    })
+
+                elif tool_type == ToolType.MCP and isinstance(tool, MCPServerTool):
+
+                    mcp_tool: MCPServerTool = tool
+                    session = await stack.enter_async_context(mcp_tool.connect(model_config=model_config))
+                    raw_tools = await mcp_tool.list_tools(session)
                     for t in raw_tools:
-                        prefixed_name = f"{tool.server_params.command}_{t['function']['name']}"
+                        prefixed_name = f"{mcp_tool.server_params.command}_{t['function']['name']}"
                         t["function"]["name"] = prefixed_name
-                        tools.append(t)
-                        sessions[prefixed_name] = (session, tool)
+                        api_tools.append(t)
+                        tool_handlers[prefixed_name] = _ToolHandler(session=session, tool=mcp_tool, tool_type=ToolType.MCP)
 
             # Prepare API call params
             api_params: Dict[str, Any] = {"model": self.model_id, "messages": messages}
 
-            if tools:
-                api_params["tools"] = tools
+            if api_tools:
+                api_params["tools"] = api_tools
 
             iteration = 0
 
@@ -129,12 +149,15 @@ class ChatSession:
                     tool_name = tool_call.function.name
                     tool_args = json.loads(tool_call.function.arguments)
 
-                    if tool_name not in sessions:
-                        print(f"[WARNING] No session found for tool '{tool_name}'")
+                    if tool_name not in tool_handlers:
+                        print(f"[WARNING] No handler found for tool '{tool_name}'")
                         continue
 
-                    session, tool = sessions[tool_name]
-                    result = await tool.call_tool(session, tool_name.split('_', 1)[1], **tool_args)
+                    session, tool, tool_type = tool_handlers[tool_name]
+                    if tool_type == ToolType.MCP and session is not None:
+                        result = await session.call_tool(tool_name.split('_', 1)[1], **tool_args)
+                    elif tool_type == ToolType.SMOLAGENTS and isinstance(tool, SmolAgentsInstance):
+                        result = tool.run(**tool_args)
 
                     # Add tool result
                     messages.append(
@@ -150,4 +173,8 @@ class ChatSession:
                 # Get response after tool execution
                 response = self.client.chat.completions.create(**api_params)
 
-            return response.model_dump()
+            # Max iterations reached, return error
+            return {
+                "error": "Max iterations reached without final response",
+                "messages": messages,
+            }

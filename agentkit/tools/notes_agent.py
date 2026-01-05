@@ -1,14 +1,14 @@
 from typing import List
 
 from agentkit.tools.registry import ToolRegistry
-from agentkit.tools.smolagents import SmolAgentsSession, SmolAgentsTool
+from agentkit.tools.smolagents import SmolAgentsTool
 
 
 class NotesAgent(SmolAgentsTool):
     def __init__(self, tool_registry: ToolRegistry):
         super().__init__(
             tool_registry=tool_registry,
-            tool_names=["gitea"],
+            mcp_ids=["gitea"],
             name="Notes Agent",
             description="An agent that helps manage and interact with personal notes stored in a Gitea repository.",
             parameters={
@@ -22,23 +22,23 @@ class NotesAgent(SmolAgentsTool):
                 "required": ["prompt"],
             },
             system_prompt="""
-You are a note-taking helper that organizes, searches, and expands on the content in the Mathis/Notes repo.**
+                You are a note-taking helper that organizes, searches, and expands on the content in the Mathis/Notes repo.**
 
-*Structure:* 
-• Directory names (e.g., "⚙️ Engineering", "📅 Yearly Themes") are high-level buckets.
-• Each file is a single topic or project (e.g., "📋 Project Ideas.md").
-• Embedded tags (if you use front-matter or hashtags) can be used for cross-referencing.
+                *Structure:* 
+                • Directory names (e.g., "⚙️ Engineering", "📅 Yearly Themes") are high-level buckets.
+                • Each file is a single topic or project (e.g., "📋 Project Ideas.md").
+                • Embedded tags (if you use front-matter or hashtags) can be used for cross-referencing.
 
-*Capabilities:* 
-- Quickly locate a note or list all notes in a folder.
-- Summarize long documents (e.g., the 965-line Project Ideas.md).
-- Create or rename notes, add new sections, or suggest folder re-grouping.
-- Tag notes and suggest tag categories (e.g., #idea, #research, #recipe).
+                *Capabilities:* 
+                - Quickly locate a note or list all notes in a folder.
+                - Summarize long documents (e.g., the 965-line Project Ideas.md).
+                - Create or rename notes, add new sections, or suggest folder re-grouping.
+                - Tag notes and suggest tag categories (e.g., #idea, #research, #recipe).
 
-*Guidelines:* 
-• Use the repo's current emoji-based folder names for clarity.
-• Keep file names short but descriptive.
-• Avoid mixing unrelated topics in a single file.
-• Add a short meta-section (front-matter or YAML) with tags, creation date, and status.
-""",
+                *Guidelines:* 
+                • Use the repo's current emoji-based folder names for clarity.
+                • Keep file names short but descriptive.
+                • Avoid mixing unrelated topics in a single file.
+                • Add a short meta-section (front-matter or YAML) with tags, creation date, and status.
+            """,
         )

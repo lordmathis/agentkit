@@ -3,9 +3,8 @@ from typing import List
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
-from agentkit.tools.tool import AgentKitTool
 
-class MCPServerTool(AgentKitTool):
+class MCPServerTool():
 
     server_params: StdioServerParameters
 
@@ -27,11 +26,6 @@ class MCPServerTool(AgentKitTool):
                 yield session
             finally:
                 pass
-
-    async def call_tool(self, session: ClientSession, tool_name: str, **kwargs) -> dict:
-        """Call a tool by name with given arguments."""
-        result = await session.call_tool(tool_name, **kwargs)
-        return result.model_dump()
 
     async def list_tools(self, session: ClientSession) -> List[dict]:
         """Retrieve the list of tools from the MCP session."""
