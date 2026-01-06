@@ -1,9 +1,9 @@
 from enum import Enum
 from typing import Dict, List, Optional
 
-from huggingface_hub import MCPClient
+
 from mcp import ClientSession, StdioServerParameters, stdio_client
-from smolagents import DuckDuckGoSearchTool, VisitWebpageTool
+from smolagents import DuckDuckGoSearchTool, VisitWebpageTool, MCPClient
 
 from agentkit.config import MCPConfig, MCPType, ProviderConfig
 
@@ -27,9 +27,13 @@ class ToolManager:
         
     async def start(self):
         """Initialize all MCP servers once"""
+        print(f"DEBUG: ToolManager.start() - Starting with {len(self._mcp_servers)} MCP servers")
         from agentkit.tools.notes_agent import NotesAgent
 
         for server_name, config in self._mcp_servers.items():
+            print(f"DEBUG: Initializing MCP server '{server_name}' (type: {config.type})")
+            print(f"DEBUG:   Command: {config.command}, Args: {config.args}")
+
             if config.type == MCPType.STDIO:
                 ctx = stdio_client(StdioServerParameters(
                     command=config.command,
@@ -38,16 +42,24 @@ class ToolManager:
                 ))
             else:
                 raise ValueError(f"Unsupported MCP type: {config.type}")
-            
+
+            print(f"DEBUG: Entering context for '{server_name}'...")
             reader, writer = await ctx.__aenter__()
+            print(f"DEBUG: Context entered for '{server_name}', creating session...")
             session = ClientSession(reader, writer)
+            print(f"DEBUG: Entering session context for '{server_name}'...")
+            await session.__aenter__()
+            print(f"DEBUG: Initializing session for '{server_name}'...")
             await session.initialize()
-            
+            print(f"DEBUG: Session initialized for '{server_name}'")
+
             self._contexts[server_name] = ctx
             self._sessions[server_name] = session
             self._server_registry[server_name] = ToolType.MCP
-            
+
+            print(f"DEBUG: Listing tools for '{server_name}'...")
             for tool, _ in await session.list_tools():
+                print(f"DEBUG:   Found tool: {tool}")
                 self._tool_registry[f"{server_name}:{tool}"] = ToolType.MCP
 
             if config.type == MCPType.STDIO:
@@ -56,19 +68,24 @@ class ToolManager:
                     args=config.args,
                     env=config.env,
                 )
+            print(f"DEBUG: Finished initializing '{server_name}'")
 
+        print("DEBUG: Initializing web_search tool...")
         self._smol_tools['web_search'] = DuckDuckGoSearchTool()
         self._tool_registry['web_search:web_search'] = ToolType.SMOLAGENTS_TOOL
         self._server_registry['web_search'] = ToolType.SMOLAGENTS_TOOL
 
+        print("DEBUG: Initializing visit_webpage tool...")
         self._smol_tools['visit_webpage'] = VisitWebpageTool()
         self._tool_registry['visit_webpage:visit_webpage'] = ToolType.SMOLAGENTS_TOOL
         self._server_registry['visit_webpage'] = ToolType.SMOLAGENTS_TOOL
 
+        print("DEBUG: Initializing notes_agent...")
         notes_agent = NotesAgent(self)
         self._smol_agents['notes_agent'] = notes_agent
         self._tool_registry['notes_agent:notes_agent'] = ToolType.SMOLAGENTS_AGENT
         self._server_registry['notes_agent'] = ToolType.SMOLAGENTS_AGENT
+        print("DEBUG: ToolManager.start() completed")
 
     async def call_tool(self, provider_cfg: ProviderConfig, model_id: str, tool_name: str, arguments: dict):
         """Synchronous-feeling tool call using pre-initialized session"""
@@ -118,6 +135,10 @@ class ToolManager:
     
     async def stop(self):
         """Cleanup on shutdown"""
+        # Exit session contexts first
+        for session in self._sessions.values():
+            await session.__aexit__(None, None, None)
+        # Then exit stdio contexts
         for ctx in self._contexts.values():
             await ctx.__aexit__(None, None, None)
         for agent in self._smol_agents.values():
