@@ -20,8 +20,9 @@ class BaseChatbot:
     provider_cfg: ProviderConfig
     model_id: str = ""
 
-
     max_iterations: int = 5
+    temperature: float = 0.7
+    max_tokens: int = 2000
 
     client: OpenAI
 
@@ -33,6 +34,8 @@ class BaseChatbot:
         tool_manager: ToolManager,
         tool_servers: List[str] = [],
         max_iterations: int = 5,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
     ):
         self.system_prompt = system_prompt
         self.provider_cfg = provider_cfg
@@ -40,6 +43,8 @@ class BaseChatbot:
         self.tool_manager = tool_manager
         self.tool_servers = tool_servers
         self.max_iterations = max_iterations
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
         self.client = OpenAI(
             api_key=self.provider_cfg.api_key, base_url=self.provider_cfg.api_base
@@ -68,7 +73,12 @@ class BaseChatbot:
                 )
 
         # Prepare API call params
-        api_params: Dict[str, Any] = {"model": self.model_id, "messages": messages}
+        api_params: Dict[str, Any] = {
+            "model": self.model_id,
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
         if api_tools:
             api_params["tools"] = api_tools
 

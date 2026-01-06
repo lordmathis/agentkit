@@ -1,7 +1,8 @@
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
+import json
 import uuid
 
 from agentkit.db.models import Base, Chat, Message
@@ -101,6 +102,60 @@ class Database:
             if chat:
                 session.delete(chat)
                 session.commit()
+
+    def update_chat(self, chat_id: str, **kwargs) -> Optional[Chat]:
+        """Update chat metadata and configuration"""
+        with self.SessionLocal() as session:
+            chat = session.get(Chat, chat_id)
+            if not chat:
+                return None
+
+            for key, value in kwargs.items():
+                if hasattr(chat, key):
+                    setattr(chat, key, value)
+
+            chat.updated_at = datetime.utcnow()
+            session.commit()
+            session.refresh(chat)
+            return chat
+
+    def save_chat_config(
+        self,
+        chat_id: str,
+        model: str,
+        system_prompt: Optional[str] = None,
+        tool_servers: Optional[List[str]] = None,
+        model_params: Optional[Dict] = None,
+    ) -> Optional[Chat]:
+        """Save chat configuration for restoration"""
+        with self.SessionLocal() as session:
+            chat = session.get(Chat, chat_id)
+            if not chat:
+                return None
+
+            chat.model = model
+            chat.system_prompt = system_prompt
+            chat.tool_servers = json.dumps(tool_servers) if tool_servers else None
+            chat.model_params = json.dumps(model_params) if model_params else None
+            chat.updated_at = datetime.now()
+
+            session.commit()
+            session.refresh(chat)
+            return chat
+
+    def get_chat_config(self, chat_id: str) -> Optional[Dict]:
+        """Get chat configuration"""
+        with self.SessionLocal() as session:
+            chat = session.get(Chat, chat_id)
+            if not chat:
+                return None
+
+            return {
+                "model": chat.model,
+                "system_prompt": chat.system_prompt,
+                "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
+                "model_params": json.loads(chat.model_params) if chat.model_params else None,
+            }
 
     def close(self):
         """Close database connections and dispose of the engine"""
