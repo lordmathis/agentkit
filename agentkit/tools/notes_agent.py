@@ -1,5 +1,3 @@
-from typing import List
-
 from agentkit.tools.manager import ToolManager
 from agentkit.tools.smolagents import SmolAgentsAgent
 
