@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import Dict, List, Optional
+from contextlib import AsyncExitStack
 
-
-from mcp import ClientSession, StdioServerParameters, stdio_client
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 from smolagents import DuckDuckGoSearchTool, VisitWebpageTool, MCPClient
 
 from agentkit.config import MCPConfig, MCPType, ProviderConfig
@@ -16,7 +17,7 @@ class ToolManager:
     def __init__(self, servers: Dict[str, MCPConfig]):
         self._mcp_servers = servers
         self._sessions = {}  # server_name -> ClientSession
-        self._contexts = {}  # server_name -> async context manager
+        self._exit_stack = AsyncExitStack()  # Manages all context managers
         self._smol_tools = {}
         self._smol_agents = {}
         self._mcp_client: MCPClient
@@ -35,25 +36,30 @@ class ToolManager:
             print(f"DEBUG:   Command: {config.command}, Args: {config.args}")
 
             if config.type == MCPType.STDIO:
-                ctx = stdio_client(StdioServerParameters(
+                server_params = StdioServerParameters(
                     command=config.command,
                     args=config.args,
                     env=config.env,
-                ))
+                )
             else:
                 raise ValueError(f"Unsupported MCP type: {config.type}")
 
-            print(f"DEBUG: Entering context for '{server_name}'...")
-            reader, writer = await ctx.__aenter__()
-            print(f"DEBUG: Context entered for '{server_name}', creating session...")
-            session = ClientSession(reader, writer)
-            print(f"DEBUG: Entering session context for '{server_name}'...")
-            await session.__aenter__()
+            print(f"DEBUG: Creating stdio client for '{server_name}'...")
+            # Use AsyncExitStack to properly manage context managers
+            read_stream, write_stream = await self._exit_stack.enter_async_context(
+                stdio_client(server_params)
+            )
+
+            print(f"DEBUG: Connected to stdio client for '{server_name}', creating session...")
+            session = ClientSession(read_stream, write_stream)
+
+            # Enter session context via exit stack
+            await self._exit_stack.enter_async_context(session)
+
             print(f"DEBUG: Initializing session for '{server_name}'...")
             await session.initialize()
             print(f"DEBUG: Session initialized for '{server_name}'")
 
-            self._contexts[server_name] = ctx
             self._sessions[server_name] = session
             self._server_registry[server_name] = ToolType.MCP
 
@@ -135,11 +141,25 @@ class ToolManager:
     
     async def stop(self):
         """Cleanup on shutdown"""
-        # Exit session contexts first
-        for session in self._sessions.values():
-            await session.__aexit__(None, None, None)
-        # Then exit stdio contexts
-        for ctx in self._contexts.values():
-            await ctx.__aexit__(None, None, None)
+        print("DEBUG: ToolManager.stop() - Starting cleanup...")
+
+        # Clean up agents first
         for agent in self._smol_agents.values():
-            agent.cleanup()
+            try:
+                agent.cleanup()
+            except Exception as e:
+                print(f"DEBUG: Error cleaning up agent: {e}")
+
+        # Use AsyncExitStack to properly clean up all context managers
+        # This will exit all contexts in reverse order (LIFO)
+        try:
+            print("DEBUG: Closing AsyncExitStack (this will clean up all MCP sessions)...")
+            await self._exit_stack.aclose()
+            print("DEBUG: AsyncExitStack closed successfully")
+        except Exception as e:
+            print(f"DEBUG: Error during AsyncExitStack cleanup: {e}")
+
+        # Clear all references
+        self._sessions.clear()
+
+        print("DEBUG: ToolManager.stop() - Cleanup complete")
