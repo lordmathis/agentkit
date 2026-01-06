@@ -6,7 +6,6 @@ from mcp import ClientSession, StdioServerParameters, stdio_client
 from smolagents import DuckDuckGoSearchTool, VisitWebpageTool
 
 from agentkit.config import MCPConfig, MCPType, ProviderConfig
-from agentkit.tools.notes_agent import NotesAgent
 
 class ToolType(Enum):
     MCP = "mcp"
@@ -28,6 +27,8 @@ class ToolManager:
         
     async def start(self):
         """Initialize all MCP servers once"""
+        from agentkit.tools.notes_agent import NotesAgent
+
         for server_name, config in self._mcp_servers.items():
             if config.type == MCPType.STDIO:
                 ctx = stdio_client(StdioServerParameters(

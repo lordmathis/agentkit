@@ -4,7 +4,6 @@ from typing import Optional
 import json
 
 from agentkit.services.chat_service import ChatService, ChatConfig
-from agentkit.server import app
 
 router = APIRouter()
 
