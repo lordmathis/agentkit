@@ -111,6 +111,9 @@ class ToolManager:
         
         raise ValueError(f"Unknown server '{server_name}'")
     
+    async def list_tool_servers(self) -> list[str]:
+        """List all registered tool servers"""
+        return list(self._server_registry.keys())
     
     async def stop(self):
         """Cleanup on shutdown"""

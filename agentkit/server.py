@@ -29,8 +29,8 @@ async def lifespan(app: FastAPI):
     app.state.tool_manager = tool_manager
 
     # Initialize model registry
-    model_registry = ChatbotRegistry(provider_registry, tool_manager)
-    app.state.model_registry = model_registry
+    chatbot_registry = ChatbotRegistry(provider_registry, tool_manager)
+    app.state.model_registry = chatbot_registry
 
     print("Server started successfully")
 
@@ -44,8 +44,3 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
