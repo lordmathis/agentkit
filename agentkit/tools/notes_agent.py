@@ -1,15 +1,15 @@
 from typing import List
 
-from agentkit.tools.registry import ToolRegistry
-from agentkit.tools.smolagents import SmolAgentsTool
+from agentkit.tools.manager import ToolManager
+from agentkit.tools.smolagents import SmolAgentsAgent
 
 
-class NotesAgent(SmolAgentsTool):
-    def __init__(self, tool_registry: ToolRegistry):
+class NotesAgent(SmolAgentsAgent):
+    def __init__(self, tool_manager: ToolManager):
         super().__init__(
-            tool_registry=tool_registry,
-            mcp_ids=["gitea"],
-            name="Notes Agent",
+            tool_manager=tool_manager,
+            name="notes_agent",
+            tool_names=["gitea"],
             description="An agent that helps manage and interact with personal notes stored in a Gitea repository.",
             parameters={
                 "type": "object",

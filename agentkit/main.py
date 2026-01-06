@@ -8,7 +8,7 @@ from agentkit.db import Database
 from agentkit.models.registry import ModelRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.server import app
-from agentkit.tools.registry import ToolRegistry
+from agentkit.tools.manager import ToolManager
 
 if __name__ == "__main__":
     load_dotenv(override=True)
@@ -17,13 +17,9 @@ if __name__ == "__main__":
     database = Database(app_config.history_db_path)
 
     provider_registry = ProviderRegistry(app_config.providers)
-    tool_registry = ToolRegistry(app_config.mcps)
-    model_registry = ModelRegistry(provider_registry, tool_registry)
 
-    app.state.database = database
-    app.state.provider_registry = provider_registry
-    app.state.tool_registry = tool_registry
-    app.state.model_registry = model_registry
+    mcp_manager = ToolManager(app_config.mcps)
+    mcp_manager.start()
 
     cleanup_state = {"done": False}
 
@@ -34,6 +30,7 @@ if __name__ == "__main__":
         cleanup_state["done"] = True
         print("\nShutting down...")
         database.close()
+        await mcp_manager.stop()
 
     def signal_handler(signum, frame):
         """Handle shutdown signals"""

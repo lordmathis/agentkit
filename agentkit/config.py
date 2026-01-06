@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 from typing import Dict, List, Optional
 
@@ -14,9 +15,14 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
 
+class MCPType(Enum):
+    STDIO = "stdio"
+    SSE = "sse"
+
 class MCPConfig(BaseModel):
     command: str
     args: List[str] = []
+    type: MCPType
     env: Dict[str, str] = {}
 
 class AppConfig(BaseModel):
