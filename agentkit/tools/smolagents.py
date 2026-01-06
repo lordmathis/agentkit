@@ -1,66 +1,80 @@
-from typing import List
+from typing import List, Optional
+from smolagents import OpenAIModel, ToolCallingAgent, MCPClient, Tool
 
-from smolagents import OpenAIModel, ToolCallingAgent, MCPClient
-
-from agentkit.tools.manager import ToolManager
-
+from agentkit.tools.manager import ToolManager, ToolType
 
 class SmolAgentsAgent:
-    name: str
-    description: str
-    parameters: dict = {
-        "type": "object",
-        "properties": {
-            "prompt": {
-                "type": "string",
-                "description": "The input prompt for the agent",
-            },
-        },
-        "required": ["prompt"],
-    }
-    system_prompt: str = ""
-
     def __init__(
         self,
         tool_manager: ToolManager,
         name: str,
         description: str,
         parameters: dict,
+        tool_servers: List[str] = [],  # Which MCP servers this agent needs
         system_prompt: str = "",
-        tool_names: List[str] = [],
     ):
         self.tool_manager = tool_manager
-        self.tool_names = tool_names
         self.name = name
         self.description = description
         self.parameters = parameters
+        self.tool_servers = tool_servers
         self.system_prompt = system_prompt
+        
+        # Will be initialized by tool_manager.start()
+        self.mcp_client: Optional[MCPClient] = None
+        self.tools: List[Tool] = []
 
-    def get_description(self) -> str:
-        return self.description
+    def initialize(self):
+        """Called by ToolManager.start() to set up MCP client and tools"""
+        # Get MCP server params for this agent
 
-    def get_parameters(self) -> dict:
-        return self.parameters
+        mcp_params = []
 
-    def run(self, provider_cfg, model_id, prompt: str) -> dict:
+        for server_name in self.tool_servers:
+            server_type = self.tool_manager._server_registry.get(server_name)
+
+            if server_type == ToolType.MCP:
+                params = self.tool_manager._server_params.get(server_name)
+                if params:
+                    mcp_params.append(params)
+
+            if server_type == ToolType.SMOLAGENTS_TOOL:
+                # Add smolagents tool directly
+                tool = self.tool_manager._smol_tools.get(server_name)
+                if tool:
+                    self.tools.append(tool)
+
+            if server_type == ToolType.SMOLAGENTS_AGENT:
+                raise ValueError("Nested SmolAgentsAgent is not supported")
+        
+        # Initialize MCP client if needed
+        if mcp_params:
+            self.mcp_client = MCPClient(mcp_params)
+            self.mcp_client.__enter__()
+            self.tools.extend(self.mcp_client.get_tools())
+        
+
+    def run(self, provider_cfg, model_id, prompt: str) -> str:
+        """Run the agent with its configured tools"""
+        if not self.tools and not self.mcp_client:
+            # No tools configured, just use the model
+            pass
+        
         model = OpenAIModel(
             api_base=provider_cfg.api_base,
             api_key=provider_cfg.api_key,
             model_id=model_id,
         )
 
-        mcp_client, tools = ...
+        agent = ToolCallingAgent(
+            model=model,
+            tools=self.tools,
+            system_prompt=self.system_prompt,
+        )
 
-        with MCPClient(...) as tools:
-            agent = ToolCallingAgent(
-                model=model,
-                tools=tools,
-            )
-
-            full_prompt = prompt
-            if self.system_prompt:
-                full_prompt = (
-                    f"INSTRUCTIONS: {self.system_prompt}\n\nUSER QUERY: {prompt}"
-                )
-
-            return agent.run(full_prompt).dict()
+        return str(agent.run(prompt))
+    
+    def cleanup(self):
+        """Called by ToolManager.stop() to clean up MCP client"""
+        if self.mcp_client:
+            self.mcp_client.__exit__(None, None, None)

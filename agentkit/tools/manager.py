@@ -116,3 +116,5 @@ class ToolManager:
         """Cleanup on shutdown"""
         for ctx in self._contexts.values():
             await ctx.__aexit__(None, None, None)
+        for agent in self._smol_agents.values():
+            agent.cleanup()

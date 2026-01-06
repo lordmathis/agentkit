@@ -9,7 +9,7 @@ class NotesAgent(SmolAgentsAgent):
         super().__init__(
             tool_manager=tool_manager,
             name="notes_agent",
-            tool_names=["gitea"],
+            tool_servers=["gitea"],
             description="An agent that helps manage and interact with personal notes stored in a Gitea repository.",
             parameters={
                 "type": "object",

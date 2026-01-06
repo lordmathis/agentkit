@@ -1,6 +1,5 @@
-from contextlib import AsyncExitStack
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from openai import OpenAI
 from openai.types.chat import (
@@ -32,14 +31,14 @@ class ChatSession:
         provider_cfg: ProviderConfig,
         model_id: str,
         tool_manager: ToolManager,
-        tool_server_ids: List[str] = [],
+        tool_servers: List[str] = [],
         max_iterations: int = 5,
     ):
         self.system_prompt = system_prompt
         self.provider = provider_cfg
         self.model_id = model_id
         self.tool_manager = tool_manager
-        self.tool_server_ids = tool_server_ids
+        self.tool_servers = tool_servers
         self.max_iterations = max_iterations
 
         self.client = OpenAI(
@@ -56,7 +55,7 @@ class ChatSession:
                 ] + messages
 
         api_tools = []
-        for tool_server in self.tool_server_ids:
+        for tool_server in self.tool_servers:
 
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:
@@ -106,7 +105,7 @@ class ChatSession:
                 tool_args = json.loads(tool_call.function.arguments)
 
                 result = await self.tool_manager.call_tool(
-                    self.provider_cfg, self.model_id tool_name, tool_args
+                    self.provider_cfg, self.model_id, tool_name, tool_args
                 )
 
                 # Add tool result
