@@ -11,7 +11,7 @@ from agentkit.config import ProviderConfig
 from agentkit.tools.manager import ToolManager
 
 
-class ChatSession:
+class BaseChatbot:
     """Base model for OpenAI-compatible chat with agent tool calling.
     """
 
@@ -35,14 +35,14 @@ class ChatSession:
         max_iterations: int = 5,
     ):
         self.system_prompt = system_prompt
-        self.provider = provider_cfg
+        self.provider_cfg = provider_cfg
         self.model_id = model_id
         self.tool_manager = tool_manager
         self.tool_servers = tool_servers
         self.max_iterations = max_iterations
 
         self.client = OpenAI(
-            api_key=self.provider.api_key, base_url=self.provider.api_base
+            api_key=self.provider_cfg.api_key, base_url=self.provider_cfg.api_base
         )
 
     async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:

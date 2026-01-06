@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from agentkit.config import AppConfig
 from agentkit.db import Database
-from agentkit.models.registry import ModelRegistry
+from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
 
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     app.state.tool_manager = tool_manager
 
     # Initialize model registry
-    model_registry = ModelRegistry(provider_registry, tool_manager)
+    model_registry = ChatbotRegistry(provider_registry, tool_manager)
     app.state.model_registry = model_registry
 
     print("Server started successfully")

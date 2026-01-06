@@ -5,7 +5,7 @@ from huggingface_hub import MCPClient
 from mcp import ClientSession, StdioServerParameters, stdio_client
 from smolagents import DuckDuckGoSearchTool, VisitWebpageTool
 
-from agentkit.config import MCPConfig, MCPType
+from agentkit.config import MCPConfig, MCPType, ProviderConfig
 from agentkit.tools.notes_agent import NotesAgent
 
 class ToolType(Enum):
@@ -69,7 +69,7 @@ class ToolManager:
         self._tool_registry['notes_agent:notes_agent'] = ToolType.SMOLAGENTS_AGENT
         self._server_registry['notes_agent'] = ToolType.SMOLAGENTS_AGENT
 
-    async def call_tool(self, provider_cfg, model_id, tool_name: str, arguments: dict):
+    async def call_tool(self, provider_cfg: ProviderConfig, model_id: str, tool_name: str, arguments: dict):
         """Synchronous-feeling tool call using pre-initialized session"""
         server_name, actual_tool_name = tool_name.split(":", 1)
         tool_type = self._tool_registry.get(tool_name)
