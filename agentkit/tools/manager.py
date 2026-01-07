@@ -100,13 +100,13 @@ class ToolManager:
 
                 logger.debug(f"Listing tools for '{server_name}'...")
                 try:
-                    tools = await asyncio.wait_for(
+                    tools_result = await asyncio.wait_for(
                         session.list_tools(),
                         timeout=self._mcp_timeout
                     )
-                    for tool, _ in tools:
-                        logger.debug(f"Found tool in '{server_name}': {tool}")
-                        self._tool_registry[f"{server_name}:{tool}"] = ToolType.MCP
+                    for tool in tools_result.tools:
+                        logger.debug(f"Found tool in '{server_name}': {tool.name}")
+                        self._tool_registry[f"{server_name}:{tool.name}"] = ToolType.MCP
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout while listing tools for '{server_name}' (timeout: {self._mcp_timeout}s)")
                     raise TimeoutError(f"Failed to list tools for MCP server '{server_name}' within {self._mcp_timeout} seconds")
@@ -243,12 +243,12 @@ class ToolManager:
                 
                 logger.debug(f"Listing tools for MCP server '{server_name}'")
                 try:
-                    tools = await asyncio.wait_for(
+                    tools_result = await asyncio.wait_for(
                         session.list_tools(),
                         timeout=self._mcp_timeout
                     )
-                    logger.debug(f"Found {len(tools)} tools for MCP server '{server_name}'")
-                    return tools
+                    logger.debug(f"Found {len(tools_result.tools)} tools for MCP server '{server_name}'")
+                    return tools_result.tools
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout while listing tools for MCP server '{server_name}' (timeout: {self._mcp_timeout}s)")
                     raise TimeoutError(f"Failed to list tools for MCP server '{server_name}' within {self._mcp_timeout} seconds")
@@ -267,6 +267,13 @@ class ToolManager:
         """List all registered tool servers"""
         logger.debug(f"Listing {len(self._server_registry)} registered tool servers")
         return list(self._server_registry.keys())
+    
+    def get_server_type(self, server_name: str) -> ToolType:
+        """Get the type of a specific server"""
+        server_type = self._server_registry.get(server_name)
+        if server_type is None:
+            raise ValueError(f"Unknown server '{server_name}'")
+        return server_type
     
     async def stop(self):
         """Cleanup on shutdown"""

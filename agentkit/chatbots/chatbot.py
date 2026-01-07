@@ -62,11 +62,22 @@ class BaseChatbot:
 
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:
+                # Handle different tool types (MCP uses 'parameters', smolagents uses 'inputs')
+                if hasattr(tool, 'parameters'):
+                    parameters = tool.parameters
+                elif hasattr(tool, 'inputs'):
+                    parameters = tool.inputs
+                else:
+                    parameters = {}
+                
                 api_tools.append(
                     {
-                        "name": f"{tool_server}:{tool.name}",
-                        "description": tool.description,
-                        "parameters": tool.parameters,
+                        "type": "function",
+                        "function": {
+                            "name": f"{tool_server}:{tool.name}",
+                            "description": tool.description,
+                            "parameters": parameters,
+                        }
                     }
                 )
 

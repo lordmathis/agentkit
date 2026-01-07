@@ -22,7 +22,7 @@ async def list_models(request: Request):
         models.append({
             "id": model_name,
             "object": "model",
-            "created": 1234567890,  # Static timestamp for now
+            "created": 1234567890,
             "owned_by": "agentkit"
         })
 
@@ -94,7 +94,6 @@ async def list_providers(request: Request):
             if model_ids is None:
                 model_ids = []
         except Exception:
-            # If provider doesn't support listing models, use empty list
             model_ids = []
 
         providers.append({
@@ -125,17 +124,31 @@ async def list_tools(request: Request):
             # Convert tools to dict format
             tool_list = []
             for tool in tools:
-                tool_list.append({
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.parameters
-                })
+                if hasattr(tool, 'parameters'):
+                    # MCP tools have parameters attribute
+                    tool_dict = {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters
+                    }
+                elif hasattr(tool, 'inputs'):
+                    # SMOLAGENTS tools have inputs attribute
+                    tool_dict = {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.inputs
+                    }
+                else:
+                    tool_dict = {
+                        "name": getattr(tool, 'name', 'unknown'),
+                        "description": getattr(tool, 'description', ''),
+                        "parameters": {}
+                    }
+                tool_list.append(tool_dict)
 
-            # Determine tool server type
-            # This is a simple heuristic - you might want to add proper type tracking
-            server_type = "mcp"  # Default to MCP
-            if "agent" in server_name.lower():
-                server_type = "smolagents_agent"
+            # Get the actual server type from the tool manager
+            server_type_enum = tool_manager.get_server_type(server_name)
+            server_type = server_type_enum.value
 
             tool_servers.append({
                 "name": server_name,
