@@ -8,8 +8,10 @@ from pydantic import BaseModel
 
 class ProviderConfig(BaseModel):
     model_ids: Optional[List[str]] = None
-    api_key: str
+    api_key: Optional[str] = None
     api_base: str
+    basic_auth_token: Optional[str] = None
+    verify_ssl: bool = True
 
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
@@ -30,6 +32,7 @@ class AppConfig(BaseModel):
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
     history_db_path: str = "agentkit.db"
+    mcp_timeout: int = 60
 
 
 def load_config(path: str) -> AppConfig:

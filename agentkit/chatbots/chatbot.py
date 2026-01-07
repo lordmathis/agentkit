@@ -7,17 +7,16 @@ from openai.types.chat import (
     ChatCompletionDeveloperMessageParam,
 )
 
-from agentkit.config import ProviderConfig
+from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager
 
 
 class BaseChatbot:
-    """Base model for OpenAI-compatible chat with agent tool calling.
-    """
+    """Base model for OpenAI-compatible chat with agent tool calling."""
 
     system_prompt: str = ""
 
-    provider_cfg: ProviderConfig
+    provider: Provider
     model_id: str = ""
 
     max_iterations: int = 5
@@ -29,7 +28,7 @@ class BaseChatbot:
     def __init__(
         self,
         system_prompt: str,
-        provider_cfg: ProviderConfig,
+        provider: Provider,
         model_id: str,
         tool_manager: ToolManager,
         tool_servers: List[str] = [],
@@ -38,7 +37,7 @@ class BaseChatbot:
         max_tokens: int = 2000,
     ):
         self.system_prompt = system_prompt
-        self.provider_cfg = provider_cfg
+        self.provider = provider
         self.model_id = model_id
         self.tool_manager = tool_manager
         self.tool_servers = tool_servers
@@ -46,9 +45,8 @@ class BaseChatbot:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        self.client = OpenAI(
-            api_key=self.provider_cfg.api_key, base_url=self.provider_cfg.api_base
-        )
+        client_kwargs = provider.get_client_kwargs()
+        self.client = OpenAI(**client_kwargs)
 
     async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         if self.system_prompt:
@@ -115,7 +113,7 @@ class BaseChatbot:
                 tool_args = json.loads(tool_call.function.arguments)
 
                 result = await self.tool_manager.call_tool(
-                    self.provider_cfg, self.model_id, tool_name, tool_args
+                    self.provider, self.model_id, tool_name, tool_args
                 )
 
                 # Add tool result

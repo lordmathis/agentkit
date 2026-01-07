@@ -19,11 +19,12 @@ class ChatbotRegistry:
         self._register_models()
 
     def _register_models(self):
-        assistant = Assistant(
-            self.provider_registry,
-            self.tool_manager,
-        )
-        self._models["Assistant"] = assistant
+        # assistant = Assistant(
+        #     self.provider_registry,
+        #     self.tool_manager,
+        # )
+        # self._models["Assistant"] = assistant
+        pass
 
     def get_model(self, name: str) -> Optional[BaseChatbot]:
         """Retrieve a model by name."""

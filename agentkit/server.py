@@ -1,71 +1,72 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from agentkit.config import AppConfig
 from agentkit.db import Database
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
-from agentkit.routes import register_routes
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
-    print("DEBUG: Starting lifespan initialization...")
     # Startup: Initialize tool manager and other resources
+    logger.info("Initializing application...")
     app_config: AppConfig = app.state.app_config
-    print(f"DEBUG: Got app config: {app_config}")
 
     # Initialize database
-    print("DEBUG: Initializing database...")
+    logger.info("Initializing database...")
     database = Database(app_config.history_db_path)
     app.state.database = database
-    print("DEBUG: Database initialized")
 
     # Initialize provider registry
-    print("DEBUG: Initializing provider registry...")
+    logger.info("Initializing provider registry...")
     provider_registry = ProviderRegistry(app_config.providers)
     app.state.provider_registry = provider_registry
-    print("DEBUG: Provider registry initialized")
 
     # Initialize and start tool manager
-    print("DEBUG: Creating tool manager...")
-    tool_manager = ToolManager(app_config.mcps)
-    print("DEBUG: Starting tool manager...")
-    await tool_manager.start()
-    print("DEBUG: Tool manager started")
-    app.state.tool_manager = tool_manager
+    try:
+        tool_manager = ToolManager(app_config.mcps)
+        await tool_manager.start()
+        app.state.tool_manager = tool_manager
+    except Exception as e:
+        logger.error(f"Failed to start tool manager: {e}", exc_info=True)
+        # Clean up already initialized resources
+        database.close()
+        raise
 
     # Initialize model registry
-    print("DEBUG: Initializing chatbot registry...")
-    chatbot_registry = ChatbotRegistry(provider_registry, tool_manager)
-    app.state.model_registry = chatbot_registry
-    print("DEBUG: Chatbot registry initialized")
+    logger.info("Initializing chatbot registry...")
+    model_registry = ChatbotRegistry(provider_registry, tool_manager)
+    app.state.model_registry = model_registry
 
-    print("Server started successfully")
+    logger.info("Server started successfully")
 
     yield
 
     # Shutdown: Clean up resources
-    print("Shutting down server...")
-    await tool_manager.stop()
-    database.close()
-    print("Server shutdown complete")
+    logger.info("Shutting down server...")
+    try:
+        await tool_manager.stop()
+    except Exception as e:
+        logger.error(f"Error during tool manager shutdown: {e}", exc_info=True)
+    
+    try:
+        database.close()
+    except Exception as e:
+        logger.error(f"Error during database shutdown: {e}", exc_info=True)
+    
+    logger.info("Server shutdown complete")
 
 
 app = FastAPI(lifespan=lifespan)
 
-# Add CORS middleware for web UI development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React/Vite dev servers
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Register API routes
-register_routes(app)
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}

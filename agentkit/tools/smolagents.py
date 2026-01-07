@@ -1,6 +1,8 @@
 from typing import List, Optional
+from openai import OpenAI
 from smolagents import OpenAIModel, ToolCallingAgent, MCPClient, Tool
 
+from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager, ToolType
 
 class SmolAgentsAgent:
@@ -54,16 +56,16 @@ class SmolAgentsAgent:
             self.tools.extend(self.mcp_client.get_tools())
         
 
-    def run(self, provider_cfg, model_id, prompt: str) -> str:
+    def run(self, provider: Provider, model_id: str, prompt: str) -> str:
         """Run the agent with its configured tools"""
         if not self.tools and not self.mcp_client:
             # No tools configured, just use the model
             pass
         
+        client_kwargs = provider.get_client_kwargs()
         model = OpenAIModel(
-            api_base=provider_cfg.api_base,
-            api_key=provider_cfg.api_key,
             model_id=model_id,
+            client_kwargs=client_kwargs,
         )
 
         agent = ToolCallingAgent(

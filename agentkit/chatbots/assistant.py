@@ -1,5 +1,4 @@
 
-from agentkit.config import ProviderConfig
 from agentkit.chatbots.chatbot import BaseChatbot
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools import ToolManager
@@ -46,7 +45,7 @@ class Assistant(BaseChatbot):
 
         super().__init__(
             system_prompt=SYSTEM_PROMPT,
-            provider_cfg=provider.config,
+            provider=provider,
             model_id=MODEL_ID,
             tool_manager=tool_manager,
             tool_servers=["notes_agent"]
