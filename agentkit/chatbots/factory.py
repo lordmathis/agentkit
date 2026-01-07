@@ -54,7 +54,7 @@ class ChatbotFactory:
             # Create a new chatbot instance with provider config
             return BaseChatbot(
                 system_prompt=system_prompt or "",
-                provider_cfg=provider.config,
+                provider=provider,
                 model_id=model_id,
                 tool_manager=tool_manager,
                 tool_servers=tool_servers or [],
@@ -72,7 +72,7 @@ class ChatbotFactory:
         # Note: We create a new instance to avoid mutating the registered chatbot
         return BaseChatbot(
             system_prompt=system_prompt or chatbot.system_prompt,
-            provider_cfg=chatbot.provider_cfg,
+            provider=chatbot.provider,
             model_id=chatbot.model_id,
             tool_manager=tool_manager,
             tool_servers=tool_servers if tool_servers is not None else chatbot.tool_servers,

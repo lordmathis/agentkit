@@ -11,6 +11,7 @@ dependencies = [
     "isort>=7.0.0",
     "mcp>=1.25.0",
     "openai>=2.14.0",
+    "prompt-toolkit>=3.0.0",
     "pydantic>=2.12.5",
     "python-dotenv>=1.2.1",
     "rich>=14.2.0",

@@ -15,17 +15,24 @@ class PreEncodedBasicAuth(httpx.Auth):
 class Provider:
     def __init__(self, config: ProviderConfig):
         self.config = config
+        self._http_client = None
+        self._openai_client = None
+
+    def _get_http_client(self) -> httpx.Client:
+        """Get or create a persistent httpx client with proper auth and SSL settings."""
+        if self._http_client is None:
+            self._http_client = httpx.Client(
+                verify=self.config.verify_ssl,
+                auth=PreEncodedBasicAuth(self.config.basic_auth_token) if self.config.basic_auth_token else None,
+            )
+        return self._http_client
 
     def get_client_kwargs(self) -> dict:
         """Get client kwargs including authorization headers and SSL verification."""
-        http_client = httpx.Client(
-            verify=self.config.verify_ssl,
-            auth=PreEncodedBasicAuth(self.config.basic_auth_token) if self.config.basic_auth_token else None,
-        )
         return {
-            "api_key": self.config.api_key,
-            "base_url": self.config.api_base,
-            "http_client": http_client,
+            "api_key": self.config.api_key or "",
+            "base_url": self.config.api_base or "",
+            "http_client": self._get_http_client(),
         }
 
     def get_model_ids(self) -> list[str] | None:
@@ -34,9 +41,8 @@ class Provider:
         Returns:
             List of model IDs if successful, None if an error occurs
         """
-        try:
-            client = OpenAI(api_key=self.config.api_key, base_url=self.config.api_base)
-            models = client.models.list()
-            return [model.id for model in models.data]
-        except Exception:
-            return None
+        if self._openai_client is None:
+            self._openai_client = OpenAI(**self.get_client_kwargs())
+        
+        models = self._openai_client.models.list()
+        return [model.id for model in models.data]

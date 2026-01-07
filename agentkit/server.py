@@ -8,6 +8,7 @@ from agentkit.db import Database
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
+from agentkit.routes import register_routes
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Register API routes
+register_routes(app)
 
 
 @app.get("/health")

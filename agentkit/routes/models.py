@@ -40,7 +40,9 @@ async def list_models(request: Request):
                     })
         except Exception as e:
             # If a provider doesn't support listing models, skip it
+            import traceback
             print(f"Warning: Could not list models from provider {provider_name}: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
             continue
 
     return {
