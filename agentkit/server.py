@@ -8,6 +8,7 @@ from agentkit.db import Database
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
+from agentkit.services.chat_service import ChatServiceManager
 from agentkit.routes import register_routes
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,16 @@ async def lifespan(app: FastAPI):
         app_config.plugins.chatbots_dir
     )
     app.state.model_registry = model_registry
+
+    # Initialize chat service manager
+    logger.info("Initializing chat service manager...")
+    chat_service_manager = ChatServiceManager(
+        db=database,
+        provider_registry=provider_registry,
+        chatbot_registry=model_registry,
+        tool_manager=tool_manager
+    )
+    app.state.chat_service_manager = chat_service_manager
 
     logger.info("Server started successfully")
 

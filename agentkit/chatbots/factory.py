@@ -63,20 +63,27 @@ class ChatbotFactory:
                 max_tokens=max_tokens,
             )
 
-        # Otherwise, lookup in chatbot registry
-        chatbot = chatbot_registry.get_model(model)
-        if not chatbot:
+        # Otherwise, lookup chatbot class in registry and instantiate it
+        chatbot_class = chatbot_registry.get_chatbot_class(model)
+        if not chatbot_class:
             raise ValueError(f"Chatbot '{model}' not found in registry")
 
-        # Clone the chatbot with overridden settings
-        # Note: We create a new instance to avoid mutating the registered chatbot
-        return Chatbot(
-            provider=chatbot.provider,
-            tool_manager=tool_manager,
-            system_prompt=system_prompt or chatbot.system_prompt,
-            model_id=chatbot.model_id,
-            tool_servers=tool_servers if tool_servers is not None else chatbot.tool_servers,
-            max_iterations=max_iterations,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # Instantiate the chatbot with the registry dependencies
+        try:
+            chatbot = chatbot_class(provider_registry, tool_manager)
+        except Exception as e:
+            raise ValueError(f"Failed to instantiate chatbot '{model}': {e}")
+
+        # Override settings if provided
+        if system_prompt is not None:
+            chatbot.system_prompt = system_prompt
+        if tool_servers is not None:
+            chatbot.tool_servers = tool_servers
+        if temperature != 0.7:
+            chatbot.temperature = temperature
+        if max_tokens != 2000:
+            chatbot.max_tokens = max_tokens
+        if max_iterations != 5:
+            chatbot.max_iterations = max_iterations
+        
+        return chatbot

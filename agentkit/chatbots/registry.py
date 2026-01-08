@@ -3,7 +3,7 @@ import importlib.util
 import inspect
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Type
 
 from agentkit.chatbots import Chatbot
 from agentkit.chatbots.plugin import ChatbotPlugin
@@ -23,7 +23,7 @@ class ChatbotRegistry:
         self.provider_registry = provider_registry
         self.tool_manager = tool_manager
         self.chatbots_dir = chatbots_dir
-        self._models: Dict[str, Chatbot] = {}
+        self._chatbot_classes: Dict[str, Type[ChatbotPlugin]] = {}
         self._register_chatbots()
 
     def _register_chatbots(self):
@@ -62,32 +62,22 @@ class ChatbotRegistry:
                     if not issubclass(obj, ChatbotPlugin) or obj is ChatbotPlugin:
                         continue
                     
-                    try:
-                        # Instantiate the plugin
-                        instance = obj(self.provider_registry, self.tool_manager)
-                        
-                        # Register using the class name as the key
-                        chatbot_name = name.lower()
-                        self._models[chatbot_name] = instance
-                        logger.info(f"Registered chatbot: {chatbot_name} from {file_path.name}")
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to instantiate chatbot {name} from {file_path.name}: {e}",
-                            exc_info=True
-                        )
+                    # Register the class itself, not an instance
+                    chatbot_name = name.lower()
+                    self._chatbot_classes[chatbot_name] = obj
+                    logger.info(f"Registered chatbot class: {chatbot_name} from {file_path.name}")
             except Exception as e:
                 logger.error(
                     f"Failed to load module from {file_path}: {e}",
                     exc_info=True
                 )
         
-        logger.info(f"Registered {len(self._models)} chatbot(s)")
+        logger.info(f"Registered {len(self._chatbot_classes)} chatbot(s)")
 
+    def get_chatbot_class(self, name: str) -> Optional[Type[ChatbotPlugin]]:
+        """Retrieve a chatbot class by name."""
+        return self._chatbot_classes.get(name)
 
-    def get_model(self, name: str) -> Optional[Chatbot]:
-        """Retrieve a model by name."""
-        return self._models.get(name)
-
-    def list_models(self) -> Dict[str, Chatbot]:
-        """List all registered models."""
-        return self._models.copy()
+    def list_chatbots(self) -> list[str]:
+        """List all registered chatbot names."""
+        return list(self._chatbot_classes.keys())

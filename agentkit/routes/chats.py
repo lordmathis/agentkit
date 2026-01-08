@@ -3,13 +3,14 @@ from pydantic import BaseModel
 from typing import Optional
 import json
 
-from agentkit.services.chat_service import ChatService, ChatConfig
+from agentkit.services.chat_service import ChatServiceManager, ChatConfig
 
 router = APIRouter()
 
 
 class CreateChatRequest(BaseModel):
     title: Optional[str] = "Untitled Chat"
+    config: ChatConfig  # Chat configuration is required at creation time
 
 
 class UpdateChatRequest(BaseModel):
@@ -18,18 +19,34 @@ class UpdateChatRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     message: str
-    config: ChatConfig
-    stream: Optional[bool] = False
+    stream: Optional[bool] = False  # Config is now set at chat creation time
 
 
 @router.post("/chats")
 async def create_chat(request: Request, body: CreateChatRequest):
     """
-    Create a new chat session.
+    Create a new chat session with a ChatService.
     """
     database = request.app.state.database
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
+    # Create chat in database
     chat = database.create_chat(title=body.title)
+
+    # Create chat service with chatbot
+    try:
+        chat_service_manager.create_chat_service(
+            chat_id=chat.id,
+            config=body.config
+        )
+    except ValueError as e:
+        # If chat service creation fails, clean up the chat
+        database.delete_chat(chat.id)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # If chat service creation fails, clean up the chat
+        database.delete_chat(chat.id)
+        raise HTTPException(status_code=500, detail=f"Failed to create chat service: {str(e)}")
 
     return {
         "id": chat.id,
@@ -101,14 +118,19 @@ async def get_chat(request: Request, chat_id: str):
 @router.delete("/chats/{chat_id}")
 async def delete_chat(request: Request, chat_id: str):
     """
-    Delete a chat and all its messages.
+    Delete a chat and all its messages, and remove its chat service.
     """
     database = request.app.state.database
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
     chat = database.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
+    # Remove chat service
+    chat_service_manager.remove_chat_service(chat_id)
+
+    # Delete from database
     database.delete_chat(chat_id)
 
     return {
@@ -143,23 +165,12 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
     Supports both streaming and non-streaming responses.
     For streaming, set stream=true in request body and use Server-Sent Events (SSE).
     """
-    database = request.app.state.database
-    provider_registry = request.app.state.provider_registry
-    chatbot_registry = request.app.state.model_registry
-    tool_manager = request.app.state.tool_manager
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
-    # Verify chat exists
-    chat = database.get_chat(chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
-
-    # Create chat service
-    chat_service = ChatService(
-        db=database,
-        provider_registry=provider_registry,
-        chatbot_registry=chatbot_registry,
-        tool_manager=tool_manager
-    )
+    try:
+        chat_service = chat_service_manager.get_or_create_chat_service(chat_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     if body.stream:
         # TODO: Implement streaming support
@@ -171,11 +182,7 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
     else:
         # Non-streaming response
         try:
-            result = await chat_service.send_message(
-                chat_id=chat_id,
-                message=body.message,
-                config=body.config
-            )
+            result = await chat_service.send_message(message=body.message)
             return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
