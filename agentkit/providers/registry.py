@@ -9,7 +9,7 @@ class ProviderRegistry:
 
     def __init__(self, providers: Dict[str, ProviderConfig]) -> None:
         for name, provider_cfg in providers.items():
-            provider = Provider(provider_cfg)
+            provider = Provider(provider_cfg, name)
             self._providers[name] = provider
 
     def get_provider(self, name: str) -> Provider | None:
