@@ -17,7 +17,7 @@ async def list_models(request: Request):
     models = []
 
     # Add predefined chatbots from registry
-    chatbot_names = chatbot_registry.list_chatbot_names()
+    chatbot_names = chatbot_registry.list_chatbots()
     for model_name in chatbot_names:
         models.append({
             "id": model_name,

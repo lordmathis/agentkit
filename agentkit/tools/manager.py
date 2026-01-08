@@ -64,11 +64,7 @@ class ToolManager:
             raise ValueError(f"Tool '{tool_name}' not found")
         
         try:
-            # Note: Agents need provider and model_id, but they're passed through arguments
-            # This is a limitation of the current design that could be improved
             if handler == self._agent_handler:
-                # Agent plugins might need provider and model_id
-                # For now, we'll let them handle it through their run() method
                 return await handler.call_tool(tool_name, arguments)
             else:
                 return await handler.call_tool(tool_name, arguments)

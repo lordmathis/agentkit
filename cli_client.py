@@ -72,10 +72,30 @@ class AgentKitClient:
         data = response.json()
         return data.get("chats", [])
 
-    async def create_chat(self, title: str = "Untitled Chat") -> Dict[str, Any]:
+    async def create_chat(
+        self,
+        title: str = "Untitled Chat",
+        model: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tool_servers: Optional[List[str]] = None,
+        model_params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Create a new chat."""
+        if not model:
+            raise ValueError("Model is required to create a chat")
+        
+        payload = {
+            "title": title,
+            "config": {
+                "model": model,
+                "system_prompt": system_prompt,
+                "tool_servers": tool_servers or [],
+                "model_params": model_params or {}
+            }
+        }
+        
         response = await self.client.post(
-            f"{self.base_url}/api/chats", json={"title": title}
+            f"{self.base_url}/api/chats", json=payload
         )
         response.raise_for_status()
         return response.json()
@@ -308,10 +328,24 @@ class ChatSession:
 
     async def create_new_chat(self):
         """Create a new chat session."""
+        # Check if model is selected
+        if not self.model:
+            self.console.print("[yellow]No model selected. Please select a model first.[/yellow]")
+            await self.select_model()
+            if not self.model:
+                self.console.print("[red]Cannot create chat without a model[/red]")
+                return
+
         title = Prompt.ask("Chat title", default="New Chat")
 
         try:
-            chat = await self.client.create_chat(title)
+            chat = await self.client.create_chat(
+                title=title,
+                model=self.model,
+                system_prompt=self.system_prompt,
+                tool_servers=self.tool_servers,
+                model_params=self.model_params
+            )
             self.chat_id = chat["id"]
             self.console.print(f"[green]Created new chat: {self.chat_id}[/green]")
         except Exception as e:
@@ -440,13 +474,16 @@ class ChatSession:
                 model_params=self.model_params,
             )
 
-            # Display assistant response
-            assistant_msg = response.get("assistant_message")
-            if assistant_msg:
-                content = assistant_msg.get("content", "")
-                self.console.print(
-                    Panel(Markdown(content), title="Assistant", border_style="blue")
-                )
+            # Display assistant response (OpenAI format)
+            choices = response.get("choices", [])
+            if choices:
+                content = choices[0].get("message", {}).get("content", "")
+                if content:
+                    self.console.print(
+                        Panel(Markdown(content), title="Assistant", border_style="blue")
+                    )
+                else:
+                    self.console.print("[yellow]No response from assistant[/yellow]")
             else:
                 self.console.print("[yellow]No response from assistant[/yellow]")
 

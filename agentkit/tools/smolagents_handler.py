@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import logging
 
-from smolagents import DuckDuckGoSearchTool, VisitWebpageTool
+from smolagents import DuckDuckGoSearchTool, VisitWebpageTool, BaseTool
 
 from agentkit.tools.handler_base import ToolHandler
 
@@ -42,7 +42,8 @@ class SmolagentsToolHandler(ToolHandler):
             raise ValueError(f"SMOLAGENTS tool '{tool_name}' not found")
         
         logger.debug(f"Calling SMOLAGENTS tool '{tool_name}' with arguments: {arguments}")
-        result = tool.run(**arguments)
+        smol_tool: BaseTool = tool
+        result = smol_tool(**arguments)
         logger.debug(f"SMOLAGENTS tool '{tool_name}' completed successfully")
         return result
     

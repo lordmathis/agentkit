@@ -45,15 +45,29 @@ class ChatService:
         return result
 
     async def send_message(self, message: str) -> Dict[str, Any]:
+        import logging
+        logger = logging.getLogger(__name__)
+        
         self.db.save_message(self.chat_id, "user", message)
         history = self.db.get_chat_history(self.chat_id)
         messages = self._convert_messages_to_openai_format(history)
         response = await self.chatbot.chat(messages)
+        
+        logger.info(f"Chat response keys: {response.keys()}")
+        logger.info(f"Chat response choices: {response.get('choices', 'NO CHOICES')}")
 
         if "error" in response:
-            self.db.save_message(
-                self.chat_id, "assistant", f"Error: {response['error']}"
-            )
+            error_msg = f"Error: {response['error']}"
+            self.db.save_message(self.chat_id, "assistant", error_msg)
+            # Format error as OpenAI-style response
+            return {
+                "choices": [{
+                    "message": {
+                        "role": "assistant",
+                        "content": error_msg
+                    }
+                }]
+            }
         else:
             choices = response.get("choices", [])
             if choices:
