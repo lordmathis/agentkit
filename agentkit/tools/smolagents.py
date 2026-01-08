@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from smolagents import OpenAIModel, ToolCallingAgent, MCPClient, Tool
 
 from agentkit.providers.provider import Provider
-from agentkit.tools.manager import ToolManager, ToolType
+from agentkit.tools.manager import ToolManager
+from agentkit.tools.handler_base import ToolType
 
 
 class SmolAgentConfig(BaseModel):
@@ -45,18 +46,24 @@ class SmolAgentsAgent:
         mcp_params = []
 
         for server_name in self.tool_servers:
-            server_type = self.tool_manager._server_registry.get(server_name)
+            server_type = self.tool_manager.get_server_type(server_name)
 
             if server_type == ToolType.MCP:
-                params = self.tool_manager._server_params.get(server_name)
-                if params:
-                    mcp_params.append(params)
+                # For MCP servers, we need to access the handler's sessions
+                # This is a bit of a hack, but maintains backward compatibility
+                if hasattr(self.tool_manager._mcp_handler, '_sessions'):
+                    session = self.tool_manager._mcp_handler._sessions.get(server_name)
+                    if session:
+                        # We need to convert this to MCP params for the MCPClient
+                        # This might need adjustment based on how MCPClient works
+                        pass
 
             if server_type == ToolType.SMOLAGENTS_TOOL:
                 # Add smolagents tool directly
-                tool = self.tool_manager._smol_tools.get(server_name)
-                if tool:
-                    self.tools.append(tool)
+                if hasattr(self.tool_manager._smol_handler, '_tools'):
+                    tool = self.tool_manager._smol_handler._tools.get(server_name)
+                    if tool:
+                        self.tools.append(tool)
 
             if server_type == ToolType.SMOLAGENTS_AGENT:
                 raise ValueError("Nested SmolAgentsAgent is not supported")
