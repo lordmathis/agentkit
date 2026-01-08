@@ -13,11 +13,15 @@ class PreEncodedBasicAuth(httpx.Auth):
 
 
 class Provider:
-    def __init__(self, config: ProviderConfig):
+    def __init__(self, config: ProviderConfig, name: str):
         self.config = config
+        self._name = name
         self._http_client = None
         self._openai_client = None
 
+    def name(self) -> str:
+        return self._name
+    
     def _get_http_client(self) -> httpx.Client:
         """Get or create a persistent httpx client with proper auth and SSL settings."""
         if self._http_client is None:

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from openai.types.chat import ChatCompletionMessageParam
 
 from agentkit.chatbots.factory import ChatbotFactory
-from agentkit.chatbots.chatbot import BaseChatbot
+from agentkit.chatbots.chatbot import Chatbot
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
@@ -38,11 +38,11 @@ class ChatService:
         self.chatbot_registry = chatbot_registry
         self.tool_manager = tool_manager
         # Cache chatbot instances per chat session
-        self._chatbot_cache: Dict[str, BaseChatbot] = {}
+        self._chatbot_cache: Dict[str, Chatbot] = {}
 
     def _get_or_create_chatbot(
         self, chat_id: str, config: ChatConfig
-    ) -> BaseChatbot:
+    ) -> Chatbot:
         """Get cached chatbot or create new one for the chat session."""
         # For now, we recreate chatbot each time since config can change
         # In a more sophisticated implementation, we'd cache by config hash

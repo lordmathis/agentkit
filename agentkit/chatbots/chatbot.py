@@ -10,8 +10,7 @@ from openai.types.chat import (
 from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager
 
-
-class BaseChatbot:
+class Chatbot:
     """Base model for OpenAI-compatible chat with agent tool calling."""
 
     system_prompt: str = ""
@@ -27,10 +26,10 @@ class BaseChatbot:
 
     def __init__(
         self,
-        system_prompt: str,
         provider: Provider,
-        model_id: str,
         tool_manager: ToolManager,
+        model_id: str = "",
+        system_prompt: str = "",
         tool_servers: List[str] = [],
         max_iterations: int = 5,
         temperature: float = 0.7,
@@ -47,6 +46,9 @@ class BaseChatbot:
 
         client_kwargs = provider.get_client_kwargs()
         self.client = OpenAI(**client_kwargs)
+
+    def name(self) -> str:
+        return f"{self.provider}/{self.model_id}"
 
     async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         if self.system_prompt:

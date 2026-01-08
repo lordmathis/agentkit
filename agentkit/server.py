@@ -43,7 +43,11 @@ async def lifespan(app: FastAPI):
 
     # Initialize model registry
     logger.info("Initializing chatbot registry...")
-    model_registry = ChatbotRegistry(provider_registry, tool_manager)
+    model_registry = ChatbotRegistry(
+        provider_registry, 
+        tool_manager,
+        app_config.plugins.chatbots_dir
+    )
     app.state.model_registry = model_registry
 
     logger.info("Server started successfully")

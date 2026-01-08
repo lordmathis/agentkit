@@ -27,10 +27,15 @@ class MCPConfig(BaseModel):
     type: MCPType
     env: Dict[str, str] = {}
 
+class PluginConfig(BaseModel):
+    chatbots_dir: str = "chatbots"
+    agents_dir: str = "agents"
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
+    plugins: PluginConfig = PluginConfig()
     history_db_path: str = "agentkit.db"
     mcp_timeout: int = 60
 

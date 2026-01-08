@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from agentkit.chatbots.chatbot import BaseChatbot
+from agentkit.chatbots.chatbot import Chatbot
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
@@ -20,7 +20,7 @@ class ChatbotFactory:
         temperature: float = 0.7,
         max_tokens: int = 2000,
         max_iterations: int = 5,
-    ) -> BaseChatbot:
+    ) -> Chatbot:
         """
         Create chatbot from model string.
 
@@ -52,11 +52,11 @@ class ChatbotFactory:
                 raise ValueError(f"Provider '{provider_name}' not found")
 
             # Create a new chatbot instance with provider config
-            return BaseChatbot(
-                system_prompt=system_prompt or "",
+            return Chatbot(
                 provider=provider,
-                model_id=model_id,
                 tool_manager=tool_manager,
+                system_prompt=system_prompt or "",
+                model_id=model_id,
                 tool_servers=tool_servers or [],
                 max_iterations=max_iterations,
                 temperature=temperature,
@@ -70,11 +70,11 @@ class ChatbotFactory:
 
         # Clone the chatbot with overridden settings
         # Note: We create a new instance to avoid mutating the registered chatbot
-        return BaseChatbot(
-            system_prompt=system_prompt or chatbot.system_prompt,
+        return Chatbot(
             provider=chatbot.provider,
-            model_id=chatbot.model_id,
             tool_manager=tool_manager,
+            system_prompt=system_prompt or chatbot.system_prompt,
+            model_id=chatbot.model_id,
             tool_servers=tool_servers if tool_servers is not None else chatbot.tool_servers,
             max_iterations=max_iterations,
             temperature=temperature,

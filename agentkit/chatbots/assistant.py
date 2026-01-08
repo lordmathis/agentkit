@@ -1,7 +1,4 @@
-
-from agentkit.chatbots.chatbot import BaseChatbot
-from agentkit.providers.registry import ProviderRegistry
-from agentkit.tools import ToolManager
+from agentkit.chatbots.plugin import ChatbotPlugin, ChatbotConfig
 
 SYSTEM_PROMPT = """You are an intelligent assistant that helps users with various tasks.
 You can call on different agents to perform specific functions as needed.
@@ -35,18 +32,17 @@ PROVIDER_ID = "llamactl"
 MODEL_ID = "gpt-oss-20b"
 
 
-class Assistant(BaseChatbot):
+class Assistant(ChatbotPlugin):
+    """Default assistant chatbot with notes agent integration."""
 
-    def __init__(self, provider_registry: ProviderRegistry, tool_manager: ToolManager):
-
-        provider = provider_registry.get_provider(PROVIDER_ID)
+    def configure(self) -> ChatbotConfig:
+        provider = self.provider_registry.get_provider(PROVIDER_ID)
         if provider is None:
             raise ValueError(f"Provider '{PROVIDER_ID}' not found in registry.")
 
-        super().__init__(
-            system_prompt=SYSTEM_PROMPT,
+        return ChatbotConfig(
             provider=provider,
             model_id=MODEL_ID,
-            tool_manager=tool_manager,
-            tool_servers=["notes_agent"]
+            system_prompt=SYSTEM_PROMPT,
+            tool_servers=["notes_agent"],
         )
