@@ -3,6 +3,9 @@ from typing import Dict
 from contextlib import AsyncExitStack
 import logging
 import asyncio
+import importlib.util
+import inspect
+from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -19,7 +22,7 @@ class ToolType(Enum):
     SMOLAGENTS_AGENT = "smolagents_agent"
 
 class ToolManager:
-    def __init__(self, servers: Dict[str, MCPConfig], mcp_timeout: int = 30):
+    def __init__(self, servers: Dict[str, MCPConfig], mcp_timeout: int = 30, agents_dir: str = "agents"):
         self._mcp_servers = servers
         self._sessions = {}  # server_name -> ClientSession
         self._exit_stack = AsyncExitStack()  # Manages all context managers
@@ -28,14 +31,47 @@ class ToolManager:
         self._mcp_client: MCPClient
         self._server_params: Dict[str, StdioServerParameters] = {}
         self._mcp_timeout = mcp_timeout  # Timeout in seconds for MCP operations
+        self._agents_dir = agents_dir
 
         self._server_registry: Dict[str, ToolType] = {}  # server_name -> type of server
         self._tool_registry: Dict[str, ToolType] = {}  # (server_name:tool_name) -> type of tool
+    
+    def _discover_agents(self):
+        """Discover and load agent plugins from agents_dir."""
+        from agentkit.tools.smolagents import SmolAgentPlugin
+        
+        agents_path = Path(self._agents_dir)
+        if not agents_path.exists() or not agents_path.is_dir():
+            logger.info(f"Agents directory not found: {self._agents_dir}")
+            return
+        
+        for file_path in agents_path.glob("*.py"):
+            if file_path.name.startswith("_"):
+                continue
+            
+            try:
+                spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+                if not spec or not spec.loader:
+                    continue
+                
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    if issubclass(obj, SmolAgentPlugin) and obj is not SmolAgentPlugin:
+                        agent = obj(self)
+                        agent.initialize()
+                        self._smol_agents[agent.name] = agent
+                        self._tool_registry[f'{agent.name}:{agent.name}'] = ToolType.SMOLAGENTS_AGENT
+                        self._server_registry[agent.name] = ToolType.SMOLAGENTS_AGENT
+                        logger.info(f"Loaded agent: {agent.name}")
+            except Exception as e:
+                logger.error(f"Failed to load agent from {file_path}: {e}", exc_info=True)
+
         
     async def start(self):
         """Initialize all MCP servers once"""
         logger.info(f"Starting ToolManager with {len(self._mcp_servers)} MCP servers")
-        from agentkit.tools.notes_agent import NotesAgent
 
         for server_name, config in self._mcp_servers.items():
             try:
@@ -139,11 +175,8 @@ class ToolManager:
             self._tool_registry['visit_webpage:visit_webpage'] = ToolType.SMOLAGENTS_TOOL
             self._server_registry['visit_webpage'] = ToolType.SMOLAGENTS_TOOL
 
-            # logger.debug("Initializing notes_agent...")
-            # notes_agent = NotesAgent(self)
-            # self._smol_agents['notes_agent'] = notes_agent
-            # self._tool_registry['notes_agent:notes_agent'] = ToolType.SMOLAGENTS_AGENT
-            # self._server_registry['notes_agent'] = ToolType.SMOLAGENTS_AGENT
+            # Discover agents from plugins directory
+            self._discover_agents()
             
             logger.info("ToolManager initialization completed successfully")
         except Exception as e:

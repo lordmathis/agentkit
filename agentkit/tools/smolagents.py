@@ -1,9 +1,21 @@
 from typing import List, Optional
+from abc import ABC, abstractmethod
 from openai import OpenAI
+from pydantic import BaseModel
 from smolagents import OpenAIModel, ToolCallingAgent, MCPClient, Tool
 
 from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager, ToolType
+
+
+class SmolAgentConfig(BaseModel):
+    """Configuration for a SmolAgent plugin."""
+    
+    name: str
+    description: str
+    parameters: dict
+    tool_servers: List[str] = []
+    system_prompt: str = ""
 
 class SmolAgentsAgent:
     def __init__(
@@ -12,7 +24,7 @@ class SmolAgentsAgent:
         name: str,
         description: str,
         parameters: dict,
-        tool_servers: List[str] = [],  # Which MCP servers this agent needs
+        tool_servers: List[str] = [],
         system_prompt: str = "",
     ):
         self.tool_manager = tool_manager
@@ -80,3 +92,23 @@ class SmolAgentsAgent:
         """Called by ToolManager.stop() to clean up MCP client"""
         if self.mcp_client:
             self.mcp_client.__exit__(None, None, None)
+
+
+class SmolAgentPlugin(SmolAgentsAgent, ABC):
+    """Base plugin class for agent discovery."""
+    
+    def __init__(self, tool_manager: ToolManager):
+        config = self.configure()
+        super().__init__(
+            tool_manager=tool_manager,
+            name=config.name,
+            description=config.description,
+            parameters=config.parameters,
+            tool_servers=config.tool_servers,
+            system_prompt=config.system_prompt,
+        )
+    
+    @abstractmethod
+    def configure(self) -> SmolAgentConfig:
+        """Return agent configuration."""
+        pass
