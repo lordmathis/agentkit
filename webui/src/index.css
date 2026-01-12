@@ -1,33 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #8b5cf6;
-  --color-primary-foreground: #ffffff;
-  --color-background: #0a0a0a;
-  --color-foreground: #ededed;
-  --color-muted: #1a1a1a;
-  --color-muted-foreground: #a3a3a3;
-  --color-border: #262626;
-  --color-input: #262626;
-  --color-ring: #8b5cf6;
+  --color-background: oklch(0.15 0 0);
+  --color-foreground: oklch(0.98 0 0);
+  --color-card: oklch(0.15 0 0);
+  --color-card-foreground: oklch(0.98 0 0);
+  --color-popover: oklch(0.15 0 0);
+  --color-popover-foreground: oklch(0.98 0 0);
+  --color-primary: oklch(0.65 0.2 290);
+  --color-primary-foreground: oklch(0.98 0 0);
+  --color-secondary: oklch(0.25 0 0);
+  --color-secondary-foreground: oklch(0.98 0 0);
+  --color-muted: oklch(0.25 0 0);
+  --color-muted-foreground: oklch(0.65 0 0);
+  --color-accent: oklch(0.3 0.15 290);
+  --color-accent-foreground: oklch(0.98 0 0);
+  --color-destructive: oklch(0.5 0.2 25);
+  --color-destructive-foreground: oklch(0.98 0 0);
+  --color-border: oklch(0.25 0 0);
+  --color-input: oklch(0.25 0 0);
+  --color-ring: oklch(0.65 0.2 290);
+  --radius: 0.5rem;
 }
 
 * {
-  box-sizing: border-box;
+  border-color: var(--color-border);
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
   color: var(--color-foreground);
-}
-
-#root {
-  width: 100%;
-  height: 100vh;
 }

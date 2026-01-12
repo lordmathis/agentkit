@@ -21,8 +21,12 @@
   },
   "dependencies": {
     "@eslint/js": "^9.39.2",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-switch": "^1.2.6",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.0.6",
     "@types/react": "^19.2.8",

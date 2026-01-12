@@ -4,6 +4,11 @@ import { ChatMessage, type Message } from "./chat-message";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { ScrollArea } from "./ui/scroll-area";
+import { Sidebar, type Conversation } from "./sidebar";
+import {
+  ChatSettingsDialog,
+  type ChatSettings,
+} from "./chat-settings-dialog";
 
 // Dummy messages for demonstration
 const dummyMessages: Message[] = [
@@ -97,8 +102,80 @@ const dummyMessages: Message[] = [
   },
 ];
 
+// Dummy conversation history
+const dummyConversations: Conversation[] = [
+  {
+    id: "1",
+    title: "React Hooks Tutorial",
+    preview: "Learning about useState and useEffect...",
+    timestamp: "2 hours ago",
+  },
+  {
+    id: "2",
+    title: "TypeScript Best Practices",
+    preview: "How to structure a TypeScript project",
+    timestamp: "Yesterday",
+  },
+  {
+    id: "3",
+    title: "Building REST APIs",
+    preview: "Express.js and Node.js discussion",
+    timestamp: "2 days ago",
+  },
+  {
+    id: "4",
+    title: "CSS Grid Layout",
+    preview: "Understanding grid-template-areas",
+    timestamp: "3 days ago",
+  },
+  {
+    id: "5",
+    title: "Database Design",
+    preview: "PostgreSQL schema design patterns",
+    timestamp: "1 week ago",
+  },
+  {
+    id: "6",
+    title: "Git Workflow",
+    preview: "Branching strategies and merge conflicts",
+    timestamp: "1 week ago",
+  },
+  {
+    id: "7",
+    title: "Python Async/Await",
+    preview: "Asynchronous programming concepts",
+    timestamp: "2 weeks ago",
+  },
+  {
+    id: "8",
+    title: "Docker Containers",
+    preview: "Containerization and deployment",
+    timestamp: "2 weeks ago",
+  },
+  {
+    id: "9",
+    title: "GraphQL vs REST",
+    preview: "Comparing API architectures",
+    timestamp: "3 weeks ago",
+  },
+  {
+    id: "10",
+    title: "Web Security",
+    preview: "CORS, XSS, and CSRF protection",
+    timestamp: "1 month ago",
+  },
+];
+
 export function ChatView() {
   const [inputValue, setInputValue] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentConversationId, setCurrentConversationId] = useState("1");
+  const [chatSettings, setChatSettings] = useState<ChatSettings>({
+    baseModel: "gpt-4",
+    systemPrompt:
+      "You are a helpful AI assistant. Be concise and informative in your responses.",
+    enabledTools: ["web-search", "code-interpreter"],
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea as user types
@@ -112,45 +189,88 @@ export function ChatView() {
   }, [inputValue]);
 
   return (
-    <div className="relative flex h-screen flex-col bg-background">
-      {/* Header - Sticky at top */}
-      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-muted/30 backdrop-blur-sm px-4 py-3 sm:px-6">
-        <h1 className="text-lg font-semibold text-foreground">AgentKit Chat</h1>
-      </div>
+    <div className="relative flex h-screen bg-background">
+      {/* Sidebar */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        conversations={dummyConversations}
+        currentConversationId={currentConversationId}
+        onConversationSelect={setCurrentConversationId}
+        onNewConversation={() => console.log("New conversation")}
+      />
 
-      {/* Messages Container */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="mx-auto max-w-3xl pb-6">
-          {dummyMessages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
-          ))}
-        </div>
-      </ScrollArea>
-
-      {/* Input Area - Sticky at bottom */}
-      <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
-        <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
-          <div className="relative">
-            <Textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Type your message here..."
-              className="min-h-[60px] resize-none pr-12 overflow-y-auto"
-              rows={1}
-            />
-            <Button
-              size="icon"
-              className="absolute bottom-2 right-2 h-9 w-9"
-              type="submit"
-            >
-              <Send className="h-5 w-5" />
-              <span className="sr-only">Send message</span>
-            </Button>
+      {/* Main chat area */}
+      <div className="relative flex flex-1 flex-col">
+        {/* Header - Sticky at top */}
+        <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-muted/30 backdrop-blur-sm px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            {!sidebarOpen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(true)}
+                className="h-8 w-8 shrink-0"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="M9 3v18" />
+                </svg>
+                <span className="sr-only">Open sidebar</span>
+              </Button>
+            )}
+            <h1 className="text-lg font-semibold text-foreground">
+              AgentKit Chat
+            </h1>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Press Enter to send, Shift+Enter for new line
-          </p>
+        </div>
+
+        {/* Messages Container */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="mx-auto max-w-3xl pb-6">
+            {dummyMessages.map((message) => (
+              <ChatMessage key={message.id} message={message} />
+            ))}
+          </div>
+        </ScrollArea>
+
+        {/* Input Area - Sticky at bottom */}
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
+          <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Type your message here..."
+                className="min-h-[60px] resize-none pr-24 overflow-y-auto"
+                rows={1}
+              />
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                <ChatSettingsDialog
+                  settings={chatSettings}
+                  onSettingsChange={setChatSettings}
+                />
+                <Button size="icon" className="h-9 w-9" type="submit">
+                  <Send className="h-5 w-5" />
+                  <span className="sr-only">Send message</span>
+                </Button>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Press Enter to send, Shift+Enter for new line
+            </p>
+          </div>
         </div>
       </div>
     </div>
