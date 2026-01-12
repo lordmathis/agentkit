@@ -17,3 +17,6 @@ gitea-mcp
 
 # Database files
 *.db
+
+# Node modules
+node_modules/
