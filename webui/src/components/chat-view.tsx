@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { Send, Bot, Zap } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage, type Message } from "./chat-message";
 import { Button } from "./ui/button";
@@ -103,6 +103,33 @@ const dummyMessages: Message[] = [
 ];
 
 // Dummy conversation history
+const baseModels = [
+  { value: "gpt-4", label: "GPT-4" },
+  { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+  { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+  { value: "claude-3-opus", label: "Claude 3 Opus" },
+  { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
+  { value: "claude-3-haiku", label: "Claude 3 Haiku" },
+];
+
+const availableTools = [
+  { id: "web-search", label: "Web Search" },
+  { id: "code-interpreter", label: "Code Interpreter" },
+  { id: "file-browser", label: "File Browser" },
+  { id: "calculator", label: "Calculator" },
+  { id: "image-generation", label: "Image Generation" },
+];
+
+const getModelLabel = (modelValue: string): string => {
+  const model = baseModels.find((m) => m.value === modelValue);
+  return model?.label || modelValue;
+};
+
+const getToolLabel = (toolId: string): string => {
+  const tool = availableTools.find((t) => t.id === toolId);
+  return tool?.label || toolId;
+};
+
 const dummyConversations: Conversation[] = [
   {
     id: "1",
@@ -247,6 +274,20 @@ export function ChatView() {
         {/* Input Area - Sticky at bottom */}
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
           <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
+                <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-medium">{getModelLabel(chatSettings.baseModel)}</span>
+              </div>
+              {chatSettings.enabledTools.length > 0 && (
+                <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
+                  <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {chatSettings.enabledTools.map((t) => getToolLabel(t)).join(", ")}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="relative">
               <Textarea
                 ref={textareaRef}
