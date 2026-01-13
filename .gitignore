@@ -12,9 +12,6 @@ wheels/
 # Environment variable files
 .env
 
-# MCP binaries
-gitea-mcp
-
 # Database files
 *.db
 *.db-shm
@@ -22,3 +19,6 @@ gitea-mcp
 
 # Node modules
 node_modules/
+
+# Config files
+config.yaml
