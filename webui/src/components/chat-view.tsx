@@ -156,15 +156,12 @@ export function ChatView() {
         
         setMessages(formattedMessages);
         
-        // Update chat settings from the loaded chat
-        if (chatData.model) {
-          setChatSettings((prev) => ({
-            ...prev,
-            baseModel: chatData.model || prev.baseModel,
-            systemPrompt: chatData.system_prompt || prev.systemPrompt,
-            enabledTools: chatData.tool_servers || prev.enabledTools,
-          }));
-        }
+        // Update chat settings from the loaded chat data
+        setChatSettings({
+          baseModel: chatData.model || "",
+          systemPrompt: chatData.system_prompt || "",
+          enabledTools: chatData.tool_servers || [],
+        });
       } catch (error) {
         console.error("Failed to fetch messages:", error);
         setMessages([]);

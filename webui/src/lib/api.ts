@@ -9,6 +9,8 @@ export interface Chat {
   updated_at: string;
   model?: string | null;
   system_prompt?: string | null;
+  tool_servers?: string[] | null;
+  model_params?: Record<string, any> | null;
 }
 
 export interface Message {

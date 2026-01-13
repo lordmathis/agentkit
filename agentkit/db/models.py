@@ -17,8 +17,8 @@ class Chat(Base):
     tool_servers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array as string
     model_params: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON object as string
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 class Message(Base):
     __tablename__ = "messages"
@@ -27,7 +27,7 @@ class Message(Base):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)  # Order within chat
     role: Mapped[str] = mapped_column(String)
     content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
     __table_args__ = (
         # Ensure unique sequence per chat

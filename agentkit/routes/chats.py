@@ -49,11 +49,18 @@ async def create_chat(request: Request, body: CreateChatRequest):
         database.delete_chat(chat.id)
         raise HTTPException(status_code=500, detail=f"Failed to create chat service: {str(e)}")
 
+    # Retrieve updated chat with config
+    updated_chat = database.get_chat(chat.id)
+    
     return {
-        "id": chat.id,
-        "title": chat.title,
-        "created_at": chat.created_at.isoformat(),
-        "updated_at": chat.updated_at.isoformat()
+        "id": updated_chat.id,
+        "title": updated_chat.title,
+        "created_at": updated_chat.created_at.isoformat(),
+        "updated_at": updated_chat.updated_at.isoformat(),
+        "model": updated_chat.model,
+        "system_prompt": updated_chat.system_prompt,
+        "tool_servers": json.loads(updated_chat.tool_servers) if updated_chat.tool_servers else None,
+        "model_params": json.loads(updated_chat.model_params) if updated_chat.model_params else None,
     }
 
 
@@ -74,7 +81,9 @@ async def list_chats(request: Request, limit: int = 20):
                 "created_at": chat.created_at.isoformat(),
                 "updated_at": chat.updated_at.isoformat(),
                 "model": chat.model,
-                "system_prompt": chat.system_prompt
+                "system_prompt": chat.system_prompt,
+                "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
+                "model_params": json.loads(chat.model_params) if chat.model_params else None,
             }
             for chat in chats
         ]

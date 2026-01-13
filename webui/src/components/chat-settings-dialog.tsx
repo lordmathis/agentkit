@@ -55,6 +55,11 @@ export function ChatSettingsDialog({
     }
   }, [open]);
 
+  // Sync local settings when parent settings change
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
+
   const fetchModels = async () => {
     try {
       setIsLoadingModels(true);
