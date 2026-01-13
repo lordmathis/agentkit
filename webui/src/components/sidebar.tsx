@@ -1,6 +1,5 @@
-import { PanelLeftClose, MessageSquare, Plus } from "lucide-react";
+import { PanelLeftClose, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { ScrollArea } from "./ui/scroll-area";
 
 export interface Conversation {
   id: string;
@@ -16,6 +15,7 @@ interface SidebarProps {
   currentConversationId?: string;
   onConversationSelect?: (conversationId: string) => void;
   onNewConversation?: () => void;
+  onDeleteConversation?: (conversationId: string) => void;
   isLoading?: boolean;
 }
 
@@ -26,6 +26,7 @@ export function Sidebar({
   currentConversationId,
   onConversationSelect,
   onNewConversation,
+  onDeleteConversation,
   isLoading = false,
 }: SidebarProps) {
   return (
@@ -45,18 +46,19 @@ export function Sidebar({
           lg:relative lg:z-0
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-0 lg:border-0"}
         `}
+        style={{ maxWidth: '280px', overflow: 'hidden' }}
       >
-        <div className={`flex h-full flex-col ${isOpen ? "" : "lg:hidden"}`}>
+        <div className={`flex h-full flex-col overflow-hidden ${isOpen ? "" : "lg:hidden"}`} style={{ maxWidth: '280px' }}>
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-foreground">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 overflow-hidden" style={{ maxWidth: '280px' }}>
+            <h2 className="text-sm font-semibold text-foreground truncate">
               Conversations
             </h2>
             <Button
               variant="ghost"
               size="icon"
               onClick={onToggle}
-              className="h-8 w-8"
+              className="h-8 w-8 shrink-0"
             >
               <PanelLeftClose className="h-5 w-5" />
               <span className="sr-only">Close sidebar</span>
@@ -64,19 +66,19 @@ export function Sidebar({
           </div>
 
           {/* New conversation button */}
-          <div className="shrink-0 px-3 py-3">
+          <div className="shrink-0 px-3 py-3 overflow-hidden">
             <Button
               variant="outline"
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 truncate"
               onClick={onNewConversation}
             >
-              <Plus className="h-4 w-4" />
-              New Conversation
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">New Conversation</span>
             </Button>
           </div>
 
           {/* Conversations list */}
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <div className="space-y-1 px-3 pb-4">
               {isLoading ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
@@ -88,19 +90,21 @@ export function Sidebar({
                 </div>
               ) : (
                 conversations.map((conversation) => (
-                  <button
+                  <div
                     key={conversation.id}
-                    onClick={() => onConversationSelect?.(conversation.id)}
                     className={`
-                      group w-full rounded-lg px-3 py-2.5 text-left transition-colors
+                      group rounded-lg transition-colors flex items-center pr-2
                       ${
                         currentConversationId === conversation.id
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-muted text-foreground"
+                          ? "bg-primary/10"
+                          : "hover:bg-muted"
                       }
                     `}
                   >
-                    <div className="flex items-start gap-2">
+                    <button
+                      onClick={() => onConversationSelect?.(conversation.id)}
+                      className="flex items-start gap-2 flex-1 min-w-0 px-3 py-2.5 text-left"
+                    >
                       <MessageSquare
                         className={`mt-0.5 h-4 w-4 shrink-0 ${
                           currentConversationId === conversation.id
@@ -109,19 +113,37 @@ export function Sidebar({
                         }`}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">
+                        <div className={`truncate text-sm font-medium ${
+                          currentConversationId === conversation.id
+                            ? "text-primary"
+                            : "text-foreground"
+                        }`}>
                           {conversation.title}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
+                        <div className="mt-1 text-xs text-muted-foreground truncate">
                           {conversation.timestamp}
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Delete "${conversation.title}"?`)) {
+                          onDeleteConversation?.(conversation.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      <span className="sr-only">Delete conversation</span>
+                    </Button>
+                  </div>
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </>

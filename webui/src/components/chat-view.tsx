@@ -230,6 +230,25 @@ export function ChatView() {
     }
   };
 
+  // Handle deleting a conversation
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      await api.deleteChat(conversationId);
+      
+      // Remove from conversations list
+      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+      
+      // If we deleted the current conversation, clear it
+      if (currentConversationId === conversationId) {
+        setCurrentConversationId(undefined);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      alert(`Failed to delete conversation: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
   // Handle sending a message
   const handleSendMessage = async () => {
     const trimmedMessage = inputValue.trim();
@@ -342,6 +361,7 @@ export function ChatView() {
         currentConversationId={currentConversationId}
         onConversationSelect={setCurrentConversationId}
         onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
         isLoading={isLoadingChats}
       />
 

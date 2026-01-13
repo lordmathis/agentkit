@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, List, Optional
 import json
 import uuid
@@ -55,7 +55,7 @@ class Database:
             # Update chat's updated_at
             chat = session.get(Chat, chat_id)
             if chat:
-                chat.updated_at = datetime.utcnow()
+                chat.updated_at = datetime.now(UTC)
             
             session.commit()
             session.refresh(message)
@@ -115,7 +115,7 @@ class Database:
                 if hasattr(chat, key):
                     setattr(chat, key, value)
 
-            chat.updated_at = datetime.utcnow()
+            chat.updated_at = datetime.now(UTC)
             session.commit()
             session.refresh(chat)
             return chat

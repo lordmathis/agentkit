@@ -17,6 +17,14 @@ class ChatConfig(BaseModel):
     model_params: Optional[Dict[str, Any]] = None
 
 
+CHAT_NAMING_PROMPT = """
+Based on the following conversation, suggest a concise and descriptive title in 3 to 5 words.
+Respond only with the title, without any additional text. Below is the conversation:
+
+{conversation}
+
+"""
+
 class ChatService:
 
     def __init__(
@@ -44,29 +52,63 @@ class ChatService:
 
         return result
 
+    async def _auto_name_chat(self, history) -> Optional[str]:
+        if not history or len(history) < 2:
+            return None
+
+        # Build conversation snippet (first 2-3 exchanges)
+        conversation_text = ""
+        for msg in history[:6]:  # Max 3 exchanges
+            if msg.role in ["user", "assistant"]:
+                conversation_text += f"{msg.role.capitalize()}: {msg.content}\n"
+
+        # Generate title using the chatbot
+        naming_messages: List[ChatCompletionMessageParam] = [
+            {
+                "role": "user",
+                "content": CHAT_NAMING_PROMPT.format(conversation=conversation_text),
+            }
+        ]
+
+        response = await self.chatbot.chat(naming_messages)
+        if "error" in response:
+            return None
+
+        choices = response.get("choices", [])
+        if choices:
+            title = choices[0].get("message", {}).get("content", "").strip()
+            if title:
+                return title
+
+        return None
+
     async def send_message(self, message: str) -> Dict[str, Any]:
         import logging
+
         logger = logging.getLogger(__name__)
-        
+
         self.db.save_message(self.chat_id, "user", message)
         history = self.db.get_chat_history(self.chat_id)
+        chat = self.db.get_chat(self.chat_id)
         messages = self._convert_messages_to_openai_format(history)
         response = await self.chatbot.chat(messages)
-        
+
+        if chat and chat.title in (None, "", "Untitled Chat"):
+            new_title = await self._auto_name_chat(history)
+            if new_title:
+                self.db.update_chat(self.chat_id, title=new_title)
+
         logger.info(f"Chat response keys: {response.keys()}")
         logger.info(f"Chat response choices: {response.get('choices', 'NO CHOICES')}")
 
         if "error" in response:
             error_msg = f"Error: {response['error']}"
-            self.db.save_message(self.chat_id, "assistant", error_msg, reasoning_content=None)
+            self.db.save_message(
+                self.chat_id, "assistant", error_msg, reasoning_content=None
+            )
             # Format error as OpenAI-style response
             return {
-                "choices": [{
-                    "message": {
-                        "role": "assistant",
-                        "content": error_msg
-                    }
-                }]
+                "choices": [{"message": {"role": "assistant", "content": error_msg}}]
             }
         else:
             choices = response.get("choices", [])
@@ -79,9 +121,12 @@ class ChatService:
                 else:
                     assistant_content = getattr(message_data, "content", "")
                     reasoning_content = getattr(message_data, "reasoning_content", None)
-                
+
                 self.db.save_message(
-                    self.chat_id, "assistant", assistant_content or "", reasoning_content=reasoning_content
+                    self.chat_id,
+                    "assistant",
+                    assistant_content or "",
+                    reasoning_content=reasoning_content,
                 )
 
         return response
@@ -102,9 +147,7 @@ class ChatServiceManager:
         self.tool_manager = tool_manager
         self._chat_services: Dict[str, ChatService] = {}
 
-    def create_chat_service(
-        self, chat_id: str, config: ChatConfig
-    ) -> ChatService:
+    def create_chat_service(self, chat_id: str, config: ChatConfig) -> ChatService:
         if chat_id in self._chat_services:
             raise ValueError(f"Chat service for '{chat_id}' already exists")
 
