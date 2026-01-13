@@ -42,8 +42,25 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
    source .venv/bin/activate  # Activate virtual environment
    python -m agentkit.main
    ```
-   
+
    Server will start on `http://localhost:8000` with the Web UI served at the same address
+
+### Running with Docker
+
+1. **Build the Docker image:**
+   ```bash
+   docker build -t agentkit .
+   ```
+
+2. **Run the container:**
+
+   ```bash
+   docker run -p 8000:8000 \
+     -v $(pwd)/config.yaml:/app/config.yaml \  # Mount config file
+     -v $(pwd)/agentkit.db:/app/agentkit.db \  # Mount persistance db
+     -e OPENROUTER_API_KEY=your_key_here \     # Set config secrets via env vars
+     agentkit
+   ```
 
 ## Configuration
 
