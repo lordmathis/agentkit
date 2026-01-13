@@ -1,8 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from agentkit.config import AppConfig
 from agentkit.db import Database
@@ -99,7 +102,84 @@ app.add_middleware(
 # Register API routes
 register_routes(app)
 
-
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+# Serve static files from the web UI build (production)
+webui_dist = Path(__file__).parent.parent / "webui" / "dist"
+if webui_dist.exists():
+    app.mount("/assets", StaticFiles(directory=webui_dist / "assets"), name="assets")
+    
+    def _serve_with_compression(file_path: Path, request: Request, content_type: str | None = None) -> FileResponse:
+        """Serve a file with compression support (brotli/gzip)"""
+        accept_encoding = request.headers.get("accept-encoding", "")
+        supports_brotli = "br" in accept_encoding.lower()
+        supports_gzip = "gzip" in accept_encoding.lower()
+        
+        if content_type is None:
+            content_type = _get_content_type(file_path)
+        
+        # Check for brotli version first (better compression)
+        if supports_brotli:
+            br_path = Path(str(file_path) + ".br")
+            if br_path.exists():
+                return FileResponse(
+                    br_path,
+                    headers={
+                        "Content-Encoding": "br",
+                        "Content-Type": content_type
+                    }
+                )
+        
+        # Fall back to gzip
+        if supports_gzip:
+            gz_path = Path(str(file_path) + ".gz")
+            if gz_path.exists():
+                return FileResponse(
+                    gz_path,
+                    headers={
+                        "Content-Encoding": "gzip",
+                        "Content-Type": content_type
+                    }
+                )
+        
+        # Serve uncompressed
+        return FileResponse(file_path)
+    
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str, request: Request):
+        """Serve the SPA for all non-API routes with brotli/gzip support"""
+        # If requesting a specific file that exists, serve it
+        file_path = webui_dist / full_path
+        if file_path.exists() and file_path.is_file():
+            return _serve_with_compression(file_path, request)
+        
+        # Otherwise serve index.html (SPA routing)
+        index_path = webui_dist / "index.html"
+        return _serve_with_compression(index_path, request, "text/html")
+else:
+    logger.warning(f"Web UI build not found at {webui_dist}. Run 'cd webui && npm run build' to build the frontend.")
+
+
+def _get_content_type(file_path: Path) -> str:
+    """Get MIME type for a file based on its extension"""
+    suffix = file_path.suffix.lower()
+    content_types = {
+        ".html": "text/html",
+        ".css": "text/css",
+        ".js": "application/javascript",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+        ".eot": "application/vnd.ms-fontobject",
+    }
+    return content_types.get(suffix, "application/octet-stream")
+
