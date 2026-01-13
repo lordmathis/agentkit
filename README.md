@@ -29,20 +29,21 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
 
 ### Running the Application
 
-1. **Start the backend server:**
+1. **Build the Web UI:**
+   ```bash
+   cd webui
+   npm install
+   npm run build
+   cd ..
+   ```
+
+2. **Start the server:**
    ```bash
    source .venv/bin/activate  # Activate virtual environment
    python -m agentkit.main
    ```
-   Server will start on `http://localhost:8000`
-
-2. **Start the Web UI (in a separate terminal):**
-   ```bash
-   cd webui
-   npm install
-   npm run dev
-   ```
-   Web UI will be available at `http://localhost:5173`
+   
+   Server will start on `http://localhost:8000` with the Web UI served at the same address
 
 ## Configuration
 

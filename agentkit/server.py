@@ -109,21 +109,27 @@ async def health_check():
 # Serve static files from the web UI build (production)
 webui_dist = Path(__file__).parent.parent / "webui" / "dist"
 if webui_dist.exists():
-    app.mount("/assets", StaticFiles(directory=webui_dist / "assets"), name="assets")
-    
     def _serve_with_compression(file_path: Path, request: Request, content_type: str | None = None) -> FileResponse:
         """Serve a file with compression support (brotli/gzip)"""
+        logger.debug(f"Attempting to serve file: {file_path}")
         accept_encoding = request.headers.get("accept-encoding", "")
         supports_brotli = "br" in accept_encoding.lower()
         supports_gzip = "gzip" in accept_encoding.lower()
         
+        logger.debug(f"Accept-Encoding header: {accept_encoding}")
+        logger.debug(f"Supports brotli: {supports_brotli}, Supports gzip: {supports_gzip}")
+        
         if content_type is None:
             content_type = _get_content_type(file_path)
+        
+        logger.debug(f"Content-Type: {content_type}")
         
         # Check for brotli version first (better compression)
         if supports_brotli:
             br_path = Path(str(file_path) + ".br")
+            logger.debug(f"Checking for brotli file: {br_path}, exists: {br_path.exists()}")
             if br_path.exists():
+                logger.info(f"Serving brotli compressed file: {br_path}")
                 return FileResponse(
                     br_path,
                     headers={
@@ -135,7 +141,9 @@ if webui_dist.exists():
         # Fall back to gzip
         if supports_gzip:
             gz_path = Path(str(file_path) + ".gz")
+            logger.debug(f"Checking for gzip file: {gz_path}, exists: {gz_path.exists()}")
             if gz_path.exists():
+                logger.info(f"Serving gzip compressed file: {gz_path}")
                 return FileResponse(
                     gz_path,
                     headers={
@@ -145,19 +153,30 @@ if webui_dist.exists():
                 )
         
         # Serve uncompressed
+        logger.debug(f"Serving uncompressed file: {file_path}")
         return FileResponse(file_path)
     
     @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str, request: Request):
-        """Serve the SPA for all non-API routes with brotli/gzip support"""
-        # If requesting a specific file that exists, serve it
+    async def serve_static(full_path: str, request: Request):
+        """Serve static files with compression support"""
+        logger.debug(f"Request for path: /{full_path}")
+        
+        # Serve index.html on root
+        if not full_path:
+            logger.debug("Serving index.html for root path")
+            index_path = webui_dist / "index.html"
+            return _serve_with_compression(index_path, request, "text/html")
+        
         file_path = webui_dist / full_path
+        logger.debug(f"Checking: {file_path}")
+        
         if file_path.exists() and file_path.is_file():
+            logger.debug(f"File exists, serving: {file_path}")
             return _serve_with_compression(file_path, request)
         
-        # Otherwise serve index.html (SPA routing)
-        index_path = webui_dist / "index.html"
-        return _serve_with_compression(index_path, request, "text/html")
+        logger.warning(f"File not found: {full_path}")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
 else:
     logger.warning(f"Web UI build not found at {webui_dist}. Run 'cd webui && npm run build' to build the frontend.")
 
