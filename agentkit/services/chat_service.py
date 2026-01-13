@@ -58,7 +58,7 @@ class ChatService:
 
         if "error" in response:
             error_msg = f"Error: {response['error']}"
-            self.db.save_message(self.chat_id, "assistant", error_msg)
+            self.db.save_message(self.chat_id, "assistant", error_msg, reasoning_content=None)
             # Format error as OpenAI-style response
             return {
                 "choices": [{
@@ -71,9 +71,17 @@ class ChatService:
         else:
             choices = response.get("choices", [])
             if choices:
-                assistant_content = choices[0].get("message", {}).get("content", "")
+                message_data = choices[0].get("message", {})
+                # Handle both dict and object types
+                if isinstance(message_data, dict):
+                    assistant_content = message_data.get("content", "")
+                    reasoning_content = message_data.get("reasoning_content", None)
+                else:
+                    assistant_content = getattr(message_data, "content", "")
+                    reasoning_content = getattr(message_data, "reasoning_content", None)
+                
                 self.db.save_message(
-                    self.chat_id, "assistant", assistant_content or ""
+                    self.chat_id, "assistant", assistant_content or "", reasoning_content=reasoning_content
                 )
 
         return response

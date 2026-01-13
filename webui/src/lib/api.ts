@@ -17,6 +17,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoning_content?: string | null;
   sequence: number;
   created_at: string;
 }
@@ -45,8 +46,13 @@ export interface SendMessageRequest {
 }
 
 export interface SendMessageResponse {
-  user_message: Message;
-  assistant_message: Message;
+  choices: Array<{
+    message: {
+      role: string;
+      content: string;
+      reasoning_content?: string;
+    };
+  }>;
 }
 
 export interface Model {

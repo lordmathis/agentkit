@@ -64,7 +64,9 @@ export function ChatView() {
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Function to refresh conversations list
   const refreshConversations = async () => {
@@ -152,6 +154,7 @@ export function ChatView() {
           id: msg.id,
           role: msg.role as "user" | "assistant",
           content: msg.content,
+          reasoning_content: msg.reasoning_content,
         }));
         
         setMessages(formattedMessages);
@@ -182,6 +185,11 @@ export function ChatView() {
       textarea.style.height = `${newHeight}px`;
     }
   }, [inputValue]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSending]);
 
   // Handle creating a new conversation
   const handleNewConversation = async () => {
@@ -219,6 +227,108 @@ export function ChatView() {
     } catch (error) {
       console.error("Failed to create new conversation:", error);
       alert(`Failed to create new conversation: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
+    const trimmedMessage = inputValue.trim();
+    
+    // Validate input
+    if (!trimmedMessage) {
+      return;
+    }
+
+    // Must have a current conversation to send messages
+    if (!currentConversationId) {
+      alert("Please create or select a conversation first");
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      
+      // Clear input immediately for better UX
+      setInputValue("");
+
+      // Add user message to UI optimistically
+      const tempUserMessage: Message = {
+        id: `temp-user-${Date.now()}`,
+        role: "user",
+        content: trimmedMessage,
+      };
+      setMessages((prev) => [...prev, tempUserMessage]);
+
+      // Send message to backend
+      const response = await api.sendMessage(currentConversationId, {
+        message: trimmedMessage,
+        stream: false,
+      });
+
+      // Extract assistant message from OpenAI-style response
+      const assistantContent = response.choices?.[0]?.message?.content || "No response";
+
+      // Replace temp user message and add assistant response
+      setMessages((prev) => {
+        // Remove temp message
+        const withoutTemp = prev.filter((m) => m.id !== tempUserMessage.id);
+        
+        // Add both user and assistant messages
+        // These are temporary - we'll reload from backend to get proper IDs
+        return [
+          ...withoutTemp,
+          {
+            id: `user-${Date.now()}`,
+            role: "user" as const,
+            content: trimmedMessage,
+          },
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant" as const,
+            content: assistantContent,
+          },
+        ];
+      });
+
+      // Reload messages from backend to get proper message IDs
+      // Do this in the background without blocking the UI
+      try {
+        const chatData = await api.getChat(currentConversationId);
+        const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          reasoning_content: msg.reasoning_content,
+        }));
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error("Failed to reload messages:", error);
+        // Keep the temporary messages if reload fails
+      }
+
+
+      // Refresh conversations to update the timestamp and preview
+      await refreshConversations();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      alert(`Failed to send message: ${error instanceof Error ? error.message : "Unknown error"}`);
+      
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-user-")));
+      
+      // Restore input value so user can try again
+      setInputValue(trimmedMessage);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle keyboard shortcuts in textarea
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter without shift sends the message
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -293,10 +403,37 @@ export function ChatView() {
                 </div>
               </div>
             ) : (
-              messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
-              ))
+              <>
+                {messages.map((message) => (
+                  <ChatMessage key={message.id} message={message} />
+                ))}
+                {isSending && (
+                  <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
+                    <div className="flex-shrink-0">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground">
+                        <Bot className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2 overflow-hidden">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold leading-none">
+                          Assistant
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex gap-1">
+                          <span className="animate-bounce" style={{ animationDelay: "0ms" }}>●</span>
+                          <span className="animate-bounce" style={{ animationDelay: "150ms" }}>●</span>
+                          <span className="animate-bounce" style={{ animationDelay: "300ms" }}>●</span>
+                        </div>
+                        <span>Generating response...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
@@ -322,9 +459,11 @@ export function ChatView() {
                 ref={textareaRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Type your message here..."
                 className="min-h-[60px] resize-none pr-24 overflow-y-auto"
                 rows={1}
+                disabled={isSending || !currentConversationId}
               />
               <div className="absolute bottom-2 right-2 flex gap-1">
                 <ChatSettingsDialog
@@ -333,7 +472,13 @@ export function ChatView() {
                   currentChatId={currentConversationId}
                   onChatUpdated={refreshConversations}
                 />
-                <Button size="icon" className="h-9 w-9" type="submit">
+                <Button 
+                  size="icon" 
+                  className="h-9 w-9" 
+                  type="submit"
+                  onClick={handleSendMessage}
+                  disabled={isSending || !currentConversationId || !inputValue.trim()}
+                >
                   <Send className="h-5 w-5" />
                   <span className="sr-only">Send message</span>
                 </Button>

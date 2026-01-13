@@ -117,6 +117,7 @@ async def get_chat(request: Request, chat_id: str):
                 "id": msg.id,
                 "role": msg.role,
                 "content": msg.content,
+                "reasoning_content": msg.reasoning_content,
                 "sequence": msg.sequence,
                 "created_at": msg.created_at.isoformat()
             }

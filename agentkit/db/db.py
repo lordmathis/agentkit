@@ -33,7 +33,7 @@ class Database:
             session.refresh(chat)
             return chat
     
-    def save_message(self, chat_id: str, role: str, content: str) -> Message:
+    def save_message(self, chat_id: str, role: str, content: str, reasoning_content: Optional[str] = None) -> Message:
         with self.SessionLocal() as session:
             # Get next sequence number for this chat
             stmt = (
@@ -47,7 +47,8 @@ class Database:
                 chat_id=chat_id,
                 sequence=next_sequence,
                 role=role,
-                content=content
+                content=content,
+                reasoning_content=reasoning_content
             )
             session.add(message)
             
