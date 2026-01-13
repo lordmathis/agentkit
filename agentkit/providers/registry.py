@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Dict
 
 from agentkit.config import ProviderConfig
 from agentkit.providers import Provider
