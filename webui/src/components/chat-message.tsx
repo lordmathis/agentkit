@@ -1,5 +1,9 @@
 import { Bot, User } from "lucide-react";
 import { cn } from "../lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 
 export interface Message {
   id: string;
@@ -39,8 +43,42 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {isUser ? "You" : "Assistant"}
           </p>
         </div>
-        <div className="prose prose-invert max-w-none text-sm leading-relaxed text-foreground">
-          {message.content}
+        <div className="prose prose-sm prose-invert max-w-none text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+              // Customize code block styling
+              code: ({ inline, className, children, ...props }: any) => {
+                return inline ? (
+                  <code
+                    className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm"
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+              // Customize link styling
+              a: ({ children, href, ...props }: any) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:text-primary/80"
+                  {...props}
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ interface SidebarProps {
   currentConversationId?: string;
   onConversationSelect?: (conversationId: string) => void;
   onNewConversation?: () => void;
+  isLoading?: boolean;
 }
 
 export function Sidebar({
@@ -25,6 +26,7 @@ export function Sidebar({
   currentConversationId,
   onConversationSelect,
   onNewConversation,
+  isLoading = false,
 }: SidebarProps) {
   return (
     <>
@@ -76,38 +78,48 @@ export function Sidebar({
           {/* Conversations list */}
           <ScrollArea className="flex-1">
             <div className="space-y-1 px-3 pb-4">
-              {conversations.map((conversation) => (
-                <button
-                  key={conversation.id}
-                  onClick={() => onConversationSelect?.(conversation.id)}
-                  className={`
-                    group w-full rounded-lg px-3 py-2.5 text-left transition-colors
-                    ${
-                      currentConversationId === conversation.id
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-muted text-foreground"
-                    }
-                  `}
-                >
-                  <div className="flex items-start gap-2">
-                    <MessageSquare
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+              {isLoading ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  Loading conversations...
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No conversations yet
+                </div>
+              ) : (
+                conversations.map((conversation) => (
+                  <button
+                    key={conversation.id}
+                    onClick={() => onConversationSelect?.(conversation.id)}
+                    className={`
+                      group w-full rounded-lg px-3 py-2.5 text-left transition-colors
+                      ${
                         currentConversationId === conversation.id
-                          ? "text-primary"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">
-                        {conversation.title}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {conversation.timestamp}
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-muted text-foreground"
+                      }
+                    `}
+                  >
+                    <div className="flex items-start gap-2">
+                      <MessageSquare
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          currentConversationId === conversation.id
+                            ? "text-primary"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">
+                          {conversation.title}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {conversation.timestamp}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </ScrollArea>
         </div>

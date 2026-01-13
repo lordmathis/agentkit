@@ -14,7 +14,8 @@ class CreateChatRequest(BaseModel):
 
 
 class UpdateChatRequest(BaseModel):
-    title: str
+    title: Optional[str] = None
+    config: Optional[ChatConfig] = None
 
 
 class SendMessageRequest(BaseModel):
@@ -141,19 +142,54 @@ async def delete_chat(request: Request, chat_id: str):
 @router.patch("/chats/{chat_id}")
 async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
     """
-    Update chat metadata (e.g., title).
+    Update chat metadata (e.g., title) and/or configuration.
     """
     database = request.app.state.database
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
-    chat = database.update_chat(chat_id, title=body.title)
+    chat = database.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
+    # Prepare update kwargs
+    update_kwargs = {}
+    
+    if body.title is not None:
+        update_kwargs["title"] = body.title
+    
+    # Update configuration if provided
+    if body.config:
+        update_kwargs["model"] = body.config.model
+        update_kwargs["system_prompt"] = body.config.system_prompt
+        update_kwargs["tool_servers"] = json.dumps(body.config.tool_servers) if body.config.tool_servers else None
+        update_kwargs["model_params"] = json.dumps(body.config.model_params) if body.config.model_params else None
+        
+        # Recreate chat service with new config
+        try:
+            chat_service_manager.remove_chat_service(chat_id)
+            chat_service_manager.create_chat_service(
+                chat_id=chat_id,
+                config=body.config
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to update chat service: {str(e)}")
+
+    # Update database
+    updated_chat = database.update_chat(chat_id, **update_kwargs)
+    if not updated_chat:
+        raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
+
     return {
-        "id": chat.id,
-        "title": chat.title,
-        "created_at": chat.created_at.isoformat(),
-        "updated_at": chat.updated_at.isoformat()
+        "id": updated_chat.id,
+        "title": updated_chat.title,
+        "created_at": updated_chat.created_at.isoformat(),
+        "updated_at": updated_chat.updated_at.isoformat(),
+        "model": updated_chat.model,
+        "system_prompt": updated_chat.system_prompt,
+        "tool_servers": json.loads(updated_chat.tool_servers) if updated_chat.tool_servers else None,
+        "model_params": json.loads(updated_chat.model_params) if updated_chat.model_params else None,
     }
 
 

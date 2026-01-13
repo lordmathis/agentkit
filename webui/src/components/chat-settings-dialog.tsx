@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -19,37 +19,7 @@ import {
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
-
-// Dummy data for base models
-const baseModels = [
-  { value: "gpt-4", label: "GPT-4" },
-  { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-  { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-  { value: "claude-3-opus", label: "Claude 3 Opus" },
-  { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
-  { value: "claude-3-haiku", label: "Claude 3 Haiku" },
-];
-
-// Dummy data for available tools
-const availableTools = [
-  { id: "web-search", label: "Web Search", description: "Search the internet" },
-  {
-    id: "code-interpreter",
-    label: "Code Interpreter",
-    description: "Execute Python code",
-  },
-  {
-    id: "file-browser",
-    label: "File Browser",
-    description: "Browse and read files",
-  },
-  { id: "calculator", label: "Calculator", description: "Perform calculations" },
-  {
-    id: "image-generation",
-    label: "Image Generation",
-    description: "Generate images",
-  },
-];
+import { api, type Model, type ToolServer } from "../lib/api";
 
 export interface ChatSettings {
   baseModel: string;
@@ -60,17 +30,84 @@ export interface ChatSettings {
 interface ChatSettingsDialogProps {
   settings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
+  currentChatId?: string; // Optional chat ID for updating existing chats
+  onChatUpdated?: () => void; // Callback when chat is updated on backend
 }
 
 export function ChatSettingsDialog({
   settings,
   onSettingsChange,
+  currentChatId,
+  onChatUpdated,
 }: ChatSettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [localSettings, setLocalSettings] = useState<ChatSettings>(settings);
+  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
+  const [toolServers, setToolServers] = useState<ToolServer[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  const handleSave = () => {
+  // Fetch models and tools when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchModels();
+      fetchTools();
+    }
+  }, [open]);
+
+  const fetchModels = async () => {
+    try {
+      setIsLoadingModels(true);
+      const response = await api.listModels();
+      const formattedModels = response.data.map((model: Model) => ({
+        id: model.id,
+        label: model.id, // Use model ID as label for now
+      }));
+      setModels(formattedModels);
+    } catch (error) {
+      console.error("Failed to fetch models:", error);
+      setModels([]);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  const fetchTools = async () => {
+    try {
+      setIsLoadingTools(true);
+      const response = await api.listTools();
+      setToolServers(response.tool_servers);
+    } catch (error) {
+      console.error("Failed to fetch tools:", error);
+      setToolServers([]);
+    } finally {
+      setIsLoadingTools(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Update local state first
     onSettingsChange(localSettings);
+    
+    // If there's a current chat, update it on the backend
+    if (currentChatId) {
+      try {
+        await api.updateChat(currentChatId, {
+          config: {
+            model: localSettings.baseModel,
+            system_prompt: localSettings.systemPrompt || undefined,
+            tool_servers: localSettings.enabledTools.length > 0 ? localSettings.enabledTools : undefined,
+          },
+        });
+        // Notify parent that chat was updated
+        onChatUpdated?.();
+      } catch (error) {
+        console.error("Failed to update chat settings:", error);
+        alert(`Failed to update chat settings: ${error instanceof Error ? error.message : "Unknown error"}`);
+        return; // Don't close dialog on error
+      }
+    }
+    
     setOpen(false);
   };
 
@@ -114,13 +151,14 @@ export function ChatSettingsDialog({
               onValueChange={(value) =>
                 setLocalSettings((prev) => ({ ...prev, baseModel: value }))
               }
+              disabled={isLoadingModels}
             >
               <SelectTrigger id="base-model" className="w-full">
-                <SelectValue placeholder="Select a model" />
+                <SelectValue placeholder={isLoadingModels ? "Loading models..." : "Select a model"} />
               </SelectTrigger>
               <SelectContent>
-                {baseModels.map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
+                {models.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
                     {model.label}
                   </SelectItem>
                 ))}
@@ -152,36 +190,45 @@ export function ChatSettingsDialog({
 
           {/* Tools Section */}
           <div className="space-y-3">
-            <Label>Available Tools</Label>
+            <Label>Tool Servers</Label>
             <p className="text-sm text-muted-foreground">
-              Enable or disable tools that the assistant can use during the
-              conversation.
+              Select which tool servers the assistant can use during the conversation.
             </p>
-            <div className="space-y-3 rounded-lg border border-border p-4">
-              {availableTools.map((tool) => (
-                <div
-                  key={tool.id}
-                  className="flex items-center justify-between space-x-4"
-                >
-                  <div className="flex-1 space-y-0.5">
-                    <Label
-                      htmlFor={`tool-${tool.id}`}
-                      className="cursor-pointer font-medium"
-                    >
-                      {tool.label}
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {tool.description}
-                    </p>
+            {isLoadingTools ? (
+              <div className="rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
+                Loading available tools...
+              </div>
+            ) : toolServers.length === 0 ? (
+              <div className="rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
+                No tool servers available
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-border p-4">
+                {toolServers.map((server) => (
+                  <div
+                    key={server.name}
+                    className="flex items-center justify-between space-x-4"
+                  >
+                    <div className="flex-1 space-y-0.5">
+                      <Label
+                        htmlFor={`tool-${server.name}`}
+                        className="cursor-pointer font-medium"
+                      >
+                        {server.name}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''} available ({server.type})
+                      </p>
+                    </div>
+                    <Switch
+                      id={`tool-${server.name}`}
+                      checked={localSettings.enabledTools.includes(server.name)}
+                      onCheckedChange={() => toggleTool(server.name)}
+                    />
                   </div>
-                  <Switch
-                    id={`tool-${tool.id}`}
-                    checked={localSettings.enabledTools.includes(tool.id)}
-                    onCheckedChange={() => toggleTool(tool.id)}
-                  />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

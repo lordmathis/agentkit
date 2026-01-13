@@ -9,201 +9,172 @@ import {
   ChatSettingsDialog,
   type ChatSettings,
 } from "./chat-settings-dialog";
+import { api } from "../lib/api";
 
-// Dummy messages for demonstration
-const dummyMessages: Message[] = [
-  {
-    id: "1",
-    role: "user",
-    content: "Hello! Can you help me understand how React hooks work?",
-  },
-  {
-    id: "2",
-    role: "assistant",
-    content:
-      "Of course! React Hooks are functions that let you use state and other React features in functional components. The most commonly used hooks are:\n\n1. **useState** - Lets you add state to functional components\n2. **useEffect** - Lets you perform side effects in your components\n3. **useContext** - Lets you subscribe to React context\n4. **useRef** - Lets you create a mutable reference that persists across renders\n\nWould you like me to explain any of these in more detail?",
-  },
-  {
-    id: "3",
-    role: "user",
-    content: "Yes, can you show me an example of useState?",
-  },
-  {
-    id: "4",
-    role: "assistant",
-    content:
-      "Here's a simple example of useState:\n\n```javascript\nimport { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={() => setCount(count + 1)}>\n        Increment\n      </button>\n    </div>\n  );\n}\n```\n\nIn this example:\n- `useState(0)` initializes the state with a value of 0\n- It returns an array with two elements: the current state value (`count`) and a function to update it (`setCount`)\n- When you click the button, `setCount` is called with the new value, and React re-renders the component",
-  },
-  {
-    id: "5",
-    role: "user",
-    content: "That's really helpful, thank you!",
-  },
-  {
-    id: "6",
-    role: "assistant",
-    content:
-      "You're welcome! Feel free to ask if you have any more questions about React or programming in general. I'm here to help!",
-  },
-  {
-    id: "7",
-    role: "user",
-    content: "Can you explain useEffect as well?",
-  },
-  {
-    id: "8",
-    role: "assistant",
-    content:
-      "Absolutely! `useEffect` is a hook that lets you perform side effects in your components. Side effects include things like:\n\n- Fetching data from an API\n- Setting up subscriptions\n- Manually changing the DOM\n- Setting up timers\n\nHere's the basic syntax:\n\n```javascript\nimport { useEffect, useState } from 'react';\n\nfunction Example() {\n  const [count, setCount] = useState(0);\n\n  useEffect(() => {\n    // This runs after every render\n    document.title = `You clicked ${count} times`;\n  });\n\n  return (\n    <button onClick={() => setCount(count + 1)}>\n      Click me\n    </button>\n  );\n}\n```\n\nThe useEffect hook takes two arguments:\n1. A function that contains your side effect code\n2. An optional dependency array that controls when the effect runs",
-  },
-  {
-    id: "9",
-    role: "user",
-    content: "What's the dependency array for?",
-  },
-  {
-    id: "10",
-    role: "assistant",
-    content:
-      "Great question! The dependency array controls when your effect re-runs. There are three main patterns:\n\n**1. No dependency array** - Effect runs after every render:\n```javascript\nuseEffect(() => {\n  console.log('Runs after every render');\n});\n```\n\n**2. Empty dependency array** - Effect runs only once (on mount):\n```javascript\nuseEffect(() => {\n  console.log('Runs only on mount');\n}, []);\n```\n\n**3. With dependencies** - Effect runs when dependencies change:\n```javascript\nuseEffect(() => {\n  console.log('Runs when count changes');\n}, [count]);\n```\n\nThis optimization helps prevent unnecessary work and potential bugs. You should include all values from the component scope that the effect uses in the dependency array.",
-  },
-  {
-    id: "11",
-    role: "user",
-    content: "Can you show me a real-world example with data fetching?",
-  },
-  {
-    id: "12",
-    role: "assistant",
-    content:
-      "Sure! Here's a practical example of fetching data with useEffect:\n\n```javascript\nimport { useState, useEffect } from 'react';\n\nfunction UserProfile({ userId }) {\n  const [user, setUser] = useState(null);\n  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState(null);\n\n  useEffect(() => {\n    // Reset state when userId changes\n    setLoading(true);\n    setError(null);\n\n    fetch(`https://api.example.com/users/${userId}`)\n      .then(response => response.json())\n      .then(data => {\n        setUser(data);\n        setLoading(false);\n      })\n      .catch(err => {\n        setError(err.message);\n        setLoading(false);\n      });\n  }, [userId]); // Re-fetch when userId changes\n\n  if (loading) return <div>Loading...</div>;\n  if (error) return <div>Error: {error}</div>;\n  if (!user) return null;\n\n  return (\n    <div>\n      <h1>{user.name}</h1>\n      <p>{user.email}</p>\n    </div>\n  );\n}\n```\n\nThis example shows:\n- Loading states\n- Error handling\n- Dependency tracking (refetches when userId changes)\n- Proper state management",
-  },
-  {
-    id: "13",
-    role: "user",
-    content: "What about cleanup? I've heard that's important.",
-  },
-  {
-    id: "14",
-    role: "assistant",
-    content:
-      "Excellent point! Cleanup is crucial to prevent memory leaks and unwanted behavior. You can return a cleanup function from your effect:\n\n```javascript\nuseEffect(() => {\n  // Setup\n  const subscription = someAPI.subscribe(data => {\n    console.log(data);\n  });\n\n  // Cleanup function\n  return () => {\n    subscription.unsubscribe();\n  };\n}, []);\n```\n\nCommon cleanup scenarios:\n\n**1. Timers:**\n```javascript\nuseEffect(() => {\n  const timer = setTimeout(() => {\n    console.log('Delayed action');\n  }, 1000);\n\n  return () => clearTimeout(timer);\n}, []);\n```\n\n**2. Event listeners:**\n```javascript\nuseEffect(() => {\n  const handleResize = () => console.log('Resized');\n  window.addEventListener('resize', handleResize);\n\n  return () => window.removeEventListener('resize', handleResize);\n}, []);\n```\n\n**3. Abort fetch requests:**\n```javascript\nuseEffect(() => {\n  const controller = new AbortController();\n\n  fetch('/api/data', { signal: controller.signal })\n    .then(response => response.json())\n    .then(data => setData(data));\n\n  return () => controller.abort();\n}, []);\n```\n\nThe cleanup function runs before the component unmounts and before re-running the effect.",
-  },
-  {
-    id: "15",
-    role: "user",
-    content: "This is amazing! Do you have any tips for avoiding common mistakes?",
-  },
-  {
-    id: "16",
-    role: "assistant",
-    content:
-      "I'm glad you're finding this helpful! Here are some common pitfalls to avoid:\n\n**1. Missing dependencies:**\n```javascript\n// ❌ Bad - missing 'count' in dependencies\nuseEffect(() => {\n  console.log(count);\n}, []);\n\n// ✅ Good - include all dependencies\nuseEffect(() => {\n  console.log(count);\n}, [count]);\n```\n\n**2. Infinite loops:**\n```javascript\n// ❌ Bad - creates infinite loop\nconst [data, setData] = useState([]);\nuseEffect(() => {\n  setData([...data, 'new item']);\n}); // No dependency array!\n\n// ✅ Good - controlled execution\nuseEffect(() => {\n  fetchData().then(setData);\n}, []); // Runs once\n```\n\n**3. Object/Array dependencies:**\n```javascript\n// ❌ Bad - object recreated every render\nconst options = { limit: 10 };\nuseEffect(() => {\n  fetchData(options);\n}, [options]); // Will run every render!\n\n// ✅ Good - stable reference\nconst options = useMemo(() => ({ limit: 10 }), []);\nuseEffect(() => {\n  fetchData(options);\n}, [options]);\n```\n\n**4. Forgetting cleanup:**\n```javascript\n// ❌ Bad - no cleanup\nuseEffect(() => {\n  const interval = setInterval(() => tick(), 1000);\n}, []); // Memory leak!\n\n// ✅ Good - proper cleanup\nuseEffect(() => {\n  const interval = setInterval(() => tick(), 1000);\n  return () => clearInterval(interval);\n}, []);\n```\n\nRemember: React's ESLint plugin can help catch these issues automatically!",
-  },
-];
-
-// Dummy conversation history
-const baseModels = [
-  { value: "gpt-4", label: "GPT-4" },
-  { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-  { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-  { value: "claude-3-opus", label: "Claude 3 Opus" },
-  { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
-  { value: "claude-3-haiku", label: "Claude 3 Haiku" },
-];
-
-const availableTools = [
-  { id: "web-search", label: "Web Search" },
-  { id: "code-interpreter", label: "Code Interpreter" },
-  { id: "file-browser", label: "File Browser" },
-  { id: "calculator", label: "Calculator" },
-  { id: "image-generation", label: "Image Generation" },
-];
-
+// Helper function to format model ID as a display label
 const getModelLabel = (modelValue: string): string => {
-  const model = baseModels.find((m) => m.value === modelValue);
-  return model?.label || modelValue;
+  // Remove provider prefix if present (e.g., "openai:gpt-4" -> "gpt-4")
+  const modelId = modelValue.includes(':') ? modelValue.split(':')[1] : modelValue;
+  
+  // Convert snake_case or kebab-case to Title Case
+  return modelId
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
+// Helper function to format tool server name as a display label
 const getToolLabel = (toolId: string): string => {
-  const tool = availableTools.find((t) => t.id === toolId);
-  return tool?.label || toolId;
+  // Convert snake_case or kebab-case to Title Case
+  return toolId
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
-const dummyConversations: Conversation[] = [
-  {
-    id: "1",
-    title: "React Hooks Tutorial",
-    preview: "Learning about useState and useEffect...",
-    timestamp: "2 hours ago",
-  },
-  {
-    id: "2",
-    title: "TypeScript Best Practices",
-    preview: "How to structure a TypeScript project",
-    timestamp: "Yesterday",
-  },
-  {
-    id: "3",
-    title: "Building REST APIs",
-    preview: "Express.js and Node.js discussion",
-    timestamp: "2 days ago",
-  },
-  {
-    id: "4",
-    title: "CSS Grid Layout",
-    preview: "Understanding grid-template-areas",
-    timestamp: "3 days ago",
-  },
-  {
-    id: "5",
-    title: "Database Design",
-    preview: "PostgreSQL schema design patterns",
-    timestamp: "1 week ago",
-  },
-  {
-    id: "6",
-    title: "Git Workflow",
-    preview: "Branching strategies and merge conflicts",
-    timestamp: "1 week ago",
-  },
-  {
-    id: "7",
-    title: "Python Async/Await",
-    preview: "Asynchronous programming concepts",
-    timestamp: "2 weeks ago",
-  },
-  {
-    id: "8",
-    title: "Docker Containers",
-    preview: "Containerization and deployment",
-    timestamp: "2 weeks ago",
-  },
-  {
-    id: "9",
-    title: "GraphQL vs REST",
-    preview: "Comparing API architectures",
-    timestamp: "3 weeks ago",
-  },
-  {
-    id: "10",
-    title: "Web Security",
-    preview: "CORS, XSS, and CSRF protection",
-    timestamp: "1 month ago",
-  },
-];
+// Format timestamp for display (e.g., "2 hours ago", "Yesterday")
+const formatTimestamp = (isoString: string): string => {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? "s" : ""} ago`;
+  return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? "s" : ""} ago`;
+};
 
 export function ChatView() {
   const [inputValue, setInputValue] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentConversationId, setCurrentConversationId] = useState("1");
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
-    baseModel: "gpt-4",
-    systemPrompt:
-      "You are a helpful AI assistant. Be concise and informative in your responses.",
-    enabledTools: ["web-search", "code-interpreter"],
+    baseModel: "",
+    systemPrompt: "",
+    enabledTools: [],
   });
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Function to refresh conversations list
+  const refreshConversations = async () => {
+    try {
+      const response = await api.listChats(20);
+      const formattedChats: Conversation[] = response.chats.map((chat) => ({
+        id: chat.id,
+        title: chat.title,
+        timestamp: formatTimestamp(chat.updated_at),
+        preview: chat.model || undefined,
+      }));
+      setConversations(formattedChats);
+    } catch (error) {
+      console.error("Failed to refresh conversations:", error);
+    }
+  };
+
+  // Load default model on first mount
+  useEffect(() => {
+    const loadDefaultModel = async () => {
+      if (chatSettings.baseModel) {
+        // Already has a model, skip
+        return;
+      }
+
+      try {
+        const response = await api.listModels();
+        if (response.data && response.data.length > 0) {
+          // Set the first available model as default
+          setChatSettings((prev) => ({
+            ...prev,
+            baseModel: response.data[0].id,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load default model:", error);
+      }
+    };
+
+    loadDefaultModel();
+  }, [chatSettings.baseModel]);
+
+  // Fetch chats from the backend
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        setIsLoadingChats(true);
+        const response = await api.listChats(20);
+        
+        // Convert backend chat format to frontend Conversation format
+        const formattedChats: Conversation[] = response.chats.map((chat) => ({
+          id: chat.id,
+          title: chat.title,
+          timestamp: formatTimestamp(chat.updated_at),
+          preview: chat.model || undefined,
+        }));
+        
+        setConversations(formattedChats);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+        // Keep empty array on error
+        setConversations([]);
+      } finally {
+        setIsLoadingChats(false);
+      }
+    };
+
+    fetchChats();
+  }, []);
+
+  // Fetch messages when conversation changes
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!currentConversationId) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        setIsLoadingMessages(true);
+        const chatData = await api.getChat(currentConversationId);
+        
+        // Convert backend messages to frontend format
+        const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        }));
+        
+        setMessages(formattedMessages);
+        
+        // Update chat settings from the loaded chat
+        if (chatData.model) {
+          setChatSettings((prev) => ({
+            ...prev,
+            baseModel: chatData.model || prev.baseModel,
+            systemPrompt: chatData.system_prompt || prev.systemPrompt,
+            enabledTools: chatData.tool_servers || prev.enabledTools,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        setMessages([]);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    fetchMessages();
+  }, [currentConversationId]);
 
   // Auto-resize textarea as user types
   useEffect(() => {
@@ -215,16 +186,56 @@ export function ChatView() {
     }
   }, [inputValue]);
 
+  // Handle creating a new conversation
+  const handleNewConversation = async () => {
+    try {
+      // Validate that required settings are present
+      if (!chatSettings.baseModel) {
+        alert("Please select a base model in the settings before creating a new conversation.");
+        return;
+      }
+
+      // Create the chat with current settings
+      const newChat = await api.createChat({
+        title: "Untitled Chat",
+        config: {
+          model: chatSettings.baseModel,
+          system_prompt: chatSettings.systemPrompt || undefined,
+          tool_servers: chatSettings.enabledTools.length > 0 ? chatSettings.enabledTools : undefined,
+        },
+      });
+
+      // Add the new chat to the conversations list
+      const newConversation: Conversation = {
+        id: newChat.id,
+        title: newChat.title,
+        timestamp: formatTimestamp(newChat.created_at),
+        preview: newChat.model || undefined,
+      };
+      setConversations((prev) => [newConversation, ...prev]);
+
+      // Switch to the new conversation
+      setCurrentConversationId(newChat.id);
+      
+      // Clear messages for the new conversation
+      setMessages([]);
+    } catch (error) {
+      console.error("Failed to create new conversation:", error);
+      alert(`Failed to create new conversation: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
   return (
     <div className="relative flex h-screen bg-background">
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
-        conversations={dummyConversations}
+        conversations={conversations}
         currentConversationId={currentConversationId}
         onConversationSelect={setCurrentConversationId}
-        onNewConversation={() => console.log("New conversation")}
+        onNewConversation={handleNewConversation}
+        isLoading={isLoadingChats}
       />
 
       {/* Main chat area */}
@@ -265,9 +276,30 @@ export function ChatView() {
         {/* Messages Container */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="mx-auto max-w-3xl pb-6">
-            {dummyMessages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
+            {isLoadingMessages ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center text-muted-foreground">
+                  Loading messages...
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <p className="text-lg font-medium text-foreground">
+                    No messages yet
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {currentConversationId 
+                      ? "Start a conversation by typing a message below"
+                      : "Select a conversation from the sidebar or create a new one"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <ChatMessage key={message.id} message={message} />
+              ))
+            )}
           </div>
         </ScrollArea>
 
@@ -301,6 +333,8 @@ export function ChatView() {
                 <ChatSettingsDialog
                   settings={chatSettings}
                   onSettingsChange={setChatSettings}
+                  currentChatId={currentConversationId}
+                  onChatUpdated={refreshConversations}
                 />
                 <Button size="icon" className="h-9 w-9" type="submit">
                   <Send className="h-5 w-5" />
