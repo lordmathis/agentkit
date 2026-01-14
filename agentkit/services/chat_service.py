@@ -45,38 +45,68 @@ class ChatService:
         self._img_files: List[str] = []
         self._file_contents: Dict[str, str] = {}
 
+    def _parse_content(self, msg_content: str):
+        """Parse message content from JSON or return as plain string."""
+        try:
+            return json.loads(msg_content)
+        except (json.JSONDecodeError, TypeError):
+            return msg_content
+
+    def _format_attachments(self, attachments: List) -> str:
+        """Build text representation of attachments."""
+        text = ""
+        for attachment in attachments:
+            if attachment.content:
+                text += f"\n\n--- Content of {attachment.filename} ---\n{attachment.content}"
+            elif attachment.content_type.startswith("image/"):
+                text += f"\n\n[Image attached: {attachment.filename}]"
+        return text
+
+    def _add_to_structured(self, content: List, text: str) -> List:
+        """Add text to structured content (list of parts)."""
+        if not text:
+            return content
+
+        # Find existing text part and append to it
+        for part in content:
+            if part.get("type") == "text":
+                part["text"] += text
+                return content
+
+        # No text part found, create one at the beginning
+        content.insert(0, {"type": "text", "text": text.strip()})
+        return content
+
+    def _process_user_message(self, msg) -> ChatCompletionMessageParam:
+        """Process user message with attachments."""
+        content = self._parse_content(msg.content)
+        attachments = self.db.get_message_attachments(msg.id)
+
+        if not attachments:
+            return {"role": "user", "content": content}
+
+        attachment_text = self._format_attachments(attachments)
+
+        if isinstance(content, list):
+            content = self._add_to_structured(content, attachment_text)
+        else:
+            content = content + attachment_text
+
+        return {"role": "user", "content": content}
+
     def _convert_messages_to_openai_format(
         self, messages: List
     ) -> List[ChatCompletionMessageParam]:
         result: List[ChatCompletionMessageParam] = []
 
         for msg in messages:
-            # Try to parse content as JSON (for structured content with images)
-            try:
-                content = json.loads(msg.content)
-            except (json.JSONDecodeError, TypeError):
-                # If it's not JSON, use as plain string
-                content = msg.content
-            
-            # For user messages, include file attachments in context
             if msg.role == "user":
-                attachments = self.db.get_message_attachments(msg.id)
-                if attachments:
-                    # Build content with file context
-                    message_content = content if isinstance(content, str) else str(content)
-                    for attachment in attachments:
-                        if attachment.content:  # Text file
-                            message_content += f"\n\n--- Content of {attachment.filename} ---\n{attachment.content}"
-                        elif attachment.content_type.startswith("image/"):
-                            # For images in history, we'd need to load and encode them
-                            # For now, just note the image was attached
-                            message_content += f"\n\n[Image attached: {attachment.filename}]"
-                    content = message_content
-                
-                result.append({"role": "user", "content": content})
+                result.append(self._process_user_message(msg))
             elif msg.role == "assistant":
+                content = self._parse_content(msg.content)
                 result.append({"role": "assistant", "content": content})
             elif msg.role == "system":
+                content = self._parse_content(msg.content)
                 result.append({"role": "system", "content": content})
 
         return result

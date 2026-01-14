@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 from openai.types.chat import (
@@ -19,8 +19,8 @@ class Chatbot:
     model_id: str = ""
 
     max_iterations: int = 5
-    temperature: float = 0.7
-    max_tokens: int = 2000
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
 
     client: OpenAI
 
@@ -32,8 +32,8 @@ class Chatbot:
         system_prompt: str = "",
         tool_servers: List[str] = [],
         max_iterations: int = 5,
-        temperature: float = 0.7,
-        max_tokens: int = 2000,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
     ):
         self.system_prompt = system_prompt
         self.provider = provider
@@ -87,9 +87,14 @@ class Chatbot:
         api_params: Dict[str, Any] = {
             "model": self.model_id,
             "messages": messages,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
         }
+
+        if self.temperature is not None:
+            api_params["temperature"] = self.temperature
+
+        if self.max_tokens is not None:
+            api_params["max_tokens"] = self.max_tokens
+
         if api_tools:
             api_params["tools"] = api_tools
 
