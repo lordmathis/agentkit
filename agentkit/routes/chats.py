@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, UploadFile
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 import json
 
 from agentkit.services.chat_service import ChatServiceManager, ChatConfig
@@ -234,3 +234,35 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/chats/{chat_id}/files")
+async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
+    """
+    Upload a file to be used in the chat session.
+    """
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+
+    try:
+        chat_service = chat_service_manager.get_or_create_chat_service(chat_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    file_locations = []
+    content_types = []
+    for file in files:
+        file_location = f"{request.app.state.config.uploads_dir}/{chat_id}/{file.filename}"
+        with open(file_location, "wb") as file_object:
+            file_object.write(await file.read())
+        file_locations.append(file_location)
+        content_types.append(file.content_type)
+
+    # Handle file in chat service
+    try:
+        for file_location, content_type in zip(file_locations, content_types):
+            await chat_service.handle_file_upload(file_location, content_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to handle file upload: {str(e)}")
+
+    return {
+        "filenames": [file.filename for file in files]
+    }

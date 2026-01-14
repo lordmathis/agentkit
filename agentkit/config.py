@@ -53,6 +53,7 @@ class AppConfig(BaseModel):
     mcps: Dict[str, MCPConfig] = {}
     plugins: PluginConfig = PluginConfig()
     history_db_path: str = "agentkit.db"
+    uploads_dir: str = "uploads"
     mcp_timeout: int = 60
 
 

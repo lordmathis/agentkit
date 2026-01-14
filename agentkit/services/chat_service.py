@@ -1,6 +1,10 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 from openai.types.chat import ChatCompletionMessageParam
+import json
+import base64
+import logging
+import os
 
 from agentkit.chatbots.factory import ChatbotFactory
 from agentkit.chatbots.chatbot import Chatbot
@@ -8,6 +12,8 @@ from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
+
+logger = logging.getLogger(__name__)
 
 
 class ChatConfig(BaseModel):
@@ -36,6 +42,8 @@ class ChatService:
         self.chat_id = chat_id
         self.db = db
         self.chatbot = chatbot
+        self._img_files: List[str] = []
+        self._file_contents: Dict[str, str] = {}
 
     def _convert_messages_to_openai_format(
         self, messages: List
@@ -43,12 +51,19 @@ class ChatService:
         result: List[ChatCompletionMessageParam] = []
 
         for msg in messages:
+            # Try to parse content as JSON (for structured content with images)
+            try:
+                content = json.loads(msg.content)
+            except (json.JSONDecodeError, TypeError):
+                # If it's not JSON, use as plain string
+                content = msg.content
+            
             if msg.role == "user":
-                result.append({"role": "user", "content": msg.content})
+                result.append({"role": "user", "content": content})
             elif msg.role == "assistant":
-                result.append({"role": "assistant", "content": msg.content})
+                result.append({"role": "assistant", "content": content})
             elif msg.role == "system":
-                result.append({"role": "system", "content": msg.content})
+                result.append({"role": "system", "content": content})
 
         return result
 
@@ -60,7 +75,19 @@ class ChatService:
         conversation_text = ""
         for msg in history[:6]:  # Max 3 exchanges
             if msg.role in ["user", "assistant"]:
-                conversation_text += f"{msg.role.capitalize()}: {msg.content}\n"
+                # Extract text content (handle both string and structured content)
+                try:
+                    content = json.loads(msg.content)
+                    if isinstance(content, list):
+                        # Extract text from structured content
+                        text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
+                        content_str = " ".join(text_parts)
+                    else:
+                        content_str = str(content)
+                except (json.JSONDecodeError, TypeError):
+                    content_str = msg.content
+                
+                conversation_text += f"{msg.role.capitalize()}: {content_str}\n"
 
         # Generate title using the chatbot
         naming_messages: List[ChatCompletionMessageParam] = [
@@ -81,13 +108,64 @@ class ChatService:
                 return title
 
         return None
+    
+    async def handle_file_upload(self, file_path: str, content_type: str) -> None:
+        logger.info(f"Handling file upload: {file_path} with content type: {content_type}")
+
+        if content_type.startswith("image/"):
+            self._img_files.append(file_path)
+            return
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                self._file_contents[file_path] = content
+                logger.info(f"Read content from {file_path}, length: {len(content)} characters")
+        except (UnicodeDecodeError, UnicodeError) as e:
+            logger.error(f"Failed to read file {file_path}: {str(e)}")
+            raise ValueError(f"Unsupported file encoding for file: {file_path}")
 
     async def send_message(self, message: str) -> Dict[str, Any]:
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        self.db.save_message(self.chat_id, "user", message)
+        # Build message content with text files and images
+        content: Union[str, List[Dict[str, Any]]] = message
+        
+        # Append text file contents to the message
+        if self._file_contents:
+            for file_path, file_content in self._file_contents.items():
+                filename = os.path.basename(file_path)
+                content += f"\n\n--- Content of {filename} ---\n{file_content}"
+        
+        # If images exist, convert to structured format
+        if self._img_files:
+            content_parts: List[Dict[str, Any]] = [{"type": "text", "text": content}]
+            for img_path in self._img_files:
+                try:
+                    # Read image and encode to base64
+                    with open(img_path, "rb") as f:
+                        img_data = base64.b64encode(f.read()).decode()
+                    
+                    # Detect image format from path
+                    ext = os.path.splitext(img_path)[1].lower().lstrip('.')
+                    image_format = 'jpeg' if ext in ('jpg', 'jpeg') else ext or 'jpeg'
+                    
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/{image_format};base64,{img_data}"}
+                    })
+                    logger.info(f"Added image {img_path} to message")
+                except Exception as e:
+                    logger.error(f"Failed to encode image {img_path}: {str(e)}")
+            
+            content = content_parts
+        
+        # Save message with structured content (as JSON if it's a list)
+        content_to_save = json.dumps(content) if isinstance(content, list) else content
+        self.db.save_message(self.chat_id, "user", content_to_save)
+        
+        # Clear files after using them
+        self._img_files.clear()
+        self._file_contents.clear()
+        
         history = self.db.get_chat_history(self.chat_id)
         chat = self.db.get_chat(self.chat_id)
         messages = self._convert_messages_to_openai_format(history)
