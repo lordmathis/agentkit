@@ -36,3 +36,17 @@ class Message(Base):
         # Index for efficient ordering
         Index('idx_chat_sequence', 'chat_id', 'sequence'),
     )
+
+class FileAttachment(Base):
+    __tablename__ = "file_attachments"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    message_id: Mapped[str] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"))
+    filename: Mapped[str] = mapped_column(String)
+    file_path: Mapped[str] = mapped_column(String)  # Path on disk
+    content_type: Mapped[str] = mapped_column(String)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Text content for text files
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
+    
+    __table_args__ = (
+        Index('idx_message_attachments', 'message_id'),
+    )

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
 import json
+import os
 
 from agentkit.services.chat_service import ChatServiceManager, ChatConfig
 
@@ -119,7 +120,15 @@ async def get_chat(request: Request, chat_id: str):
                 "content": msg.content,
                 "reasoning_content": msg.reasoning_content,
                 "sequence": msg.sequence,
-                "created_at": msg.created_at.isoformat()
+                "created_at": msg.created_at.isoformat(),
+                "files": [
+                    {
+                        "id": file.id,
+                        "filename": file.filename,
+                        "content_type": file.content_type,
+                    }
+                    for file in database.get_message_attachments(msg.id)
+                ]
             }
             for msg in messages
         ]
@@ -249,8 +258,12 @@ async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
 
     file_locations = []
     content_types = []
+
+    uploads_dir = f"{request.app.state.app_config.uploads_dir}/{chat_id}"
+    os.makedirs(uploads_dir, exist_ok=True)
+
     for file in files:
-        file_location = f"{request.app.state.config.uploads_dir}/{chat_id}/{file.filename}"
+        file_location = f"{uploads_dir}/{file.filename}"
         with open(file_location, "wb") as file_object:
             file_object.write(await file.read())
         file_locations.append(file_location)

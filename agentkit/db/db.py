@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import json
 import uuid
 
-from agentkit.db.models import Base, Chat, Message
+from agentkit.db.models import Base, Chat, Message, FileAttachment
 
 
 class Database:
@@ -161,3 +161,37 @@ class Database:
     def close(self):
         """Close database connections and dispose of the engine"""
         self.engine.dispose()
+
+    def save_file_attachment(
+        self,
+        message_id: str,
+        filename: str,
+        file_path: str,
+        content_type: str,
+        content: Optional[str] = None
+    ) -> FileAttachment:
+        """Save a file attachment linked to a message"""
+        with self.SessionLocal() as session:
+            attachment = FileAttachment(
+                id=str(uuid.uuid4()),
+                message_id=message_id,
+                filename=filename,
+                file_path=file_path,
+                content_type=content_type,
+                content=content
+            )
+            session.add(attachment)
+            session.commit()
+            session.refresh(attachment)
+            return attachment
+
+    def get_message_attachments(self, message_id: str) -> List[FileAttachment]:
+        """Get all file attachments for a message"""
+        with self.SessionLocal() as session:
+            stmt = (
+                select(FileAttachment)
+                .where(FileAttachment.message_id == message_id)
+                .order_by(FileAttachment.created_at)
+            )
+            result = session.execute(stmt)
+            return list(result.scalars().all())

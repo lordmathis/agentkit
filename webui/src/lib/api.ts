@@ -20,6 +20,11 @@ export interface Message {
   reasoning_content?: string | null;
   sequence: number;
   created_at: string;
+  files?: Array<{
+    id: string;
+    filename: string;
+    content_type: string;
+  }>;
 }
 
 export interface ChatWithMessages extends Chat {
@@ -152,6 +157,27 @@ class ApiClient {
 
   async listTools(): Promise<{ tool_servers: ToolServer[] }> {
     return this.request('/tools');
+  }
+
+  async uploadFiles(chatId: string, files: File[]): Promise<{ filenames: string[] }> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    const url = `${this.baseURL}/chats/${chatId}/files`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 }
 

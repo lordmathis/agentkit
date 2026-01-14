@@ -1,4 +1,4 @@
-import { Bot, User, Brain } from "lucide-react";
+import { Bot, User, Brain, File } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -11,6 +11,11 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   reasoning_content?: string | null;
+  files?: Array<{
+    id: string;
+    filename: string;
+    content_type: string;
+  }>;
 }
 
 interface ChatMessageProps {
@@ -46,6 +51,21 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {isUser ? "You" : "Assistant"}
           </p>
         </div>
+        
+        {/* File attachments - show for user messages */}
+        {isUser && message.files && message.files.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {message.files.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-xs"
+              >
+                <File className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-medium">{file.filename}</span>
+              </div>
+            ))}
+          </div>
+        )}
         
         {/* Reasoning content - show if present and it's an assistant message */}
         {!isUser && message.reasoning_content && (

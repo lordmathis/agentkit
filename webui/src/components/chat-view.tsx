@@ -1,4 +1,4 @@
-import { Send, Bot, Zap } from "lucide-react";
+import { Send, Bot, Zap, Plus, Upload, X, File } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage, type Message } from "./chat-message";
 import { Button } from "./ui/button";
@@ -9,6 +9,12 @@ import {
   ChatSettingsDialog,
   type ChatSettings,
 } from "./chat-settings-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { api } from "../lib/api";
 
 // Helper function to format model ID as a display label
@@ -65,8 +71,59 @@ export function ChatView() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file upload button click
+  const handleFileUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file selection
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    if (!currentConversationId) {
+      alert("Please create or select a conversation first");
+      return;
+    }
+
+    try {
+      setIsUploadingFiles(true);
+      const fileArray = Array.from(files);
+      
+      // Upload files to backend
+      const response = await api.uploadFiles(currentConversationId, fileArray);
+      
+      // Add uploaded files to state
+      setUploadedFiles((prev) => [...prev, ...response.filenames]);
+      
+      // Show success message
+      const fileNames = response.filenames.join(", ");
+      console.log(`Successfully uploaded: ${fileNames}`);
+      
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Failed to upload files:", error);
+      alert(`Failed to upload files: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsUploadingFiles(false);
+    }
+  };
+
+  // Handle removing an uploaded file
+  const handleRemoveFile = (filename: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+  };
 
   // Function to refresh conversations list
   const refreshConversations = async () => {
@@ -142,6 +199,7 @@ export function ChatView() {
     const fetchMessages = async () => {
       if (!currentConversationId) {
         setMessages([]);
+        setUploadedFiles([]);
         return;
       }
 
@@ -155,6 +213,7 @@ export function ChatView() {
           role: msg.role as "user" | "assistant",
           content: msg.content,
           reasoning_content: msg.reasoning_content,
+          files: msg.files,
         }));
         
         setMessages(formattedMessages);
@@ -165,6 +224,9 @@ export function ChatView() {
           systemPrompt: chatData.system_prompt || "",
           enabledTools: chatData.tool_servers || [],
         });
+        
+        // Clear uploaded files when switching conversations
+        setUploadedFiles([]);
       } catch (error) {
         console.error("Failed to fetch messages:", error);
         setMessages([]);
@@ -267,8 +329,9 @@ export function ChatView() {
     try {
       setIsSending(true);
       
-      // Clear input immediately for better UX
+      // Clear input and uploaded files immediately for better UX
       setInputValue("");
+      setUploadedFiles([]);
 
       // Add user message to UI optimistically
       const tempUserMessage: Message = {
@@ -318,6 +381,7 @@ export function ChatView() {
           role: msg.role as "user" | "assistant",
           content: msg.content,
           reasoning_content: msg.reasoning_content,
+          files: msg.files,
         }));
         setMessages(formattedMessages);
       } catch (error) {
@@ -474,6 +538,27 @@ export function ChatView() {
                 </div>
               )}
             </div>
+            {/* Uploaded files display */}
+            {uploadedFiles.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {uploadedFiles.map((filename, index) => (
+                  <div
+                    key={`${filename}-${index}`}
+                    className="flex items-center gap-1.5 rounded-md border border-border bg-primary/10 px-2 py-1 text-xs"
+                  >
+                    <File className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-primary font-medium">{filename}</span>
+                    <button
+                      onClick={() => handleRemoveFile(filename)}
+                      className="ml-1 hover:text-destructive transition-colors"
+                      aria-label={`Remove ${filename}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="relative">
               <Textarea
                 ref={textareaRef}
@@ -481,11 +566,38 @@ export function ChatView() {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message here..."
-                className="min-h-[60px] resize-none pr-24 overflow-y-auto"
+                className="min-h-[60px] resize-none pr-32 overflow-y-auto"
                 rows={1}
                 disabled={isSending || !currentConversationId}
               />
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
               <div className="absolute bottom-2 right-2 flex gap-1">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost"
+                      className="h-9 w-9" 
+                      disabled={isSending || isUploadingFiles || !currentConversationId}
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span className="sr-only">Add attachments</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top">
+                    <DropdownMenuItem onClick={handleFileUploadClick} disabled={isUploadingFiles}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      <span>{isUploadingFiles ? "Uploading..." : "Upload files"}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <ChatSettingsDialog
                   settings={chatSettings}
                   onSettingsChange={setChatSettings}
