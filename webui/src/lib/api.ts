@@ -203,6 +203,12 @@ class ApiClient {
     return response.json();
   }
 
+  async removeUploadedFile(chatId: string, filename: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/chats/${chatId}/files/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+    });
+  }
+
   // GitHub endpoints
   async listGitHubRepositories(): Promise<{ repositories: GitHubRepository[] }> {
     return this.request('/github/repositories');
@@ -223,6 +229,12 @@ class ApiClient {
     return this.request(`/chats/${chatId}/github/files`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
+    });
+  }
+
+  async removeGitHubFilesFromChat(chatId: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/chats/${chatId}/github/files`, {
+      method: 'DELETE',
     });
   }
 }

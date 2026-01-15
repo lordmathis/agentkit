@@ -481,6 +481,12 @@ export function AddGitHubDialog({
     try {
       setIsAdding(true);
       setError("");
+      
+      // First, clear any existing GitHub files from the backend
+      // This ensures unchecked files are removed
+      await api.removeGitHubFilesFromChat(chatId);
+      
+      // Then add the newly selected files
       const result = await api.addGitHubFilesToChat(chatId, repo, paths, excludePaths);
       
       // Success! Close dialog and notify parent with the selection details

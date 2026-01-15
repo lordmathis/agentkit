@@ -288,6 +288,36 @@ async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
     }
 
 
+@router.delete("/chats/{chat_id}/files/{filename}")
+async def remove_uploaded_file(request: Request, chat_id: str, filename: str):
+    """
+    Remove a specific uploaded file from the chat context (pending upload state).
+    """
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+        
+        # Construct the file path (same as upload path)
+        uploads_dir = f"{request.app.state.app_config.uploads_dir}/{chat_id}"
+        file_path = f"{uploads_dir}/{filename}"
+        
+        # Remove from chat service context
+        chat_service.remove_uploaded_file(file_path)
+        
+        return {
+            "success": True,
+            "message": f"File {filename} removed from context"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to remove file: {str(e)}"
+        )
+
+
 @router.post("/chats/{chat_id}/github/files")
 async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitHubFilesRequest):
     """
@@ -327,4 +357,29 @@ async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitH
         raise HTTPException(
             status_code=500,
             detail=f"Failed to add files from GitHub: {str(e)}"
+        )
+
+
+@router.delete("/chats/{chat_id}/github/files")
+async def remove_github_files_from_chat(request: Request, chat_id: str):
+    """
+    Remove all GitHub files from the chat context (pending upload state).
+    Uploaded files are not affected.
+    """
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+        chat_service.remove_github_files()
+        
+        return {
+            "success": True,
+            "message": "GitHub files removed from context"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to remove GitHub files: {str(e)}"
         )

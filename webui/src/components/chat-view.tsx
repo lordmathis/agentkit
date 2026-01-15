@@ -96,11 +96,6 @@ export function ChatView() {
     setGithubFiles({repo, paths, excludePaths});
   };
 
-  // Handle removing GitHub files
-  const handleRemoveGitHubFiles = () => {
-    setGithubFiles({repo: "", paths: [], excludePaths: []});
-  };
-
   // Handle file selection
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -140,8 +135,31 @@ export function ChatView() {
   };
 
   // Handle removing an uploaded file
-  const handleRemoveFile = (filename: string) => {
-    setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+  const handleRemoveFile = async (filename: string) => {
+    if (!currentConversationId) return;
+    
+    try {
+      await api.removeUploadedFile(currentConversationId, filename);
+      setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+    } catch (error) {
+      console.error("Failed to remove uploaded file:", error);
+      // Still clear the UI state even if API call fails
+      setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+    }
+  };
+
+  // Handle removing GitHub files  
+  const handleRemoveGitHubFiles = async () => {
+    if (!currentConversationId) return;
+    
+    try {
+      await api.removeGitHubFilesFromChat(currentConversationId);
+      setGithubFiles({repo: "", paths: [], excludePaths: []});
+    } catch (error) {
+      console.error("Failed to remove GitHub files:", error);
+      // Still clear the UI state even if API call fails
+      setGithubFiles({repo: "", paths: [], excludePaths: []});
+    }
   };
 
   // Function to refresh conversations list
@@ -348,9 +366,11 @@ export function ChatView() {
     try {
       setIsSending(true);
       
-      // Clear input and uploaded files immediately for better UX
+      // Clear input and files immediately for better UX
+      // Files are automatically cleared on the backend after being attached to a message
       setInputValue("");
       setUploadedFiles([]);
+      setGithubFiles({repo: "", paths: [], excludePaths: []});
 
       // Add user message to UI optimistically
       const tempUserMessage: Message = {
@@ -602,6 +622,7 @@ export function ChatView() {
                     onClick={handleRemoveGitHubFiles}
                     className="ml-1 hover:text-destructive transition-colors"
                     aria-label="Remove GitHub files"
+                    title="Remove GitHub files"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>

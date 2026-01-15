@@ -186,6 +186,28 @@ class ChatService:
             
         return list(file_contents.keys())
     
+    def remove_github_files(self) -> None:
+        """Remove all GitHub files from the pending context."""
+        # Keep only uploaded files (paths starting with uploads/)
+        self._file_contents = {
+            path: content 
+            for path, content in self._file_contents.items() 
+            if path.startswith("uploads/")
+        }
+    
+    def remove_uploaded_file(self, file_path: str) -> None:
+        """Remove a specific uploaded file from the pending context.
+        
+        Args:
+            file_path: The file path to remove (relative to chat uploads directory)
+        """
+        # Remove from file contents dict
+        self._file_contents.pop(file_path, None)
+        
+        # Remove from image files list
+        if file_path in self._img_files:
+            self._img_files.remove(file_path)
+    
     async def _expand_paths_to_files(
         self, 
         repo: str, 
