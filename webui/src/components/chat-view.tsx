@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { AddGitHubDialog } from "./add-github-dialog";
 import { ChatHeader } from "./chat-header";
@@ -50,6 +50,21 @@ export function ChatView() {
     setIsGitHubDialogOpen(true);
   };
 
+  // Get current conversation title
+  const currentConversation = conversations.find(
+    (conv) => conv.id === currentConversationId
+  );
+  const currentChatTitle = currentConversation?.title;
+
+  // Update page title when chat changes
+  useEffect(() => {
+    if (currentChatTitle) {
+      document.title = `${currentChatTitle} - AgentKit Chat`;
+    } else {
+      document.title = "AgentKit Chat";
+    }
+  }, [currentChatTitle]);
+
   return (
     <div className="relative flex h-screen bg-background">
       {/* Sidebar */}
@@ -67,7 +82,11 @@ export function ChatView() {
       {/* Main chat area */}
       <div className="relative flex flex-1 flex-col">
         {/* Header */}
-        <ChatHeader sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(true)} />
+        <ChatHeader 
+          sidebarOpen={sidebarOpen} 
+          onToggleSidebar={() => setSidebarOpen(true)}
+          chatTitle={currentChatTitle}
+        />
 
         {/* Messages Container */}
         <MessagesList

@@ -3,9 +3,10 @@ import { Button } from "./ui/button";
 interface ChatHeaderProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  chatTitle?: string;
 }
 
-export function ChatHeader({ sidebarOpen, onToggleSidebar }: ChatHeaderProps) {
+export function ChatHeader({ sidebarOpen, onToggleSidebar, chatTitle }: ChatHeaderProps) {
   return (
     <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-muted/30 backdrop-blur-sm px-4 py-3 sm:px-6">
       <div className="flex items-center gap-3">
@@ -33,9 +34,16 @@ export function ChatHeader({ sidebarOpen, onToggleSidebar }: ChatHeaderProps) {
             <span className="sr-only">Open sidebar</span>
           </Button>
         )}
-        <h1 className="text-lg font-semibold text-foreground">
-          AgentKit Chat
-        </h1>
+        <div className="flex flex-col min-w-0 flex-1">
+          <h1 className="text-lg font-semibold text-foreground">
+            AgentKit Chat
+          </h1>
+          {chatTitle && (
+            <p className="text-sm text-muted-foreground truncate">
+              {chatTitle}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

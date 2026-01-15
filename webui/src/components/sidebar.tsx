@@ -1,5 +1,11 @@
 import { PanelLeftClose, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 export interface Conversation {
   id: string;
@@ -79,70 +85,78 @@ export function Sidebar({
 
           {/* Conversations list */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="space-y-1 px-3 pb-4">
-              {isLoading ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Loading conversations...
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  No conversations yet
-                </div>
-              ) : (
-                conversations.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    className={`
-                      group rounded-lg transition-colors flex items-center pr-2
-                      ${
-                        currentConversationId === conversation.id
-                          ? "bg-primary/10"
-                          : "hover:bg-muted"
-                      }
-                    `}
-                  >
-                    <button
-                      onClick={() => onConversationSelect?.(conversation.id)}
-                      className="flex items-start gap-2 flex-1 min-w-0 px-3 py-2.5 text-left"
-                    >
-                      <MessageSquare
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${
-                          currentConversationId === conversation.id
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className={`truncate text-sm font-medium ${
-                          currentConversationId === conversation.id
-                            ? "text-primary"
-                            : "text-foreground"
-                        }`}>
-                          {conversation.title}
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground truncate">
-                          {conversation.timestamp}
-                        </div>
-                      </div>
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Delete "${conversation.title}"?`)) {
-                          onDeleteConversation?.(conversation.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      <span className="sr-only">Delete conversation</span>
-                    </Button>
+            <TooltipProvider delayDuration={300}>
+              <div className="space-y-1 px-3 pb-4">
+                {isLoading ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    Loading conversations...
                   </div>
-                ))
-              )}
-            </div>
+                ) : conversations.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    No conversations yet
+                  </div>
+                ) : (
+                  conversations.map((conversation) => (
+                    <Tooltip key={conversation.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`
+                            group rounded-lg transition-colors flex items-center pr-2
+                            ${
+                              currentConversationId === conversation.id
+                                ? "bg-primary/10"
+                                : "hover:bg-muted"
+                            }
+                          `}
+                        >
+                          <button
+                            onClick={() => onConversationSelect?.(conversation.id)}
+                            className="flex items-start gap-2 flex-1 min-w-0 px-3 py-2.5 text-left"
+                          >
+                            <MessageSquare
+                              className={`mt-0.5 h-4 w-4 shrink-0 ${
+                                currentConversationId === conversation.id
+                                  ? "text-primary"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className={`truncate text-sm font-medium ${
+                                currentConversationId === conversation.id
+                                  ? "text-primary"
+                                  : "text-foreground"
+                              }`}>
+                                {conversation.title}
+                              </div>
+                              <div className="mt-1 text-xs text-muted-foreground truncate">
+                                {conversation.timestamp}
+                              </div>
+                            </div>
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete "${conversation.title}"?`)) {
+                                onDeleteConversation?.(conversation.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            <span className="sr-only">Delete conversation</span>
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p className="font-medium">{conversation.title}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))
+                )}
+              </div>
+            </TooltipProvider>
           </div>
         </div>
       </div>
