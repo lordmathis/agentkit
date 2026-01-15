@@ -51,46 +51,9 @@ class ChatService:
         except (json.JSONDecodeError, TypeError):
             return msg_content
 
-    def _format_attachments(self, attachments: List) -> str:
-        """Build text representation of attachments."""
-        text = ""
-        for attachment in attachments:
-            if attachment.content:
-                text += f"\n\n--- Content of {attachment.filename} ---\n{attachment.content}"
-            elif attachment.content_type.startswith("image/"):
-                text += f"\n\n[Image attached: {attachment.filename}]"
-        return text
-
-    def _add_to_structured(self, content: List, text: str) -> List:
-        """Add text to structured content (list of parts)."""
-        if not text:
-            return content
-
-        # Find existing text part and append to it
-        for part in content:
-            if part.get("type") == "text":
-                part["text"] += text
-                return content
-
-        # No text part found, create one at the beginning
-        content.insert(0, {"type": "text", "text": text.strip()})
-        return content
-
     def _process_user_message(self, msg) -> ChatCompletionMessageParam:
-        """Process user message with attachments."""
+        """Process user message - content already includes attachments from when it was sent."""
         content = self._parse_content(msg.content)
-        attachments = self.db.get_message_attachments(msg.id)
-
-        if not attachments:
-            return {"role": "user", "content": content}
-
-        attachment_text = self._format_attachments(attachments)
-
-        if isinstance(content, list):
-            content = self._add_to_structured(content, attachment_text)
-        else:
-            content = content + attachment_text
-
         return {"role": "user", "content": content}
 
     def _convert_messages_to_openai_format(
@@ -180,11 +143,24 @@ class ChatService:
         # Fetch file contents
         file_contents = await self.github_client.fetch_files(repo, all_file_paths)
         
-        # Add to context
-        for path, content in file_contents.items():
-            self._file_contents[path] = content
+        uploads_dir = f"uploads/{self.chat_id}"
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        saved_paths = []
+        for github_path, content in file_contents.items():
+            # Create a safe filename from the GitHub path
+            safe_filename = github_path.replace("/", "_")
+            local_path = f"{uploads_dir}/{safe_filename}"
             
-        return list(file_contents.keys())
+            # Write content to disk
+            with open(local_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            
+            # Add to pending context with local path
+            self._file_contents[local_path] = content
+            saved_paths.append(local_path)
+            
+        return saved_paths
     
     def remove_github_files(self) -> None:
         """Remove all GitHub files from the pending context."""
@@ -309,31 +285,6 @@ class ChatService:
             raise ValueError(f"Unsupported file encoding for file: {file_path}")
 
     async def send_message(self, message: str) -> Dict[str, Any]:
-        # Save the original user message (without file contents) for display
-        saved_message = self.db.save_message(self.chat_id, "user", message)
-        
-        # Save file attachments to database
-        for file_path, file_content in self._file_contents.items():
-            filename = os.path.basename(file_path)
-            self.db.save_file_attachment(
-                message_id=saved_message.id,
-                filename=filename,
-                file_path=file_path,
-                content_type="text/plain",  # Could be enhanced to detect actual content type
-                content=file_content
-            )
-        
-        # Save image attachments to database
-        for img_path in self._img_files:
-            filename = os.path.basename(img_path)
-            self.db.save_file_attachment(
-                message_id=saved_message.id,
-                filename=filename,
-                file_path=img_path,
-                content_type=f"image/{os.path.splitext(img_path)[1].lower().lstrip('.')}",
-                content=None  # Images stored as files, not text content
-            )
-        
         # Build message content for the chatbot with text files and images
         content_for_chatbot: Union[str, List[Dict[str, Any]]] = message
         
@@ -366,18 +317,36 @@ class ChatService:
             
             content_for_chatbot = content_parts
         
+        # Save the user message WITH file contents included
+        message_content = json.dumps(content_for_chatbot) if isinstance(content_for_chatbot, list) else content_for_chatbot
+        saved_message = self.db.save_message(self.chat_id, "user", message_content)
+        
+        # Save file attachments metadata to database (files are already on disk)
+        for file_path in self._file_contents.keys():
+            filename = os.path.basename(file_path)
+            self.db.save_file_attachment(
+                message_id=saved_message.id,
+                filename=filename,
+                file_path=file_path,
+                content_type="text/plain"  # Could be enhanced to detect actual content type
+            )
+        
+        # Save image attachments metadata to database
+        for img_path in self._img_files:
+            filename = os.path.basename(img_path)
+            self.db.save_file_attachment(
+                message_id=saved_message.id,
+                filename=filename,
+                file_path=img_path,
+                content_type=f"image/{os.path.splitext(img_path)[1].lower().lstrip('.')}"
+            )
+        
         # Clear files after using them
         self._img_files.clear()
         self._file_contents.clear()
         
-        # Load history and modify the last message (the one we just saved) with file content
+        # Load history and send to chatbot
         history = self.db.get_chat_history(self.chat_id)
-        if history and len(history) > 0:
-            # Replace the content of the last message with the version that includes file contents
-            last_msg = history[-1]
-            if last_msg.role == "user":
-                last_msg.content = json.dumps(content_for_chatbot) if isinstance(content_for_chatbot, list) else content_for_chatbot
-        
         chat = self.db.get_chat(self.chat_id)
         messages = self._convert_messages_to_openai_format(history)
         response = await self.chatbot.chat(messages)

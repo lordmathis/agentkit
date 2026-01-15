@@ -1,10 +1,17 @@
-import { Bot, User, Brain, File } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { useState } from "react";
+import { Button } from "./ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 export interface Message {
   id: string;
@@ -20,9 +27,10 @@ export interface Message {
 
 interface ChatMessageProps {
   message: Message;
+  onBranch?: (messageId: string) => void;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onBranch }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
 
@@ -174,6 +182,30 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </ReactMarkdown>
         </div>
       </div>
+      
+      {/* Branch button - shown on hover */}
+      {onBranch && (
+        <div className="absolute right-4 top-6 opacity-0 group-hover:opacity-100 transition-opacity">
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => onBranch(message.id)}
+                >
+                  <GitBranch className="h-4 w-4" />
+                  <span className="sr-only">Branch conversation from here</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Branch conversation from here</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ interface MessagesListProps {
   isSending: boolean;
   currentConversationId: string | undefined;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  onBranch?: (messageId: string) => void;
 }
 
 export function MessagesList({
@@ -16,6 +17,7 @@ export function MessagesList({
   isSending,
   currentConversationId,
   messagesEndRef,
+  onBranch,
 }: MessagesListProps) {
   return (
     <ScrollArea className="flex-1 min-h-0">
@@ -38,7 +40,7 @@ export function MessagesList({
         ) : (
           <>
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
+              <ChatMessage key={message.id} message={message} onBranch={onBranch} />
             ))}
             {isSending && (
               <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">

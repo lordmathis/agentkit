@@ -44,7 +44,6 @@ class FileAttachment(Base):
     filename: Mapped[str] = mapped_column(String)
     file_path: Mapped[str] = mapped_column(String)  # Path on disk
     content_type: Mapped[str] = mapped_column(String)
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Text content for text files
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
     
     __table_args__ = (

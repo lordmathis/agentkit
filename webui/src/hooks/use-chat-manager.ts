@@ -277,6 +277,46 @@ export function useChatManager() {
     }
   };
 
+  // Handle branching a conversation
+  const handleBranchChat = async (messageId: string) => {
+    if (!currentConversationId) {
+      alert("No conversation selected");
+      return;
+    }
+
+    try {
+      // Find the current chat title
+      const currentChat = conversations.find((c) => c.id === currentConversationId);
+      const branchTitle = currentChat ? `${currentChat.title} (branch)` : undefined;
+
+      // Create the branch
+      const branchedChat = await api.branchChat(
+        currentConversationId,
+        messageId,
+        branchTitle
+      );
+
+      // Add to conversations list
+      const newConversation: Conversation = {
+        id: branchedChat.id,
+        title: branchedChat.title,
+        timestamp: formatTimestamp(branchedChat.created_at),
+        preview: branchedChat.model || undefined,
+      };
+      setConversations((prev) => [newConversation, ...prev]);
+
+      // Switch to the new branched chat
+      setCurrentConversationId(branchedChat.id);
+
+      // Messages will be loaded by the useEffect watching currentConversationId
+    } catch (error) {
+      console.error("Failed to branch conversation:", error);
+      alert(
+        `Failed to branch conversation: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  };
+
   // Handle sending a message
   const handleSendMessage = async () => {
     const trimmedMessage = inputValue.trim();
@@ -395,6 +435,7 @@ export function useChatManager() {
     handleFilesAddedFromGitHub,
     handleNewConversation,
     handleDeleteConversation,
+    handleBranchChat,
     handleSendMessage,
     handleKeyDown,
     refreshConversations,

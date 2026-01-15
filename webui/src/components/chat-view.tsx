@@ -35,6 +35,7 @@ export function ChatView() {
     handleFilesAddedFromGitHub,
     handleNewConversation,
     handleDeleteConversation,
+    handleBranchChat,
     handleSendMessage,
     handleKeyDown,
     refreshConversations,
@@ -95,6 +96,7 @@ export function ChatView() {
           isSending={isSending}
           currentConversationId={currentConversationId}
           messagesEndRef={messagesEndRef}
+          onBranch={handleBranchChat}
         />
 
         {/* Input Area */}

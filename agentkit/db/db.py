@@ -4,6 +4,8 @@ from datetime import datetime, UTC
 from typing import Dict, List, Optional
 import json
 import uuid
+import os
+import shutil
 
 from agentkit.db.models import Base, Chat, Message, FileAttachment
 
@@ -167,8 +169,7 @@ class Database:
         message_id: str,
         filename: str,
         file_path: str,
-        content_type: str,
-        content: Optional[str] = None
+        content_type: str
     ) -> FileAttachment:
         """Save a file attachment linked to a message"""
         with self.SessionLocal() as session:
@@ -177,8 +178,7 @@ class Database:
                 message_id=message_id,
                 filename=filename,
                 file_path=file_path,
-                content_type=content_type,
-                content=content
+                content_type=content_type
             )
             session.add(attachment)
             session.commit()
@@ -195,3 +195,88 @@ class Database:
             )
             result = session.execute(stmt)
             return list(result.scalars().all())
+
+    def branch_chat(self, source_chat_id: str, up_to_message_id: str, new_title: Optional[str] = None) -> Optional[Chat]:
+
+        with self.SessionLocal() as session:
+            # Get source chat
+            source_chat = session.get(Chat, source_chat_id)
+            if not source_chat:
+                return None
+            
+            # Get the target message to find its sequence number
+            target_message = session.get(Message, up_to_message_id)
+            if not target_message or target_message.chat_id != source_chat_id:
+                return None
+            
+            target_sequence = target_message.sequence
+            
+            # Create new chat with same config
+            new_chat = Chat(
+                id=str(uuid.uuid4()),
+                title=new_title or f"{source_chat.title} (branch)",
+                model=source_chat.model,
+                system_prompt=source_chat.system_prompt,
+                tool_servers=source_chat.tool_servers,
+                model_params=source_chat.model_params
+            )
+            session.add(new_chat)
+            session.flush()  # Get the new chat ID
+            
+            # Get messages up to and including target sequence
+            stmt = (
+                select(Message)
+                .where(Message.chat_id == source_chat_id, Message.sequence <= target_sequence)
+                .order_by(Message.sequence)
+            )
+            messages_to_copy = session.execute(stmt).scalars().all()
+            
+            # Copy messages and their attachments
+            for old_message in messages_to_copy:
+                # Create new message
+                new_message = Message(
+                    id=str(uuid.uuid4()),
+                    chat_id=new_chat.id,
+                    sequence=old_message.sequence,
+                    role=old_message.role,
+                    content=old_message.content,
+                    reasoning_content=old_message.reasoning_content
+                )
+                session.add(new_message)
+                session.flush()  # Get the new message ID
+                
+                # Get and copy attachments
+                stmt_attachments = (
+                    select(FileAttachment)
+                    .where(FileAttachment.message_id == old_message.id)
+                )
+                attachments_to_copy = session.execute(stmt_attachments).scalars().all()
+                
+                for old_attachment in attachments_to_copy:
+                    old_path = old_attachment.file_path
+                    
+                    # All files are stored in uploads/<chat_id>/ directory
+                    # Replace the old chat_id with the new one
+                    new_path = old_path.replace(
+                        f"uploads/{source_chat_id}/", 
+                        f"uploads/{new_chat.id}/"
+                    )
+                    
+                    # Copy the physical file if it exists
+                    if os.path.exists(old_path):
+                        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+                        shutil.copy2(old_path, new_path)
+                    
+                    # Create new attachment record
+                    new_attachment = FileAttachment(
+                        id=str(uuid.uuid4()),
+                        message_id=new_message.id,
+                        filename=old_attachment.filename,
+                        file_path=new_path,
+                        content_type=old_attachment.content_type
+                    )
+                    session.add(new_attachment)
+            
+            session.commit()
+            session.refresh(new_chat)
+            return new_chat

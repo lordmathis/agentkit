@@ -31,6 +31,11 @@ class AddGitHubFilesRequest(BaseModel):
     exclude_paths: Optional[List[str]] = []
 
 
+class BranchChatRequest(BaseModel):
+    message_id: str
+    title: Optional[str] = None
+
+
 @router.post("/chats")
 async def create_chat(request: Request, body: CreateChatRequest):
     """
@@ -216,6 +221,87 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
         "system_prompt": updated_chat.system_prompt,
         "tool_servers": json.loads(updated_chat.tool_servers) if updated_chat.tool_servers else None,
         "model_params": json.loads(updated_chat.model_params) if updated_chat.model_params else None,
+    }
+
+
+@router.post("/chats/{chat_id}/branch")
+async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
+    """
+    Create a new chat branching from an existing chat.
+    Copies all messages and attachments up to and including the specified message.
+    This allows exploring different conversation paths without losing the original.
+    """
+    database = request.app.state.database
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+
+    # Verify source chat exists
+    source_chat = database.get_chat(chat_id)
+    if not source_chat:
+        raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
+
+    # Create branched chat in database
+    branched_chat = database.branch_chat(
+        source_chat_id=chat_id,
+        up_to_message_id=body.message_id,
+        new_title=body.title
+    )
+
+    if not branched_chat:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to branch chat. Message '{body.message_id}' may not exist in chat '{chat_id}'."
+        )
+
+    # Create chat service for the new branched chat
+    try:
+        # Get config from the branched chat
+        config = ChatConfig(
+            model=branched_chat.model,
+            system_prompt=branched_chat.system_prompt,
+            tool_servers=json.loads(branched_chat.tool_servers) if branched_chat.tool_servers else None,
+            model_params=json.loads(branched_chat.model_params) if branched_chat.model_params else None,
+        )
+        
+        chat_service_manager.create_service(
+            chat_id=branched_chat.id,
+            config=config
+        )
+    except Exception as e:
+        # If chat service creation fails, clean up the branched chat
+        database.delete_chat(branched_chat.id)
+        raise HTTPException(status_code=500, detail=f"Failed to create chat service for branch: {str(e)}")
+
+    # Get messages for the response
+    messages = database.get_chat_history(branched_chat.id, limit=1000)
+
+    return {
+        "id": branched_chat.id,
+        "title": branched_chat.title,
+        "created_at": branched_chat.created_at.isoformat(),
+        "updated_at": branched_chat.updated_at.isoformat(),
+        "model": branched_chat.model,
+        "system_prompt": branched_chat.system_prompt,
+        "tool_servers": json.loads(branched_chat.tool_servers) if branched_chat.tool_servers else None,
+        "model_params": json.loads(branched_chat.model_params) if branched_chat.model_params else None,
+        "messages": [
+            {
+                "id": msg.id,
+                "role": msg.role,
+                "content": msg.content,
+                "reasoning_content": msg.reasoning_content,
+                "sequence": msg.sequence,
+                "created_at": msg.created_at.isoformat(),
+                "files": [
+                    {
+                        "id": file.id,
+                        "filename": file.filename,
+                        "content_type": file.content_type,
+                    }
+                    for file in database.get_message_attachments(msg.id)
+                ]
+            }
+            for msg in messages
+        ]
     }
 
 

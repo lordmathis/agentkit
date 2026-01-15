@@ -163,6 +163,17 @@ class ApiClient {
     });
   }
 
+  async branchChat(
+    chatId: string,
+    messageId: string,
+    title?: string
+  ): Promise<ChatWithMessages> {
+    return this.request(`/chats/${chatId}/branch`, {
+      method: 'POST',
+      body: JSON.stringify({ message_id: messageId, title }),
+    });
+  }
+
   async sendMessage(
     chatId: string,
     data: SendMessageRequest
