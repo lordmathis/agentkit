@@ -17,9 +17,9 @@ class ChatbotFactory:
         tool_manager: ToolManager,
         system_prompt: Optional[str] = None,
         tool_servers: Optional[List[str]] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2000,
-        max_iterations: int = 5,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        max_iterations: Optional[int] = None,
     ) -> Chatbot:
         """
         Create chatbot from model string.
@@ -79,11 +79,11 @@ class ChatbotFactory:
             chatbot.system_prompt = system_prompt
         if tool_servers is not None:
             chatbot.tool_servers = tool_servers
-        if temperature != 0.7:
+        if temperature is not None:
             chatbot.temperature = temperature
-        if max_tokens != 2000:
+        if max_tokens is not None:
             chatbot.max_tokens = max_tokens
-        if max_iterations != 5:
+        if max_iterations is not None:
             chatbot.max_iterations = max_iterations
         
         return chatbot

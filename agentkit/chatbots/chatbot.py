@@ -31,7 +31,7 @@ class Chatbot:
         model_id: str = "",
         system_prompt: str = "",
         tool_servers: List[str] = [],
-        max_iterations: int = 5,
+        max_iterations: Optional[int] = 5,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ):
@@ -40,7 +40,7 @@ class Chatbot:
         self.model_id = model_id
         self.tool_manager = tool_manager
         self.tool_servers = tool_servers
-        self.max_iterations = max_iterations
+        self.max_iterations = max_iterations or 5
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -97,6 +97,10 @@ class Chatbot:
 
         if api_tools:
             api_params["tools"] = api_tools
+
+        print("----------------- API Params -----------------")
+        print(json.dumps(api_params, indent=2))
+        print("----------------------------------------------")
 
         for _ in range(self.max_iterations):
             # Call API
