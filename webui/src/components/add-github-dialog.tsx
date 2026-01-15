@@ -523,20 +523,20 @@ export function AddGitHubDialog({
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
           {/* Repository Selection */}
           <div className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex gap-1 border border-border rounded-md p-0.5 bg-muted/50">
               <Button
-                variant={inputMode === "select" ? "default" : "outline"}
+                variant={inputMode === "select" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setInputMode("select")}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
                 Select from list
               </Button>
               <Button
-                variant={inputMode === "paste" ? "default" : "outline"}
+                variant={inputMode === "paste" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setInputMode("paste")}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
                 Paste GitHub link
               </Button>
@@ -586,11 +586,13 @@ export function AddGitHubDialog({
             <Button
               onClick={loadTree}
               disabled={isLoadingTree || !getRepoIdentifier()}
-              className="w-full"
+              variant="outline"
+              size="sm"
+              className="w-full h-8"
             >
               {isLoadingTree ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                   Loading repository...
                 </>
               ) : (
