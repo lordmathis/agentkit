@@ -43,6 +43,7 @@ class ChatService:
         self.github_client = github_client
         self._img_files: List[str] = []
         self._file_contents: Dict[str, str] = {}
+        self._github_files: set[str] = set()  # Track which files came from GitHub
 
     def _parse_content(self, msg_content: str):
         """Parse message content from JSON or return as plain string."""
@@ -77,6 +78,8 @@ class ChatService:
                 text_files.append(attachment)
         
         # Add text file contents
+        if text_files:
+            content_text += "\n\n--- Attached Text Files ---\n"
         for attachment in text_files:
             if not os.path.exists(attachment.file_path):
                 continue
@@ -218,18 +221,20 @@ class ChatService:
             
             # Add to pending context with local path
             self._file_contents[local_path] = content
+            self._github_files.add(local_path)  # Track that this is a GitHub file
             saved_paths.append(local_path)
             
         return saved_paths
     
     def remove_github_files(self) -> None:
         """Remove all GitHub files from the pending context."""
-        # Keep only uploaded files (paths starting with uploads/)
-        self._file_contents = {
-            path: content 
-            for path, content in self._file_contents.items() 
-            if path.startswith("uploads/")
-        }
+        # Remove files that are tracked as GitHub files
+        for github_path in list(self._github_files):
+            self._file_contents.pop(github_path, None)
+            self._img_files = [f for f in self._img_files if f != github_path]
+        
+        # Clear the tracking set
+        self._github_files.clear()
     
     def remove_uploaded_file(self, file_path: str) -> None:
         """Remove a specific uploaded file from the pending context.
@@ -371,6 +376,7 @@ class ChatService:
         # Clear files after saving metadata
         self._img_files.clear()
         self._file_contents.clear()
+        self._github_files.clear()  # Clear GitHub file tracking
         
         # Load history (will reconstruct messages with attachments from disk)
         history = self.db.get_chat_history(self.chat_id)
