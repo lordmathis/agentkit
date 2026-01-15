@@ -214,7 +214,7 @@ class Database:
             # Create new chat with same config
             new_chat = Chat(
                 id=str(uuid.uuid4()),
-                title=new_title or f"{source_chat.title} (branch)",
+                title=new_title or "Untitled Chat",
                 model=source_chat.model,
                 system_prompt=source_chat.system_prompt,
                 tool_servers=source_chat.tool_servers,
