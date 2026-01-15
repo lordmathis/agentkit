@@ -65,6 +65,8 @@ class ToolManager:
         
         try:
             if handler == self._agent_handler:
+                arguments['provider'] = provider
+                arguments['model_id'] = model_id
                 return await handler.call_tool(tool_name, arguments)
             else:
                 return await handler.call_tool(tool_name, arguments)

@@ -65,8 +65,7 @@ class AgentPluginHandler(ToolHandler):
             raise ValueError(f"SMOLAGENTS agent '{tool_name}' not found")
         
         logger.debug(f"Calling SMOLAGENTS agent '{tool_name}' with arguments: {arguments}")
-        # Note: agents need provider and model_id from the call context
-        # This will need to be passed through from ToolManager.call_tool
+
         result = agent.run(**arguments)
         logger.debug(f"SMOLAGENTS agent '{tool_name}' completed successfully")
         return result
