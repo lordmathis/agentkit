@@ -79,6 +79,29 @@ export interface Tool {
   parameters?: any;
 }
 
+export interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  private: boolean;
+  html_url: string;
+  updated_at: string;
+}
+
+export interface FileNode {
+  path: string;
+  name: string;
+  type: 'file' | 'dir';
+  size?: number;
+  children?: FileNode[];
+}
+
+export interface TokenEstimate {
+  total_tokens: number;
+  files: Record<string, number>;
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -178,6 +201,29 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  // GitHub endpoints
+  async listGitHubRepositories(): Promise<{ repositories: GitHubRepository[] }> {
+    return this.request('/github/repositories');
+  }
+
+  async browseGitHubTree(repo: string, path: string = ""): Promise<FileNode> {
+    return this.request(`/github/tree?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  }
+
+  async estimateGitHubTokens(repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
+    return this.request('/github/estimate', {
+      method: 'POST',
+      body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
+    });
+  }
+
+  async addGitHubFilesToChat(chatId: string, repo: string, paths: string[], excludePaths?: string[]): Promise<{ success: boolean; files_added: string[]; count: number }> {
+    return this.request(`/chats/${chatId}/github/files`, {
+      method: 'POST',
+      body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
+    });
   }
 }
 

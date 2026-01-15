@@ -1,4 +1,4 @@
-import { Send, Bot, Zap, Plus, Upload, X, File } from "lucide-react";
+import { Send, Bot, Zap, Plus, Upload, X, File, Github } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage, type Message } from "./chat-message";
 import { Button } from "./ui/button";
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { AddGitHubDialog } from "./add-github-dialog";
 import { api } from "../lib/api";
 
 // Helper function to format model ID as a display label
@@ -73,6 +74,8 @@ export function ChatView() {
   const [isSending, setIsSending] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [githubFiles, setGithubFiles] = useState<{repo: string, paths: string[], excludePaths: string[]}>({repo: "", paths: [], excludePaths: []});
+  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +83,22 @@ export function ChatView() {
   // Handle file upload button click
   const handleFileUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  // Handle GitHub dialog open
+  const handleGitHubDialogOpen = () => {
+    setIsGitHubDialogOpen(true);
+  };
+
+  // Handle files added from GitHub
+  const handleFilesAddedFromGitHub = (repo: string, paths: string[], excludePaths: string[], count: number) => {
+    console.log(`Successfully added ${count} file${count !== 1 ? "s" : ""} from GitHub`);
+    setGithubFiles({repo, paths, excludePaths});
+  };
+
+  // Handle removing GitHub files
+  const handleRemoveGitHubFiles = () => {
+    setGithubFiles({repo: "", paths: [], excludePaths: []});
   };
 
   // Handle file selection
@@ -559,6 +578,36 @@ export function ChatView() {
                 ))}
               </div>
             )}
+            {/* GitHub files display */}
+            {githubFiles.paths.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-blue-500/10 px-2 py-1 text-xs"
+                >
+                  <Github className="h-3.5 w-3.5 text-blue-600" />
+                  <span className="text-blue-600 font-medium">
+                    {githubFiles.paths.length} item{githubFiles.paths.length !== 1 ? "s" : ""} from {githubFiles.repo.split('/')[1] || githubFiles.repo}
+                    {githubFiles.excludePaths.length > 0 && ` (${githubFiles.excludePaths.length} excluded)`}
+                  </span>
+                  <button
+                    onClick={handleGitHubDialogOpen}
+                    className="ml-1 hover:text-blue-700 transition-colors"
+                    aria-label="Edit GitHub files"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleRemoveGitHubFiles}
+                    className="ml-1 hover:text-destructive transition-colors"
+                    aria-label="Remove GitHub files"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="relative">
               <Textarea
                 ref={textareaRef}
@@ -596,6 +645,10 @@ export function ChatView() {
                       <Upload className="mr-2 h-4 w-4" />
                       <span>{isUploadingFiles ? "Uploading..." : "Upload files"}</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleGitHubDialogOpen}>
+                      <Github className="mr-2 h-4 w-4" />
+                      <span>Add from GitHub</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <ChatSettingsDialog
@@ -622,6 +675,17 @@ export function ChatView() {
           </div>
         </div>
       </div>
+
+      {/* GitHub Dialog */}
+      <AddGitHubDialog
+        open={isGitHubDialogOpen}
+        onOpenChange={setIsGitHubDialogOpen}
+        chatId={currentConversationId}
+        onFilesAdded={handleFilesAddedFromGitHub}
+        initialRepo={githubFiles.repo}
+        initialPaths={githubFiles.paths}
+        initialExcludePaths={githubFiles.excludePaths}
+      />
     </div>
   );
 }

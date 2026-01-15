@@ -28,6 +28,7 @@ class SendMessageRequest(BaseModel):
 class AddGitHubFilesRequest(BaseModel):
     repo: str
     paths: List[str]
+    exclude_paths: Optional[List[str]] = []
 
 
 @router.post("/chats")
@@ -291,6 +292,8 @@ async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
 async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitHubFilesRequest):
     """
     Fetch files from GitHub and add them to the chat context.
+    Supports both individual files and directories (which are expanded recursively).
+    Optionally exclude specific paths.
     """
     github_client = request.app.state.github_client
     
@@ -307,7 +310,11 @@ async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitH
         chat_service = chat_service_manager.get_service(chat_id)
         
         # Add files from GitHub
-        added_paths = await chat_service.add_files_from_github(body.repo, body.paths)
+        added_paths = await chat_service.add_files_from_github(
+            body.repo, 
+            body.paths,
+            body.exclude_paths
+        )
         
         return {
             "success": True,

@@ -8,7 +8,7 @@ import os
 
 from agentkit.chatbots.chatbot import Chatbot
 from agentkit.db.db import Database
-from agentkit.github.client import GitHubClient
+from agentkit.github.client import GitHubClient, FileNode
 
 logger = logging.getLogger(__name__)
 
@@ -152,15 +152,123 @@ class ChatService:
 
         return None
     
-    async def add_files_from_github(self, repo: str, paths: List[str]) -> List[str]:
-
+    async def add_files_from_github(
+        self, 
+        repo: str, 
+        paths: List[str], 
+        exclude_paths: Optional[List[str]] = None
+    ) -> List[str]:
+        """Add files from GitHub to chat context.
+        
+        Args:
+            repo: Repository in format "owner/repo"
+            paths: List of file or directory paths
+            exclude_paths: Optional list of paths to exclude
+            
+        Returns:
+            List of file paths that were added
+        """
         if not self.github_client:
             raise ValueError("GitHub integration is not configured")
         
-        file_contents = await self.github_client.fetch_files(repo, paths)
+        if exclude_paths is None:
+            exclude_paths = []
+        
+        # Expand directories to get all files
+        all_file_paths = await self._expand_paths_to_files(repo, paths, exclude_paths)
+        
+        # Fetch file contents
+        file_contents = await self.github_client.fetch_files(repo, all_file_paths)
+        
+        # Add to context
         for path, content in file_contents.items():
             self._file_contents[path] = content
+            
         return list(file_contents.keys())
+    
+    async def _expand_paths_to_files(
+        self, 
+        repo: str, 
+        paths: List[str], 
+        exclude_paths: List[str]
+    ) -> List[str]:
+        """Expand paths (which may include directories) to a list of file paths.
+        
+        Args:
+            repo: Repository in format "owner/repo"
+            paths: List of file or directory paths
+            exclude_paths: List of paths to exclude
+            
+        Returns:
+            List of file paths only (directories expanded)
+        """
+        if not self.github_client:
+            raise ValueError("GitHub client is not configured")
+            
+        exclude_set = set(exclude_paths)
+        all_files = []
+        
+        for path in paths:
+            if path in exclude_set:
+                continue
+                
+            # Check if this is a file or directory
+            try:
+                tree_node = await self.github_client.browse_tree(repo, path)
+                
+                if tree_node.type == "file":
+                    all_files.append(path)
+                else:
+                    # It's a directory, recursively get all files
+                    files_in_dir = await self._get_all_files_in_dir(repo, tree_node, exclude_set)
+                    all_files.extend(files_in_dir)
+            except Exception as e:
+                logger.error(f"Failed to process path {path}: {e}")
+                continue
+        
+        return all_files
+    
+    async def _get_all_files_in_dir(
+        self, 
+        repo: str, 
+        node: FileNode, 
+        exclude_set: set
+    ) -> List[str]:
+        """Recursively get all file paths in a directory.
+        
+        Args:
+            repo: Repository in format "owner/repo"
+            node: Directory node to traverse
+            exclude_set: Set of paths to exclude
+            
+        Returns:
+            List of file paths in the directory
+        """
+        if not self.github_client:
+            raise ValueError("GitHub client is not configured")
+            
+        files = []
+        
+        if not node.children:
+            return files
+        
+        for child in node.children:
+            if child.path in exclude_set:
+                continue
+                
+            if child.type == "file":
+                files.append(child.path)
+            else:
+                # It's a subdirectory, load and recurse
+                try:
+                    subtree = await self.github_client.browse_tree(repo, child.path)
+                    subfiles = await self._get_all_files_in_dir(repo, subtree, exclude_set)
+                    files.extend(subfiles)
+                except Exception as e:
+                    logger.error(f"Failed to process subdirectory {child.path}: {e}")
+                    continue
+        
+        return files
     
     async def handle_file_upload(self, file_path: str, content_type: str) -> None:
         logger.info(f"Handling file upload: {file_path} with content type: {content_type}")
