@@ -4,7 +4,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from agentkit.config import AppConfig
@@ -12,8 +11,9 @@ from agentkit.db import Database
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
-from agentkit.services.chat_service import ChatServiceManager
+from agentkit.services.manager import ChatServiceManager
 from agentkit.routes import register_routes
+from agentkit.github.client import GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +59,36 @@ async def lifespan(app: FastAPI):
     )
     app.state.model_registry = model_registry
 
+    # Initialize GitHub client if token is configured
+    github_client = None
+    if app_config.github_token:
+        logger.info("Initializing GitHub client...")
+        try:
+            github_client = GitHubClient(app_config.github_token)
+            # Verify authentication
+            if await github_client.authenticate():
+                logger.info("GitHub client authenticated successfully")
+                app.state.github_client = github_client
+            else:
+                logger.warning("GitHub authentication failed - GitHub features will be unavailable")
+                await github_client.close()
+                github_client = None
+        except Exception as e:
+            logger.error(f"Failed to initialize GitHub client: {e}", exc_info=True)
+            if github_client:
+                await github_client.close()
+            github_client = None
+    else:
+        logger.info("GitHub token not configured - GitHub features will be unavailable")
+
     # Initialize chat service manager
     logger.info("Initializing chat service manager...")
     chat_service_manager = ChatServiceManager(
         db=database,
         provider_registry=provider_registry,
         chatbot_registry=model_registry,
-        tool_manager=tool_manager
+        tool_manager=tool_manager,
+        github_client=github_client
     )
     app.state.chat_service_manager = chat_service_manager
 
@@ -75,6 +98,13 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Clean up resources
     logger.info("Shutting down server...")
+    
+    if github_client:
+        try:
+            await github_client.close()
+        except Exception as e:
+            logger.error(f"Error during GitHub client shutdown: {e}", exc_info=True)
+    
     try:
         await tool_manager.stop()
     except Exception as e:

@@ -6,12 +6,9 @@ import base64
 import logging
 import os
 
-from agentkit.chatbots.factory import ChatbotFactory
 from agentkit.chatbots.chatbot import Chatbot
-from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.db.db import Database
-from agentkit.providers.registry import ProviderRegistry
-from agentkit.tools.manager import ToolManager
+from agentkit.github.client import GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +35,12 @@ class ChatService:
         chat_id: str,
         db: Database,
         chatbot: Chatbot,
+        github_client: Optional[GitHubClient] = None,
     ):
         self.chat_id = chat_id
         self.db = db
         self.chatbot = chatbot
+        self.github_client = github_client
         self._img_files: List[str] = []
         self._file_contents: Dict[str, str] = {}
 
@@ -152,6 +151,16 @@ class ChatService:
                 return title
 
         return None
+    
+    async def add_files_from_github(self, repo: str, paths: List[str]) -> List[str]:
+
+        if not self.github_client:
+            raise ValueError("GitHub integration is not configured")
+        
+        file_contents = await self.github_client.fetch_files(repo, paths)
+        for path, content in file_contents.items():
+            self._file_contents[path] = content
+        return list(file_contents.keys())
     
     async def handle_file_upload(self, file_path: str, content_type: str) -> None:
         logger.info(f"Handling file upload: {file_path} with content type: {content_type}")
@@ -280,77 +289,3 @@ class ChatService:
                 )
 
         return response
-
-
-class ChatServiceManager:
-
-    def __init__(
-        self,
-        db: Database,
-        provider_registry: ProviderRegistry,
-        chatbot_registry: ChatbotRegistry,
-        tool_manager: ToolManager,
-    ):
-        self.db = db
-        self.provider_registry = provider_registry
-        self.chatbot_registry = chatbot_registry
-        self.tool_manager = tool_manager
-        self._chat_services: Dict[str, ChatService] = {}
-
-    def create_chat_service(self, chat_id: str, config: ChatConfig) -> ChatService:
-        if chat_id in self._chat_services:
-            raise ValueError(f"Chat service for '{chat_id}' already exists")
-
-        chat = self.db.get_chat(chat_id)
-        if not chat:
-            raise ValueError(f"Chat '{chat_id}' not found")
-
-        model_params = config.model_params or {}
-        chatbot = ChatbotFactory.create_chatbot(
-            model=config.model,
-            provider_registry=self.provider_registry,
-            chatbot_registry=self.chatbot_registry,
-            tool_manager=self.tool_manager,
-            system_prompt=config.system_prompt,
-            tool_servers=config.tool_servers,
-            temperature=model_params.get("temperature", 0.7),
-            max_tokens=model_params.get("max_tokens", 2000),
-            max_iterations=model_params.get("max_iterations", 5),
-        )
-
-        chat_service = ChatService(
-            chat_id=chat_id,
-            db=self.db,
-            chatbot=chatbot,
-        )
-
-        self._chat_services[chat_id] = chat_service
-
-        self.db.save_chat_config(
-            chat_id=chat_id,
-            model=config.model,
-            system_prompt=config.system_prompt,
-            tool_servers=config.tool_servers,
-            model_params=config.model_params or {},
-        )
-
-        return chat_service
-
-    def get_or_create_chat_service(self, chat_id: str) -> ChatService:
-        service = self._chat_services.get(chat_id)
-        if service:
-            return service
-
-        config_dict = self.db.get_chat_config(chat_id)
-        if not config_dict:
-            raise ValueError(f"Chat '{chat_id}' not found")
-
-        config = ChatConfig(**config_dict)
-        return self.create_chat_service(chat_id, config)
-
-    def get_chat_service(self, chat_id: str) -> Optional[ChatService]:
-        return self._chat_services.get(chat_id)
-
-    def remove_chat_service(self, chat_id: str) -> None:
-        if chat_id in self._chat_services:
-            del self._chat_services[chat_id]

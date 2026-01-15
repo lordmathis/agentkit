@@ -55,6 +55,7 @@ class AppConfig(BaseModel):
     history_db_path: str = "agentkit.db"
     uploads_dir: str = "uploads"
     mcp_timeout: int = 60
+    github_token: Optional[str] = None
 
 
 def load_config(path: str) -> AppConfig:

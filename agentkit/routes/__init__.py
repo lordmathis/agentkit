@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from agentkit.routes import models, chats
+from agentkit.routes import models, chats, github
 
 
 def register_routes(app: FastAPI):
@@ -7,3 +7,4 @@ def register_routes(app: FastAPI):
     prefix = "/api"
     app.include_router(models.router, prefix=prefix, tags=["models"])
     app.include_router(chats.router, prefix=prefix, tags=["chats"])
+    app.include_router(github.router, prefix=prefix, tags=["github"])

@@ -4,14 +4,15 @@ from typing import List, Optional
 import json
 import os
 
-from agentkit.services.chat_service import ChatServiceManager, ChatConfig
+from agentkit.services.chat_service import ChatConfig
+from agentkit.services.manager import ChatServiceManager
 
 router = APIRouter()
 
 
 class CreateChatRequest(BaseModel):
     title: Optional[str] = "Untitled Chat"
-    config: ChatConfig  # Chat configuration is required at creation time
+    config: ChatConfig
 
 
 class UpdateChatRequest(BaseModel):
@@ -21,7 +22,12 @@ class UpdateChatRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     message: str
-    stream: Optional[bool] = False  # Config is now set at chat creation time
+    stream: Optional[bool] = False
+
+
+class AddGitHubFilesRequest(BaseModel):
+    repo: str
+    paths: List[str]
 
 
 @router.post("/chats")
@@ -37,7 +43,7 @@ async def create_chat(request: Request, body: CreateChatRequest):
 
     # Create chat service with chatbot
     try:
-        chat_service_manager.create_chat_service(
+        chat_service_manager.create_service(
             chat_id=chat.id,
             config=body.config
         )
@@ -148,7 +154,7 @@ async def delete_chat(request: Request, chat_id: str):
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
     # Remove chat service
-    chat_service_manager.remove_chat_service(chat_id)
+    chat_service_manager.remove_service(chat_id)
 
     # Delete from database
     database.delete_chat(chat_id)
@@ -185,8 +191,8 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
         
         # Recreate chat service with new config
         try:
-            chat_service_manager.remove_chat_service(chat_id)
-            chat_service_manager.create_chat_service(
+            chat_service_manager.remove_service(chat_id)
+            chat_service_manager.create_service(
                 chat_id=chat_id,
                 config=body.config
             )
@@ -223,7 +229,7 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
     chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
     try:
-        chat_service = chat_service_manager.get_or_create_chat_service(chat_id)
+        chat_service = chat_service_manager.get_service(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -252,7 +258,7 @@ async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
     chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
 
     try:
-        chat_service = chat_service_manager.get_or_create_chat_service(chat_id)
+        chat_service = chat_service_manager.get_service(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -279,3 +285,39 @@ async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
     return {
         "filenames": [file.filename for file in files]
     }
+
+
+@router.post("/chats/{chat_id}/github/files")
+async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitHubFilesRequest):
+    """
+    Fetch files from GitHub and add them to the chat context.
+    """
+    github_client = request.app.state.github_client
+    
+    if not github_client:
+        raise HTTPException(
+            status_code=503,
+            detail="GitHub integration is not configured. Please set GITHUB_TOKEN environment variable."
+        )
+    
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        # Get or create chat service
+        chat_service = chat_service_manager.get_service(chat_id)
+        
+        # Add files from GitHub
+        added_paths = await chat_service.add_files_from_github(body.repo, body.paths)
+        
+        return {
+            "success": True,
+            "files_added": added_paths,
+            "count": len(added_paths)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to add files from GitHub: {str(e)}"
+        )
