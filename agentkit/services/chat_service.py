@@ -52,11 +52,71 @@ class ChatService:
             return msg_content
 
     def _process_user_message(self, msg) -> ChatCompletionMessageParam:
-        """Process user message - content already includes attachments from when it was sent."""
+        """Process user message and reconstruct content with attachments from disk."""
         content = self._parse_content(msg.content)
-        return {"role": "user", "content": content}
+        attachments = self.db.get_message_attachments(msg.id)
+        
+        if not attachments:
+            return {"role": "user", "content": content}
+        
+        # Extract text content
+        content_text = content if isinstance(content, str) else ""
+        if not isinstance(content, str):
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    content_text = part.get("text", "")
+                    break
+        
+        # Separate attachments into text files and images
+        text_files = []
+        image_files = []
+        for attachment in attachments:
+            if attachment.content_type.startswith("image/"):
+                image_files.append(attachment)
+            else:
+                text_files.append(attachment)
+        
+        # Add text file contents
+        for attachment in text_files:
+            if not os.path.exists(attachment.file_path):
+                continue
+                
+            try:
+                with open(attachment.file_path, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+                filename = os.path.basename(attachment.file_path)
+                content_text += f"\n\n--- Content of {filename} ---\n{file_content}"
+            except Exception as e:
+                logger.error(f"Failed to read attachment {attachment.file_path}: {e}")
+        
+        # If no images, return simple text content
+        if not image_files:
+            return {"role": "user", "content": content_text}
+        
+        # Build structured content with images
+        content_parts: List[Dict[str, Any]] = [{"type": "text", "text": content_text}]
+        
+        for attachment in image_files:
+            if not os.path.exists(attachment.file_path):
+                continue
+                
+            try:
+                with open(attachment.file_path, "rb") as f:
+                    img_data = base64.b64encode(f.read()).decode()
+                
+                ext = os.path.splitext(attachment.file_path)[1].lower().lstrip('.')
+                image_format = 'jpeg' if ext in ('jpg', 'jpeg') else ext or 'jpeg'
+                
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/{image_format};base64,{img_data}"}
+                })
+            except Exception as e:
+                logger.error(f"Failed to read image {attachment.file_path}: {e}")
+        
+        return {"role": "user", "content": content_parts}  # type: ignore
 
-    def _convert_messages_to_openai_format(
+    def _to_openai(
         self, messages: List
     ) -> List[ChatCompletionMessageParam]:
         result: List[ChatCompletionMessageParam] = []
@@ -285,41 +345,8 @@ class ChatService:
             raise ValueError(f"Unsupported file encoding for file: {file_path}")
 
     async def send_message(self, message: str) -> Dict[str, Any]:
-        # Build message content for the chatbot with text files and images
-        content_for_chatbot: Union[str, List[Dict[str, Any]]] = message
-        
-        # Append text file contents to the message for the chatbot
-        if self._file_contents:
-            for file_path, file_content in self._file_contents.items():
-                filename = os.path.basename(file_path)
-                content_for_chatbot += f"\n\n--- Content of {filename} ---\n{file_content}"
-        
-        # If images exist, convert to structured format
-        if self._img_files:
-            content_parts: List[Dict[str, Any]] = [{"type": "text", "text": content_for_chatbot}]
-            for img_path in self._img_files:
-                try:
-                    # Read image and encode to base64
-                    with open(img_path, "rb") as f:
-                        img_data = base64.b64encode(f.read()).decode()
-                    
-                    # Detect image format from path
-                    ext = os.path.splitext(img_path)[1].lower().lstrip('.')
-                    image_format = 'jpeg' if ext in ('jpg', 'jpeg') else ext or 'jpeg'
-                    
-                    content_parts.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/{image_format};base64,{img_data}"}
-                    })
-                    logger.info(f"Added image {img_path} to message")
-                except Exception as e:
-                    logger.error(f"Failed to encode image {img_path}: {str(e)}")
-            
-            content_for_chatbot = content_parts
-        
-        # Save the user message WITH file contents included
-        message_content = json.dumps(content_for_chatbot) if isinstance(content_for_chatbot, list) else content_for_chatbot
-        saved_message = self.db.save_message(self.chat_id, "user", message_content)
+        # Save the user's text message (WITHOUT file contents)
+        saved_message = self.db.save_message(self.chat_id, "user", message)
         
         # Save file attachments metadata to database (files are already on disk)
         for file_path in self._file_contents.keys():
@@ -341,14 +368,14 @@ class ChatService:
                 content_type=f"image/{os.path.splitext(img_path)[1].lower().lstrip('.')}"
             )
         
-        # Clear files after using them
+        # Clear files after saving metadata
         self._img_files.clear()
         self._file_contents.clear()
         
-        # Load history and send to chatbot
+        # Load history (will reconstruct messages with attachments from disk)
         history = self.db.get_chat_history(self.chat_id)
         chat = self.db.get_chat(self.chat_id)
-        messages = self._convert_messages_to_openai_format(history)
+        messages = self._to_openai(history)
         response = await self.chatbot.chat(messages)
 
         if chat and chat.title in (None, "", "Untitled Chat"):
