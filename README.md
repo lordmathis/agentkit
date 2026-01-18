@@ -3,12 +3,12 @@
 A flexible chat client with Web UI that integrates multiple AI providers, tools, and agent frameworks through a unified plugin architecture.
 
 **Features**:
-- 🤖 **Multiple AI Providers**: Support for OpenAI-compatible APIs (OpenRouter, custom endpoints)
-- 🛠️ **Tool Integration**: MCP (Model Context Protocol) and smolagents tools
-- 🌐 **Modern Web UI**: React/TypeScript frontend with real-time chat interface
-- 🔌 **Plugin Architecture**: Extensible chatbot and agent plugins
-- 💾 **Conversation History**: SQLAlchemy-based persistence
-- ⚡ **Async Processing**: FastAPI backend with async tool execution
+- OpenAI-compatible API support (OpenRouter, custom endpoints)
+- MCP and smolagents tool integration
+- React/TypeScript web interface
+- Extensible plugin architecture
+- SQLAlchemy conversation persistence
+- FastAPI backend with async execution
 
 ## Quick Start
 
