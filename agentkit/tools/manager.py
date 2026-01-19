@@ -28,23 +28,24 @@ class ToolManager:
         """Initialize all handlers"""
         logger.info("Starting ToolManager...")
         
+        # Initialize MCPs
         await self._mcp_handler.initialize()
-        await self._smol_handler.initialize()
-        await self._agent_handler.initialize()
-        
-        # Build routing map: tool_name -> handler
         for tool_name in self._mcp_handler.tool_registry:
             self._tool_handlers[tool_name] = self._mcp_handler
-        for tool_name in self._smol_handler.tool_registry:
-            self._tool_handlers[tool_name] = self._smol_handler
-        for tool_name in self._agent_handler.tool_registry:
-            self._tool_handlers[tool_name] = self._agent_handler
-        
-        # Build server registry for backward compatibility
         for server_name in self._mcp_handler.server_registry:
             self._server_registry[server_name] = ToolType.MCP
+
+        # Initialize SmolAgents tools
+        await self._smol_handler.initialize()
+        for tool_name in self._smol_handler.tool_registry:
+            self._tool_handlers[tool_name] = self._smol_handler
         for server_name in self._smol_handler.server_registry:
             self._server_registry[server_name] = ToolType.SMOLAGENTS_TOOL
+
+        # Initialize Agent plugins
+        await self._agent_handler.initialize()
+        for tool_name in self._agent_handler.tool_registry:
+            self._tool_handlers[tool_name] = self._agent_handler
         for server_name in self._agent_handler.server_registry:
             self._server_registry[server_name] = ToolType.SMOLAGENTS_AGENT
         
