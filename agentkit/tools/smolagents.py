@@ -41,35 +41,43 @@ class SmolAgentsAgent:
 
     def initialize(self):
         """Called by ToolManager.start() to set up MCP client and tools"""
-        # Get MCP server params for this agent
-
         mcp_params = []
 
         for server_name in self.tool_servers:
             server_type = self.tool_manager.get_server_type(server_name)
 
             if server_type == ToolType.MCP:
-                # For MCP servers, we need to access the handler's sessions
-                # This is a bit of a hack, but maintains backward compatibility
-                if hasattr(self.tool_manager._mcp_handler, '_sessions'):
-                    session = self.tool_manager._mcp_handler._sessions.get(server_name)
-                    if session:
-                        # We need to convert this to MCP params for the MCPClient
-                        # This might need adjustment based on how MCPClient works
-                        pass
+                # Get server parameters and let smolagents manage its own session
+                server_params = self.tool_manager._mcp_handler.get_server_params(server_name)
+                mcp_params.append(server_params)
 
-            if server_type == ToolType.SMOLAGENTS_TOOL:
+            elif server_type == ToolType.SMOLAGENTS_TOOL:
                 # Add smolagents tool directly
                 if hasattr(self.tool_manager._smol_handler, '_tools'):
                     tool = self.tool_manager._smol_handler._tools.get(server_name)
                     if tool:
                         self.tools.append(tool)
 
-            if server_type == ToolType.SMOLAGENTS_AGENT:
+            elif server_type == ToolType.SMOLAGENTS_AGENT:
                 raise ValueError("Nested SmolAgentsAgent is not supported")
-        
+
         # Initialize MCP client if needed
         if mcp_params:
+
+            # Patch MCP tools to add empty properties if missing
+            import mcpadapt.smolagents_adapter
+            original_adapt = mcpadapt.smolagents_adapter.SmolAgentsAdapter.adapt
+
+            def patched_adapt(self, func, mcp_tool):
+                if hasattr(mcp_tool, 'inputSchema') and mcp_tool.inputSchema:
+                    schema = mcp_tool.inputSchema
+                    if isinstance(schema, dict) and 'properties' not in schema:
+                        schema['properties'] = {}
+                return original_adapt(self, func, mcp_tool)
+
+            mcpadapt.smolagents_adapter.SmolAgentsAdapter.adapt = patched_adapt
+
+
             self.mcp_client = MCPClient(mcp_params)
             self.mcp_client.__enter__()
             self.tools.extend(self.mcp_client.get_tools())

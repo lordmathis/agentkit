@@ -154,6 +154,22 @@ class MCPToolHandler(ToolHandler):
             logger.error(f"Error listing tools for MCP server '{server_name}': {e}", exc_info=True)
             raise
     
+    def get_server_params(self, server_name: str) -> Dict[str, Any]:
+        """Get the raw server parameters for a specific MCP server
+
+        This allows other components (like smolagents) to create their own
+        sessions to the same MCP server.
+        """
+        config = self._servers.get(server_name)
+        if config is None:
+            raise ValueError(f"MCP server '{server_name}' not found in configuration")
+
+        return StdioServerParameters(
+            command=config.command,
+            args=config.args,
+            env=config.env,
+        )
+
     async def cleanup(self):
         """Clean up all MCP connections"""
         logger.debug("Closing AsyncExitStack (cleaning up all MCP sessions)...")
@@ -167,7 +183,7 @@ class MCPToolHandler(ToolHandler):
             logger.error(f"Timeout while closing AsyncExitStack (timeout: {self._timeout}s)")
         except Exception as e:
             logger.error(f"Error during AsyncExitStack cleanup: {e}", exc_info=True)
-        
+
         self._sessions.clear()
         self.tool_registry.clear()
         self.server_registry.clear()
