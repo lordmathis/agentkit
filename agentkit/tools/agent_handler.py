@@ -72,9 +72,14 @@ class AgentPluginHandler(ToolHandler):
     
     async def list_tools(self, server_name: str) -> list:
         """List available tools for an agent"""
-        # TODO: implement listing tools for smolagents agents
-        logger.debug(f"Listing tools for SMOLAGENTS agent '{server_name}' (not yet implemented)")
-        return []
+        agent = self._agents.get(server_name)
+        if agent is None:
+            logger.error(f"SMOLAGENTS agent '{server_name}' not found in agents dictionary")
+            raise ValueError(f"SMOLAGENTS agent '{server_name}' not found")
+
+        logger.debug(f"Listing SMOLAGENTS agent: {server_name}")
+        # Return the agent as a tool-like object with name, description, and parameters
+        return [agent]
     
     async def cleanup(self):
         """Clean up all agent plugins"""

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -17,8 +17,8 @@ class ChatbotConfig(BaseModel):
     system_prompt: str
     tool_servers: List[str] = []
     max_iterations: int = 5
-    temperature: float = 0.7
-    max_tokens: int = 2000
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
     
     class Config:
         arbitrary_types_allowed = True  # Allow Provider type

@@ -44,9 +44,9 @@ class ChatServiceManager:
             tool_manager=self.tool_manager,
             system_prompt=config.system_prompt,
             tool_servers=config.tool_servers,
-            temperature=model_params.get("temperature", 0.7),
-            max_tokens=model_params.get("max_tokens", 2000),
-            max_iterations=model_params.get("max_iterations", 5),
+            temperature=model_params.get("temperature"),
+            max_tokens=model_params.get("max_tokens"),
+            max_iterations=model_params.get("max_iterations"),
         )
 
         chat_service = ChatService(
