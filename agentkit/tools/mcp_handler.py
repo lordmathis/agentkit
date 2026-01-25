@@ -42,64 +42,37 @@ class MCPToolHandler(ToolHandler):
                     raise ValueError(f"Unsupported MCP type: {config.type}")
 
                 logger.debug(f"Creating stdio client for '{server_name}'...")
-                try:
-                    read_stream, write_stream = await asyncio.wait_for(
-                        self._exit_stack.enter_async_context(stdio_client(server_params)),
-                        timeout=self._timeout
-                    )
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout while connecting to stdio client for '{server_name}' (timeout: {self._timeout}s)")
-                    raise TimeoutError(f"Failed to connect to MCP server '{server_name}' within {self._timeout} seconds")
-                except Exception as e:
-                    logger.error(f"Failed to create stdio client for '{server_name}': {e}", exc_info=True)
-                    raise
+                read_stream, write_stream = await asyncio.wait_for(
+                    self._exit_stack.enter_async_context(stdio_client(server_params)),
+                    timeout=self._timeout
+                )
 
                 logger.debug(f"Connected to stdio client for '{server_name}', creating session...")
-                try:
-                    session = ClientSession(read_stream, write_stream)
-                    await asyncio.wait_for(
-                        self._exit_stack.enter_async_context(session),
-                        timeout=self._timeout
-                    )
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout while entering session context for '{server_name}' (timeout: {self._timeout}s)")
-                    raise TimeoutError(f"Failed to enter session context for MCP server '{server_name}' within {self._timeout} seconds")
-                except Exception as e:
-                    logger.error(f"Failed to create or enter session for '{server_name}': {e}", exc_info=True)
-                    raise
+                session = ClientSession(read_stream, write_stream)
+                await asyncio.wait_for(
+                    self._exit_stack.enter_async_context(session),
+                    timeout=self._timeout
+                )
+
 
                 logger.debug(f"Initializing session for '{server_name}'...")
-                try:
-                    await asyncio.wait_for(
-                        session.initialize(),
-                        timeout=self._timeout
-                    )
-                    logger.info(f"Session initialized successfully for '{server_name}'")
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout while initializing session for '{server_name}' (timeout: {self._timeout}s)")
-                    raise TimeoutError(f"Failed to initialize MCP server '{server_name}' within {self._timeout} seconds")
-                except Exception as e:
-                    logger.error(f"Failed to initialize session for '{server_name}': {e}", exc_info=True)
-                    raise
-
+                await asyncio.wait_for(
+                    session.initialize(),
+                    timeout=self._timeout
+                )
+                
+                logger.info(f"Session initialized successfully for '{server_name}'")
                 self._sessions[server_name] = session
                 self.server_registry[server_name] = True
 
                 logger.debug(f"Listing tools for '{server_name}'...")
-                try:
-                    tools_result = await asyncio.wait_for(
-                        session.list_tools(),
-                        timeout=self._timeout
-                    )
-                    for tool in tools_result.tools:
-                        logger.debug(f"Found tool in '{server_name}': {tool.name}")
-                        self.tool_registry[f"{server_name}:{tool.name}"] = True
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout while listing tools for '{server_name}' (timeout: {self._timeout}s)")
-                    raise TimeoutError(f"Failed to list tools for MCP server '{server_name}' within {self._timeout} seconds")
-                except Exception as e:
-                    logger.error(f"Failed to list tools for '{server_name}': {e}", exc_info=True)
-                    raise
+                tools_result = await asyncio.wait_for(
+                    session.list_tools(),
+                    timeout=self._timeout
+                )
+                for tool in tools_result.tools:
+                    logger.debug(f"Found tool in '{server_name}': {tool.name}")
+                    self.tool_registry[f"{server_name}:{tool.name}"] = True
 
                 logger.info(f"Successfully initialized MCP server '{server_name}'")
 
