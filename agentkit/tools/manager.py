@@ -23,8 +23,11 @@ class ToolManager:
         
         # Initialize MCPs
         for mcp_handler in self._mcp_handlers.values():
-            await mcp_handler.initialize()
-            self._server_map[mcp_handler.server_name] = mcp_handler
+            try:
+                await mcp_handler.initialize()
+                self._server_map[mcp_handler.server_name] = mcp_handler
+            except Exception as e:
+                logger.error(f"Error initializing MCP handler for server '{mcp_handler.server_name}': {e}", exc_info=True)
         
         logger.info("ToolManager initialization completed successfully")
 
@@ -58,6 +61,10 @@ class ToolManager:
         """Cleanup all handlers"""
         logger.info("Starting ToolManager cleanup...")
         for handler in self._server_map.values():
-            await handler.cleanup()
+            try:
+                logger.debug(f"Cleaning up handler for server '{handler.server_name}'...")
+                await handler.cleanup()
+            except Exception as e:
+                logger.error(f"Error during cleanup of handler for server '{handler.server_name}': {e}", exc_info=True)
 
         logger.info("ToolManager cleanup completed")

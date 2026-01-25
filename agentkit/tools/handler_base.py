@@ -22,7 +22,7 @@ class ToolHandler(ABC):
         pass
     
     @abstractmethod
-    async def list_tools(self, server_name: str) -> list:
+    async def list_tools(self) -> list:
         """List available tools"""
         pass
     

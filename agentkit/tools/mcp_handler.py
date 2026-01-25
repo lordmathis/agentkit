@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from contextlib import AsyncExitStack
 import logging
 import asyncio
@@ -19,9 +19,8 @@ class MCPToolHandler(ToolHandler):
         self.server_name = server_name
         self._config = config
         self._timeout = timeout
-        self._session: ClientSession = None
+        self._session: Optional[ClientSession] = None
         self._exit_stack = AsyncExitStack()
-        self._tools: set = set()
     
     async def initialize(self):
         """Connect to all MCP server and register its tools"""
