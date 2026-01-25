@@ -40,7 +40,6 @@ async def lifespan(app: FastAPI):
         tool_manager = ToolManager(
             app_config.mcps,
             app_config.mcp_timeout,
-            app_config.plugins.agents_dir
         )
         await tool_manager.start()
         app.state.tool_manager = tool_manager

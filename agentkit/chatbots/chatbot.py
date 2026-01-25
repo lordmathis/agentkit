@@ -64,11 +64,8 @@ class Chatbot:
 
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:
-                # Handle different tool types (MCP uses 'parameters', smolagents uses 'inputs')
                 if hasattr(tool, 'parameters'):
                     parameters = tool.parameters
-                elif hasattr(tool, 'inputs'):
-                    parameters = tool.inputs
                 else:
                     parameters = {}
                 

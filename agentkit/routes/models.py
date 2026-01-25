@@ -125,18 +125,10 @@ async def list_tools(request: Request):
             tool_list = []
             for tool in tools:
                 if hasattr(tool, 'parameters'):
-                    # MCP tools have parameters attribute
                     tool_dict = {
                         "name": tool.name,
                         "description": tool.description,
                         "parameters": tool.parameters
-                    }
-                elif hasattr(tool, 'inputs'):
-                    # SMOLAGENTS tools have inputs attribute
-                    tool_dict = {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.inputs
                     }
                 else:
                     tool_dict = {

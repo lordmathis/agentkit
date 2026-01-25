@@ -4,7 +4,7 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
 
 **Features**:
 - OpenAI-compatible API support (OpenRouter, custom endpoints)
-- MCP and smolagents tool integration
+- MCP integration
 - React/TypeScript web interface
 - Extensible plugin architecture
 - SQLAlchemy conversation persistence
@@ -103,7 +103,7 @@ providers:
 
 ### MCP (Model Context Protocol) Configuration
 
-MCP servers provide tools and capabilities to agents:
+MCP servers provide tools and capabilities to chatbots:
 
 ```yaml
 mcps:
@@ -132,7 +132,6 @@ mcp_timeout: 60  # Timeout for MCP operations in seconds
 ```yaml
 plugins:
   chatbots_dir: "chatbots"  # Directory for chatbot plugins
-  agents_dir: "agents"      # Directory for agent plugins
 ```
 
 ### Database Configuration
@@ -143,21 +142,14 @@ history_db_path: "agentkit.db"  # SQLite database for conversation history
 
 ## Available Tools
 
-Your chatbots and agents can use the following tools:
-
-**Built-in Tools:**
-- `web_search`: Search the web using DuckDuckGo
-- `visit_webpage`: Extract and read content from web pages
+Your chatbots can use the following tools:
 
 **MCP Tools:**
 Configure any MCP-compatible server in your `config.yaml`
 
-**Custom Agent Tools:**
-Create your own agents in the `agents/` directory that can combine multiple tools for complex tasks.
-
 ## Plugins
 
-Extend AgentKit's functionality by creating custom chatbots and agents:
+Extend AgentKit's functionality by creating custom chatbots.
 
 ### Chatbots
 
@@ -193,42 +185,3 @@ class MyCustomBot(ChatbotPlugin):
 - Provider integration: Access to all configured providers
 - Tool access: Can specify which MCP/agent tools to use
 - Configurable parameters: temperature, max_tokens, max_iterations
-
-### Agents
-
-Agent plugins are [smolagents](https://github.com/huggingface/smolagents)-based autonomous agents that can use multiple tools to accomplish tasks. They inherit from `SmolAgentPlugin`.
-
-**Creating an Agent Plugin:**
-
-1. Create a Python file in the `agents/` directory (e.g., `agents/research_agent.py`)
-2. Inherit from `SmolAgentPlugin` and implement the `configure()` method:
-
-```python
-from agentkit.tools.smolagents import SmolAgentPlugin, SmolAgentConfig
-from agentkit.tools.manager import ToolManager
-
-class ResearchAgent(SmolAgentPlugin):
-    def configure(self) -> SmolAgentConfig:
-        return SmolAgentConfig(
-            name="research_agent",
-            description="Research agent that can search and analyze information",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "Research query or task"
-                    }
-                },
-                "required": ["prompt"]
-            },
-            tool_servers=["web_search", "visit_webpage"],
-            system_prompt="You are a research assistant. Use available tools to gather and analyze information."
-        )
-```
-
-**Agent Capabilities:**
-- **Multi-tool access**: Agents can use multiple MCP tools and smolagents tools
-- **Autonomous execution**: Agents make decisions about which tools to use
-- **Configurable parameters**: Define input schema and system prompts
-- **Built-in tools**: Access to web_search and visit_webpage by default

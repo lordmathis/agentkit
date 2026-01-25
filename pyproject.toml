@@ -15,6 +15,5 @@ dependencies = [
     "pydantic>=2.12.5",
     "python-dotenv>=1.2.1",
     "rich>=14.2.0",
-    "smolagents[mcp,openai,toolkit]>=1.23.0",
     "sqlalchemy>=2.0.45",
 ]

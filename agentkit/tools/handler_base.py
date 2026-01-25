@@ -6,8 +6,6 @@ from typing import Any
 class ToolType(Enum):
     """Type of tool handler"""
     MCP = "mcp"
-    SMOLAGENTS_TOOL = "smolagents_tool"
-    SMOLAGENTS_AGENT = "smolagents_agent"
 
 
 class ToolHandler(ABC):

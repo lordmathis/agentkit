@@ -45,7 +45,6 @@ class MCPConfig(BaseModel):
 
 class PluginConfig(BaseModel):
     chatbots_dir: str = "chatbots"
-    agents_dir: str = "agents"
 
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
