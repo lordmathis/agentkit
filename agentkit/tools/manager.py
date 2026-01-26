@@ -4,6 +4,7 @@ import logging
 from agentkit.config import MCPConfig
 from agentkit.tools.handler_base import ToolHandler
 from agentkit.tools.mcp_handler import MCPToolHandler
+from agentkit.tools.web_tools import WebTools
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,14 @@ class ToolManager:
             except Exception as e:
                 logger.error(f"Error initializing MCP handler for server '{mcp_handler.server_name}': {e}", exc_info=True)
         
+        # Initialize WebTools
+        web_tools_handler = WebTools()
+        try:
+            await web_tools_handler.initialize()
+            self._server_map[web_tools_handler.name] = web_tools_handler
+        except Exception as e:
+            logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
+
         logger.info("ToolManager initialization completed successfully")
 
     async def call_tool(self, call_name: str, arguments: dict):
