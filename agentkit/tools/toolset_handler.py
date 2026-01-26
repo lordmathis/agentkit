@@ -46,7 +46,14 @@ class ToolSetHandler(ABC):
         for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
             if hasattr(method, '_tool_definition'):
                 tool_def = method._tool_definition
-                self._tools[tool_def.name] = tool_def
+                # Create a new ToolDefinition with the bound method instead of the unbound function
+                bound_tool_def = ToolDefinition(
+                    name=tool_def.name,
+                    description=tool_def.description,
+                    parameters=tool_def.parameters,
+                    func=method  # Use the bound method, not the original function
+                )
+                self._tools[tool_def.name] = bound_tool_def
                 logger.info(f"Registered tool '{tool_def.name}' in toolset '{self.name}'")
     
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
