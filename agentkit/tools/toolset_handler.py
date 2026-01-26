@@ -1,10 +1,11 @@
-from typing import Callable, Any, Dict, Optional, List
+from typing import Callable, Any, Dict, Optional, List, TYPE_CHECKING
 from abc import ABC
 from pydantic import BaseModel
 import inspect
 import logging
 
-from agentkit.tools.manager import ToolManager
+if TYPE_CHECKING:
+    from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +23,22 @@ class ToolDefinition(BaseModel):
 
 class ToolSetHandler(ABC):
     """Base class for function-based tool handlers"""
-    
-    def __init__(self, name: str, tool_manager: Optional[ToolManager] = None):
+
+    def __init__(self, name: str, tool_manager: Optional["ToolManager"] = None):
         self.name = name
         self._tools: Dict[str, ToolDefinition] = {}
-        self._tool_manager: Optional[ToolManager] = tool_manager
+        self._tool_manager: Optional["ToolManager"] = tool_manager
+
+    def set_tool_manager(self, tool_manager: "ToolManager") -> None:
+        """Set the ToolManager instance for cross-tool calls
+
+        Args:
+            tool_manager: The ToolManager instance to use for calling other tools
+        """
+        if self._tool_manager is None:
+            self._tool_manager = tool_manager
+        else:
+            logger.warning(f"ToolManager already set for toolset '{self.name}', ignoring new value")
     
     async def initialize(self) -> None:
         """Discover and register decorated tool functions"""
