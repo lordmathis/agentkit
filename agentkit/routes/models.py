@@ -138,13 +138,8 @@ async def list_tools(request: Request):
                     }
                 tool_list.append(tool_dict)
 
-            # Get the actual server type from the tool manager
-            server_type_enum = tool_manager.get_server_type(server_name)
-            server_type = server_type_enum.value
-
             tool_servers.append({
                 "name": server_name,
-                "type": server_type,
                 "tools": tool_list
             })
         except Exception as e:
