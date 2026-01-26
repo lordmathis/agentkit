@@ -73,7 +73,7 @@ class Chatbot:
                     {
                         "type": "function",
                         "function": {
-                            "name": f"{tool_server}:{tool.name}",
+                            "name": f"{tool_server}__{tool.name}",
                             "description": tool.description,
                             "parameters": parameters,
                         }
@@ -131,9 +131,7 @@ class Chatbot:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments)
 
-                result = await self.tool_manager.call_tool(
-                    self.provider, self.model_id, tool_name, tool_args
-                )
+                result = await self.tool_manager.call_tool(tool_name, tool_args)
 
                 # Add tool result
                 messages.append(
