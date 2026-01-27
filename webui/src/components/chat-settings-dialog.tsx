@@ -42,7 +42,9 @@ export function ChatSettingsDialog({
 }: ChatSettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [localSettings, setLocalSettings] = useState<ChatSettings>(settings);
-  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
+  const [modelsByProvider, setModelsByProvider] = useState<Record<string, { id: string; label: string }[]>>({});
+  const [providers, setProviders] = useState<string[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [toolServers, setToolServers] = useState<ToolServer[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -64,14 +66,37 @@ export function ChatSettingsDialog({
     try {
       setIsLoadingModels(true);
       const response = await api.listModels();
-      const formattedModels = response.data.map((model: Model) => ({
-        id: model.id,
-        label: model.id, // Use model ID as label for now
-      }));
-      setModels(formattedModels);
+
+      // Group models by provider
+      const grouped: Record<string, { id: string; label: string }[]> = {};
+      response.data.forEach((model: Model) => {
+        const provider = model.owned_by || "Unknown";
+        if (!grouped[provider]) {
+          grouped[provider] = [];
+        }
+        grouped[provider].push({
+          id: model.id,
+          label: model.id,
+        });
+      });
+
+      setModelsByProvider(grouped);
+      const providerList = Object.keys(grouped).sort();
+      setProviders(providerList);
+
+      // Determine the initial provider based on current model
+      if (localSettings.baseModel) {
+        const currentProvider = response.data.find(
+          (m: Model) => m.id === localSettings.baseModel
+        )?.owned_by || "";
+        setSelectedProvider(currentProvider);
+      } else if (providerList.length > 0) {
+        setSelectedProvider(providerList[0]);
+      }
     } catch (error) {
       console.error("Failed to fetch models:", error);
-      setModels([]);
+      setModelsByProvider({});
+      setProviders([]);
     } finally {
       setIsLoadingModels(false);
     }
@@ -148,6 +173,34 @@ export function ChatSettingsDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Provider Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="provider">Provider</Label>
+            <Select
+              value={selectedProvider}
+              onValueChange={(value) => {
+                setSelectedProvider(value);
+                // Reset model selection when provider changes
+                const modelsForProvider = modelsByProvider[value] || [];
+                if (modelsForProvider.length > 0 && !modelsForProvider.find(m => m.id === localSettings.baseModel)) {
+                  setLocalSettings((prev) => ({ ...prev, baseModel: modelsForProvider[0].id }));
+                }
+              }}
+              disabled={isLoadingModels}
+            >
+              <SelectTrigger id="provider" className="w-full">
+                <SelectValue placeholder={isLoadingModels ? "Loading providers..." : "Select a provider"} />
+              </SelectTrigger>
+              <SelectContent>
+                {providers.map((provider) => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Base Model Selection */}
           <div className="space-y-2">
             <Label htmlFor="base-model">Base Model</Label>
@@ -156,13 +209,13 @@ export function ChatSettingsDialog({
               onValueChange={(value) =>
                 setLocalSettings((prev) => ({ ...prev, baseModel: value }))
               }
-              disabled={isLoadingModels}
+              disabled={isLoadingModels || !selectedProvider}
             >
               <SelectTrigger id="base-model" className="w-full">
                 <SelectValue placeholder={isLoadingModels ? "Loading models..." : "Select a model"} />
               </SelectTrigger>
               <SelectContent>
-                {models.map((model) => (
+                {(modelsByProvider[selectedProvider] || []).map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.label}
                   </SelectItem>
