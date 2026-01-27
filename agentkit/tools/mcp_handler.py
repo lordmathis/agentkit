@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 class MCPToolHandler(ToolHandler):
     """Handles a single MCP server connection and tool calls"""
     
-    def __init__(self, server_name: str, config: MCPConfig, timeout: int):
+    def __init__(self, server_name: str, config: MCPConfig, timeout: int, exit_stack: AsyncExitStack):
         self.server_name = server_name
         self._config = config
         self._timeout = timeout
+        self._exit_stack = exit_stack
         self._session: Optional[ClientSession] = None
-        self._exit_stack = AsyncExitStack()
     
     async def initialize(self):
         """Connect to the MCP server and register its tools"""
@@ -97,13 +97,6 @@ class MCPToolHandler(ToolHandler):
         return tools_result.tools
     
     async def cleanup(self):
-        """Clean up MCP connection"""
-        logger.debug("Closing AsyncExitStack (cleaning up MCP session)...")
-        try:
-            await self._exit_stack.aclose()
-            self._session = None
-            logger.info("AsyncExitStack closed successfully")
-        except asyncio.TimeoutError:
-            logger.error(f"Timeout while closing AsyncExitStack (timeout: {self._timeout}s)")
-        except Exception as e:
-            logger.error(f"Error during AsyncExitStack cleanup: {e}", exc_info=True)
+        """Clean up MCP session"""
+        self._session = None
+        logger.info(f"MCPToolHandler for server '{self.server_name}' cleaned up")

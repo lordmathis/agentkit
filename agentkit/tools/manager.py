@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import AsyncExitStack
 from typing import Dict
 import logging
 import importlib.util
@@ -19,10 +20,11 @@ class ToolManager:
         self._server_map: Dict[str, ToolHandler] = {}  # Server name -> Handler
         self._tools_dir = tools_dir
         self.mcp_timeout = mcp_timeout
+        self.mcp_exit_stack = AsyncExitStack()
 
         self._mcp_handlers: Dict[str, MCPToolHandler] = {}
         for server_name, config in servers.items():
-            mcp_handler = MCPToolHandler(server_name, config, mcp_timeout)
+            mcp_handler = MCPToolHandler(server_name, config, mcp_timeout, self.mcp_exit_stack)
             self._mcp_handlers[server_name] = mcp_handler
 
         self._toolset_handlers: Dict[str, ToolSetHandler] = {}  # Store discovered toolset handlers
@@ -85,16 +87,16 @@ class ToolManager:
             except Exception as e:
                 logger.error(f"Error initializing MCP handler for server '{mcp_handler.server_name}': {e}", exc_info=True)
 
-        # # Initialize built-in WebTools
-        # web_tools_handler = WebTools()
-        # try:
-        #     web_tools_handler.set_tool_manager(self)
-        #     await web_tools_handler.initialize()
-        #     self._server_map[web_tools_handler.server_name] = web_tools_handler
-        #     self._toolset_handlers[web_tools_handler.server_name] = web_tools_handler
-        #     logger.info(f"Successfully initialized built-in WebTools as '{web_tools_handler.server_name}'")
-        # except Exception as e:
-        #     logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
+        # Initialize built-in WebTools
+        web_tools_handler = WebTools()
+        try:
+            web_tools_handler.set_tool_manager(self)
+            await web_tools_handler.initialize()
+            self._server_map[web_tools_handler.server_name] = web_tools_handler
+            self._toolset_handlers[web_tools_handler.server_name] = web_tools_handler
+            logger.info(f"Successfully initialized built-in WebTools as '{web_tools_handler.server_name}'")
+        except Exception as e:
+            logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
 
         # Discover and initialize toolset plugins
         plugin_classes = self._discover_toolset_plugins()
@@ -147,12 +149,37 @@ class ToolManager:
     async def stop(self):
         """Cleanup all handlers"""
         logger.info("Starting ToolManager cleanup...")
-        for handler in self._server_map.values():
+        
+        # 1. Cleanup toolset handlers first
+        for name, handler in list(self._toolset_handlers.items()):
             try:
-                # Get handler name (could be 'server_name' for MCP or 'server_name' for toolsets)
-                logger.debug(f"Cleaning up handler '{handler.server_name}'...")
-                await asyncio.wait_for(handler.cleanup(), timeout=self.mcp_timeout)
+                await handler.cleanup()
             except Exception as e:
-                logger.error(f"Error during cleanup of handler '{handler.server_name}': {e}", exc_info=True)
-
+                logger.error(f"Error during cleanup of toolset handler '{name}': {e}", exc_info=True)
+        
+        # 2. Close the exit stack for MCP handlers
+        try:
+            logger.debug("Closing shared AsyncExitStack for all MCP handlers...")
+            await asyncio.wait_for(
+                self.mcp_exit_stack.aclose(),
+                timeout=self.mcp_timeout
+            )
+            logger.info("Successfully closed all MCP connections")
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout closing MCP connections")
+        except Exception as e:
+            logger.error(f"Error closing MCP connections: {e}", exc_info=True)
+        
+        # 3. Call cleanup on individual handlers (they just clear their references)
+        for server_name, handler in list(self._mcp_handlers.items()):
+            try:
+                await handler.cleanup()
+            except Exception as e:
+                logger.error(f"Error during cleanup of MCP handler '{server_name}': {e}", exc_info=True)
+        
+        # Clear all references
+        self._server_map.clear()
+        self._mcp_handlers.clear()
+        self._toolset_handlers.clear()
+        
         logger.info("ToolManager cleanup completed")
