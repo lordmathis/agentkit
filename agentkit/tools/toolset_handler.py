@@ -25,7 +25,7 @@ class ToolSetHandler(ABC):
     """Base class for function-based tool handlers"""
 
     def __init__(self, name: str, tool_manager: Optional["ToolManager"] = None):
-        self.name = name
+        self.server_name = name
         self._tools: Dict[str, ToolDefinition] = {}
         self._tool_manager: Optional["ToolManager"] = tool_manager
 
@@ -38,7 +38,7 @@ class ToolSetHandler(ABC):
         if self._tool_manager is None:
             self._tool_manager = tool_manager
         else:
-            logger.warning(f"ToolManager already set for toolset '{self.name}', ignoring new value")
+            logger.warning(f"ToolManager already set for toolset '{self.server_name}', ignoring new value")
     
     async def initialize(self) -> None:
         """Discover and register decorated tool functions"""
@@ -54,13 +54,13 @@ class ToolSetHandler(ABC):
                     func=method  # Use the bound method, not the original function
                 )
                 self._tools[tool_def.name] = bound_tool_def
-                logger.info(f"Registered tool '{tool_def.name}' in toolset '{self.name}'")
+                logger.info(f"Registered tool '{tool_def.name}' in toolset '{self.server_name}'")
     
     async def call_tool(self, tool_name: str, arguments: dict) -> Any:
         """Execute a tool function"""
         tool_def = self._tools.get(tool_name)
         if not tool_def:
-            raise ValueError(f"Tool '{tool_name}' not found in toolset '{self.name}'")
+            raise ValueError(f"Tool '{tool_name}' not found in toolset '{self.server_name}'")
         
         logger.debug(f"Calling tool '{tool_name}' with arguments: {arguments}")
         

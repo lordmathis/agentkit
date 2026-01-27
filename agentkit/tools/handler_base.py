@@ -3,13 +3,9 @@ from enum import Enum
 from typing import Any
 
 
-class ToolType(Enum):
-    """Type of tool handler"""
-    MCP = "mcp"
-
-
 class ToolHandler(ABC):
     """Base handler for a type of tool"""
+    server_name: str
     
     @abstractmethod
     async def initialize(self) -> None:

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict
 import logging
 import importlib.util
@@ -17,6 +18,7 @@ class ToolManager:
     def __init__(self, tools_dir: str, servers: Dict[str, MCPConfig], mcp_timeout: int = 30):
         self._server_map: Dict[str, ToolHandler] = {}  # Server name -> Handler
         self._tools_dir = tools_dir
+        self.mcp_timeout = mcp_timeout
 
         self._mcp_handlers: Dict[str, MCPToolHandler] = {}
         for server_name, config in servers.items():
@@ -83,16 +85,16 @@ class ToolManager:
             except Exception as e:
                 logger.error(f"Error initializing MCP handler for server '{mcp_handler.server_name}': {e}", exc_info=True)
 
-        # Initialize built-in WebTools
-        web_tools_handler = WebTools()
-        try:
-            web_tools_handler.set_tool_manager(self)
-            await web_tools_handler.initialize()
-            self._server_map[web_tools_handler.name] = web_tools_handler
-            self._toolset_handlers[web_tools_handler.name] = web_tools_handler
-            logger.info(f"Successfully initialized built-in WebTools as '{web_tools_handler.name}'")
-        except Exception as e:
-            logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
+        # # Initialize built-in WebTools
+        # web_tools_handler = WebTools()
+        # try:
+        #     web_tools_handler.set_tool_manager(self)
+        #     await web_tools_handler.initialize()
+        #     self._server_map[web_tools_handler.server_name] = web_tools_handler
+        #     self._toolset_handlers[web_tools_handler.server_name] = web_tools_handler
+        #     logger.info(f"Successfully initialized built-in WebTools as '{web_tools_handler.server_name}'")
+        # except Exception as e:
+        #     logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
 
         # Discover and initialize toolset plugins
         plugin_classes = self._discover_toolset_plugins()
@@ -147,12 +149,10 @@ class ToolManager:
         logger.info("Starting ToolManager cleanup...")
         for handler in self._server_map.values():
             try:
-                # Get handler name (could be 'server_name' for MCP or 'name' for toolsets)
-                handler_name = getattr(handler, 'server_name', None) or getattr(handler, 'name', 'unknown')
-                logger.debug(f"Cleaning up handler '{handler_name}'...")
-                await handler.cleanup()
+                # Get handler name (could be 'server_name' for MCP or 'server_name' for toolsets)
+                logger.debug(f"Cleaning up handler '{handler.server_name}'...")
+                await asyncio.wait_for(handler.cleanup(), timeout=self.mcp_timeout)
             except Exception as e:
-                handler_name = getattr(handler, 'server_name', None) or getattr(handler, 'name', 'unknown')
-                logger.error(f"Error during cleanup of handler '{handler_name}': {e}", exc_info=True)
+                logger.error(f"Error during cleanup of handler '{handler.server_name}': {e}", exc_info=True)
 
         logger.info("ToolManager cleanup completed")
