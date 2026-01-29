@@ -111,10 +111,10 @@ class ToolManager:
                 await plugin_instance.initialize()
 
                 # Register in both maps
-                self._toolset_handlers[plugin_instance.name] = plugin_instance
-                self._server_map[plugin_instance.name] = plugin_instance
+                self._toolset_handlers[plugin_instance.server_name] = plugin_instance
+                self._server_map[plugin_instance.server_name] = plugin_instance
 
-                logger.info(f"Successfully initialized toolset plugin '{class_name}' as '{plugin_instance.name}'")
+                logger.info(f"Successfully initialized toolset plugin '{class_name}' as '{plugin_instance.server_name}'")
             except Exception as e:
                 logger.error(f"Error initializing toolset plugin '{class_name}': {e}", exc_info=True)
 
