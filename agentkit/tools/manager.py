@@ -1,17 +1,18 @@
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Dict
+from typing import Any, Dict
 import logging
 import importlib.util
 import inspect
 from pathlib import Path
 
 from agentkit.config import MCPConfig
+from agentkit.providers import Provider
 from agentkit.storage import get_persistent_storage
-from agentkit.tools.handler_base import ToolHandler
-from agentkit.tools.mcp_handler import MCPToolHandler
-from agentkit.tools.toolset_handler import ToolSetHandler
-from agentkit.tools.web_tools import WebTools
+from agentkit.tools import ToolHandler
+from agentkit.tools import MCPToolHandler
+from agentkit.tools import ToolSetHandler
+from agentkit.tools import WebTools
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ class ToolManager:
 
         logger.info("ToolManager initialization completed successfully")
 
-    async def call_tool(self, call_name: str, arguments: dict):
+    async def call_tool(self, call_name: str, arguments: dict, provider: Provider, model_id: str) -> Any:
         """Route tool calls to the appropriate handler"""
         try:
             server_name, tool_name = call_name.split("__", 1)
@@ -136,7 +137,7 @@ class ToolManager:
         if handler is None:
             raise ValueError(f"Tool server '{server_name}' not found")
         
-        return await handler.call_tool(tool_name, arguments)
+        return await handler.call_tool(tool_name, arguments, provider, model_id)
 
     
     async def list_tools(self, server_name: str) -> list:

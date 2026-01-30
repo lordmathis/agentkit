@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import Any
+
+from agentkit.providers import Provider
 
 
 class ToolHandler(ABC):
@@ -13,7 +14,7 @@ class ToolHandler(ABC):
         pass
     
     @abstractmethod
-    async def call_tool(self, tool_name: str, arguments: dict) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict, provider: Provider, model_id: str) -> Any:
         """Execute a tool"""
         pass
     

@@ -95,10 +95,6 @@ class Chatbot:
         if api_tools:
             api_params["tools"] = api_tools
 
-        print("----------------- API Params -----------------")
-        print(json.dumps(api_params, indent=2))
-        print("----------------------------------------------")
-
         for _ in range(self.max_iterations):
             # Call API
             response = self.client.chat.completions.create(**api_params)
@@ -131,7 +127,7 @@ class Chatbot:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments)
 
-                result = await self.tool_manager.call_tool(tool_name, tool_args)
+                result = await self.tool_manager.call_tool(tool_name, tool_args, self.provider, self.model_id)
 
                 # Add tool result
                 messages.append(

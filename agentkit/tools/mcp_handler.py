@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from contextlib import AsyncExitStack
 import logging
 import asyncio
@@ -7,7 +7,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from agentkit.config import MCPConfig, MCPType
-from agentkit.tools.handler_base import ToolHandler
+from agentkit.tools import ToolHandler
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class MCPToolHandler(ToolHandler):
             logger.debug(f"Found tool in '{self.server_name}': {tool.name}")
         logger.info(f"Successfully initialized MCP server '{self.server_name}'")
     
-    async def call_tool(self, tool_name: str, arguments: dict) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict, provider, model_id) -> Any:
         """Execute an MCP tool"""        
         if self._session is None:
             logger.error(f"MCP session for server '{self.server_name}' not found")
