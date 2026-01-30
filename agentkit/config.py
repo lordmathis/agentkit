@@ -54,6 +54,7 @@ class AppConfig(BaseModel):
     plugins: PluginConfig = PluginConfig()
     history_db_path: str = "agentkit.db"
     uploads_dir: str = "uploads"
+    data_dir: str = "data"
     mcp_timeout: int = 60
     github_token: Optional[str] = None
 

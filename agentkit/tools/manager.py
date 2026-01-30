@@ -7,6 +7,7 @@ import inspect
 from pathlib import Path
 
 from agentkit.config import MCPConfig
+from agentkit.storage import get_persistent_storage
 from agentkit.tools.handler_base import ToolHandler
 from agentkit.tools.mcp_handler import MCPToolHandler
 from agentkit.tools.toolset_handler import ToolSetHandler
@@ -16,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class ToolManager:
-    def __init__(self, tools_dir: str, servers: Dict[str, MCPConfig], mcp_timeout: int = 30):
+    def __init__(self, data_dir: str, tools_dir: str, servers: Dict[str, MCPConfig], mcp_timeout: int = 30):
         self._server_map: Dict[str, ToolHandler] = {}  # Server name -> Handler
+        self._data_dir = data_dir
         self._tools_dir = tools_dir
         self.mcp_timeout = mcp_timeout
         self.mcp_exit_stack = AsyncExitStack()
@@ -74,6 +76,9 @@ class ToolManager:
                 logger.error(f"Error loading plugin from {py_file}: {e}", exc_info=True)
 
         return plugins
+    
+    def get_persistent_storage(self, tool_server_name):
+        return get_persistent_storage(self._data_dir, tool_server_name)
 
     async def start(self):
         """Initialize all handlers"""

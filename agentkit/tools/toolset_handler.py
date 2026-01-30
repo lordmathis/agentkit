@@ -39,6 +39,9 @@ class ToolSetHandler(ABC):
             self._tool_manager = tool_manager
         else:
             logger.warning(f"ToolManager already set for toolset '{self.server_name}', ignoring new value")
+
+    def get_persistent_storage(self):
+        self._tool_manager.get_persistent_storage(self.server_name)
     
     async def initialize(self) -> None:
         """Discover and register decorated tool functions"""
