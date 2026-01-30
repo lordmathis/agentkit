@@ -9,10 +9,10 @@ from pathlib import Path
 from agentkit.config import MCPConfig
 from agentkit.providers import Provider
 from agentkit.storage import get_persistent_storage
-from agentkit.tools import ToolHandler
-from agentkit.tools import MCPToolHandler
-from agentkit.tools import ToolSetHandler
-from agentkit.tools import WebTools
+from agentkit.tools.handler_base import ToolHandler
+from agentkit.tools.mcp_handler import MCPToolHandler
+from agentkit.tools.toolset_handler import ToolSetHandler
+from agentkit.tools.web_tools import WebTools
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from agentkit.providers import Provider
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agentkit.tools import ToolManager
+    from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
