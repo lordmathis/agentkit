@@ -7,7 +7,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from agentkit.config import MCPConfig, MCPType
-from agentkit.tools import ToolHandler
+from agentkit.tools.handler_base import ToolHandler
 
 logger = logging.getLogger(__name__)
 

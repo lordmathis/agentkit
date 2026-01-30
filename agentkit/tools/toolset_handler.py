@@ -5,7 +5,10 @@ import inspect
 import logging
 
 from agentkit.providers import Provider
-from agentkit.tools import ToolManager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agentkit.tools import ToolManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +27,15 @@ class ToolDefinition(BaseModel):
 class ToolSetHandler(ABC):
     """Base class for function-based tool handlers"""
 
-    def __init__(self, name: str, tool_manager: Optional[ToolManager] = None):
+    def __init__(self, name: str, tool_manager: Optional["ToolManager"] = None):
         self.server_name = name
         self._tools: Dict[str, ToolDefinition] = {}
-        self._tool_manager: Optional[ToolManager] = tool_manager
+        self._tool_manager: Optional["ToolManager"] = tool_manager
 
         self._provider: Optional[Provider] = None
         self._model_id: Optional[str] = None
 
-    def set_tool_manager(self, tool_manager: ToolManager) -> None:
+    def set_tool_manager(self, tool_manager: "ToolManager") -> None:
         """Set the ToolManager instance for cross-tool calls
 
         Args:
