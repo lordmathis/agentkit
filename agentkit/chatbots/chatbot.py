@@ -130,6 +130,8 @@ class Chatbot:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments)
 
+                logger.debug(f"Calling tool: {tool_name}")
+
                 result = await self.tool_manager.call_tool(tool_name, tool_args, self.provider, self.model_id)
 
                 # Add tool result

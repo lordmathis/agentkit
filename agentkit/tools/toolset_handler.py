@@ -78,13 +78,14 @@ class ToolSetHandler(ABC):
             raise ValueError(f"Tool '{tool_name}' not found in toolset '{self.server_name}'")
         self.set_model_context(provider, model_id)
 
-        logger.debug(f"Calling tool '{tool_name}' with arguments: {arguments}")
-        
+        logger.debug(f"[{self.server_name}] Calling tool '{tool_name}' with arguments: {arguments}")
+
         if inspect.iscoroutinefunction(tool_def.func):
             result = await tool_def.func(**arguments)
         else:
             result = tool_def.func(**arguments)
-        
+
+        logger.debug(f"[{self.server_name}] Tool '{tool_name}' returned: type={type(result)}, value={result}")
         return result
     
     async def list_tools(self) -> List[ToolDefinition]:
@@ -99,9 +100,12 @@ class ToolSetHandler(ABC):
         """Helper to call tools from other servers (including MCP)"""
         if not self._tool_manager:
             raise RuntimeError("ToolManager not set")
-        
+
         call_name = f"{server_name}__{tool_name}"
-        return await self._tool_manager.call_tool(call_name, arguments, self._provider, self._model_id)
+        logger.debug(f"[{self.server_name}] Calling {call_name}")
+
+        result = await self._tool_manager.call_tool(call_name, arguments, self._provider, self._model_id)
+        return result
 
 
 def tool(description: str, parameters: Dict[str, Any]):

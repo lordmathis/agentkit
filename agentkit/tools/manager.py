@@ -132,12 +132,13 @@ class ToolManager:
             server_name, tool_name = call_name.split("__", 1)
         except ValueError:
             raise ValueError(f"Invalid tool name format: '{call_name}'. Expected 'server__tool'")
-        
+
         handler = self._server_map.get(server_name)
         if handler is None:
             raise ValueError(f"Tool server '{server_name}' not found")
-        
-        return await handler.call_tool(tool_name, arguments, provider, model_id)
+
+        result = await handler.call_tool(tool_name, arguments, provider, model_id)
+        return result
 
     
     async def list_tools(self, server_name: str) -> list:

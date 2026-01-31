@@ -2,6 +2,7 @@ from typing import Any, Optional
 from contextlib import AsyncExitStack
 import logging
 import asyncio
+import json
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -10,6 +11,52 @@ from agentkit.config import MCPConfig, MCPType
 from agentkit.tools.handler_base import ToolHandler
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_mcp_result(result: Any) -> Any:
+    """Extract usable content from MCP CallToolResult.
+
+    MCP returns CallToolResult with a content list of ContentBlock objects.
+    This function extracts the actual data in a usable format.
+    """
+    if not hasattr(result, 'content'):
+        return result
+
+    content = result.content
+
+    # Handle single content block
+    if len(content) == 1:
+        block = content[0]
+
+        if hasattr(block, 'text'):
+            # Try to parse as JSON first
+            try:
+                parsed = json.loads(block.text)
+
+                # Unwrap common MCP response patterns
+                # Some MCP servers wrap their response in {'Result': ...}
+                if isinstance(parsed, dict) and len(parsed) == 1 and 'Result' in parsed:
+                    logger.debug("Unwrapping MCP 'Result' wrapper")
+                    return parsed['Result']
+
+                return parsed
+            except (json.JSONDecodeError, TypeError):
+                # Not JSON, return as plain text
+                return block.text
+        elif hasattr(block, 'resource'):
+            return block.resource
+
+    # Handle multiple content blocks - return list of extracted content
+    extracted = []
+    for block in content:
+        if hasattr(block, 'text'):
+            extracted.append(block.text)
+        elif hasattr(block, 'resource'):
+            extracted.append(block.resource)
+        else:
+            extracted.append(str(block))
+
+    return extracted
 
 
 class MCPToolHandler(ToolHandler):
@@ -71,18 +118,22 @@ class MCPToolHandler(ToolHandler):
         logger.info(f"Successfully initialized MCP server '{self.server_name}'")
     
     async def call_tool(self, tool_name: str, arguments: dict, provider, model_id) -> Any:
-        """Execute an MCP tool"""        
+        """Execute an MCP tool"""
         if self._session is None:
             logger.error(f"MCP session for server '{self.server_name}' not found")
             raise ValueError(f"MCP session for server '{self.server_name}' not found")
-        
-        logger.debug(f"Calling MCP tool '{tool_name}' on server '{self.server_name}' with arguments: {arguments}")
-        result = await asyncio.wait_for(
+
+        logger.debug(f"Calling MCP tool '{self.server_name}__{tool_name}' with arguments: {arguments}")
+        raw_result = await asyncio.wait_for(
             self._session.call_tool(tool_name, arguments),
             timeout=self._timeout
         )
-        logger.debug(f"MCP tool '{tool_name}' on server '{self.server_name}' completed successfully")
-        return result
+
+        # Extract usable content from MCP result
+        extracted_result = _extract_mcp_result(raw_result)
+        logger.debug(f"MCP tool '{self.server_name}__{tool_name}' returned: {type(extracted_result).__name__}")
+
+        return extracted_result
     
     async def list_tools(self) -> list:
         """List available tools from the MCP server"""
