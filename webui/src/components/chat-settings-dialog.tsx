@@ -49,11 +49,14 @@ export function ChatSettingsDialog({
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  // Fetch models and tools when dialog opens
+  // Fetch tools immediately when dialog opens, then models after
   useEffect(() => {
     if (open) {
-      fetchModels();
-      fetchTools();
+      // Load tools first (fast) so they appear immediately
+      fetchTools().then(() => {
+        // Load models after tools finish (slower, won't block tools UI)
+        fetchModels();
+      });
     }
   }, [open]);
 
@@ -91,7 +94,16 @@ export function ChatSettingsDialog({
         )?.owned_by || "";
         setSelectedProvider(currentProvider);
       } else if (providerList.length > 0) {
+        // Set default provider and model if none selected
         setSelectedProvider(providerList[0]);
+        const firstProvider = providerList[0];
+        const firstModel = grouped[firstProvider]?.[0];
+        if (firstModel) {
+          setLocalSettings((prev) => ({
+            ...prev,
+            baseModel: firstModel.id,
+          }));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch models:", error);

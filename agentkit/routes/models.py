@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Request
+import time
 
 router = APIRouter()
+
+# Cache for models list (TTL: 5 minutes)
+_models_cache = None
+_models_cache_time = 0
+MODELS_CACHE_TTL = 300  # 5 minutes
 
 
 @router.get("/models")
@@ -11,6 +17,13 @@ async def list_models(request: Request):
     Returns both predefined chatbots from the registry and provider models.
     Format: {chatbot_name} for predefined chatbots, {provider}:{model_id} for provider models.
     """
+    global _models_cache, _models_cache_time
+    
+    # Return cached models if still valid
+    current_time = time.time()
+    if _models_cache is not None and (current_time - _models_cache_time) < MODELS_CACHE_TTL:
+        return _models_cache
+    
     chatbot_registry = request.app.state.model_registry
     provider_registry = request.app.state.provider_registry
 
@@ -45,10 +58,16 @@ async def list_models(request: Request):
             print(f"Traceback: {traceback.format_exc()}")
             continue
 
-    return {
+    result = {
         "object": "list",
         "data": models
     }
+    
+    # Cache the result
+    _models_cache = result
+    _models_cache_time = current_time
+    
+    return result
 
 
 @router.get("/chatbots")

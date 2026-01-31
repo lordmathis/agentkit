@@ -46,29 +46,6 @@ export function useChatManager() {
     }
   };
 
-  // Load default model on first mount
-  useEffect(() => {
-    const loadDefaultModel = async () => {
-      if (chatSettings.baseModel) {
-        return;
-      }
-
-      try {
-        const response = await api.listModels();
-        if (response.data && response.data.length > 0) {
-          setChatSettings((prev) => ({
-            ...prev,
-            baseModel: response.data[0].id,
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to load default model:", error);
-      }
-    };
-
-    loadDefaultModel();
-  }, [chatSettings.baseModel]);
-
   // Fetch chats from the backend
   useEffect(() => {
     const fetchChats = async () => {
