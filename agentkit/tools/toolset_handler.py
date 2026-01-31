@@ -101,7 +101,7 @@ class ToolSetHandler(ABC):
             raise RuntimeError("ToolManager not set")
         
         call_name = f"{server_name}__{tool_name}"
-        return await self._tool_manager.call_tool(call_name, arguments)
+        return await self._tool_manager.call_tool(call_name, arguments, self._provider, self._model_id)
 
 
 def tool(description: str, parameters: Dict[str, Any]):

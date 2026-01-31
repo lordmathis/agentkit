@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
@@ -9,6 +10,8 @@ from openai.types.chat import (
 
 from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager
+
+logger = logging.getLogger(__name__)
 
 class Chatbot:
     """Base model for OpenAI-compatible chat with agent tool calling."""
@@ -94,6 +97,8 @@ class Chatbot:
 
         if api_tools:
             api_params["tools"] = api_tools
+
+        logger.debug(f"Chatbot '{self.name()}' API params: {api_params}")
 
         for _ in range(self.max_iterations):
             # Call API
