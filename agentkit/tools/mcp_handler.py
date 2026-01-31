@@ -66,6 +66,8 @@ class MCPToolHandler(ToolHandler):
         )
         for tool in tools_result.tools:
             logger.debug(f"Found tool in '{self.server_name}': {tool.name}")
+            logger.debug(f"  Description: {tool.description}")
+            logger.debug(f"  Parameters: {tool.inputSchema}")
         logger.info(f"Successfully initialized MCP server '{self.server_name}'")
     
     async def call_tool(self, tool_name: str, arguments: dict, provider, model_id) -> Any:

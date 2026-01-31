@@ -98,8 +98,6 @@ class Chatbot:
         if api_tools:
             api_params["tools"] = api_tools
 
-        logger.debug(f"Chatbot '{self.name()}' API params: {api_params}")
-
         for _ in range(self.max_iterations):
             # Call API
             response = self.client.chat.completions.create(**api_params)

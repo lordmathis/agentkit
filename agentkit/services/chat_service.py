@@ -20,13 +20,17 @@ class ChatConfig(BaseModel):
     model_params: Optional[Dict[str, Any]] = None
 
 
-CHAT_NAMING_PROMPT = """
-Based on the following conversation, suggest a concise and descriptive title in 3 to 5 words.
-Respond only with the title, without any additional text. Below is the conversation:
+CHAT_NAMING_SYSTEM_PROMPT = """You are a chat title generator. Your ONLY job is to read a conversation and generate a concise, descriptive title of 3-5 words.
 
-{conversation}
+DO NOT answer questions from the conversation.
+DO NOT provide explanations.
+DO NOT add quotes around the title.
 
-"""
+Only output the title itself, nothing else."""
+
+CHAT_NAMING_USER_PROMPT = """Generate a 3-5 word title for this conversation:
+
+{conversation}"""
 
 class ChatService:
 
@@ -137,7 +141,7 @@ class ChatService:
         return result
 
     async def _auto_name_chat(self, history) -> Optional[str]:
-        if not history or len(history) < 2:
+        if not history or len(history) < 1:
             return None
 
         # Build conversation snippet (first 2-3 exchanges)
@@ -161,8 +165,12 @@ class ChatService:
         # Generate title using the chatbot
         naming_messages: List[ChatCompletionMessageParam] = [
             {
+                "role": "system",
+                "content": CHAT_NAMING_SYSTEM_PROMPT,
+            },
+            {
                 "role": "user",
-                "content": CHAT_NAMING_PROMPT.format(conversation=conversation_text),
+                "content": CHAT_NAMING_USER_PROMPT.format(conversation=conversation_text),
             }
         ]
 
@@ -384,11 +392,6 @@ class ChatService:
         messages = self._to_openai(history)
         response = await self.chatbot.chat(messages)
 
-        if chat and chat.title in (None, "", "Untitled Chat"):
-            new_title = await self._auto_name_chat(history)
-            if new_title:
-                self.db.update_chat(self.chat_id, title=new_title)
-
         logger.info(f"Chat response keys: {response.keys()}")
         logger.info(f"Chat response choices: {response.get('choices', 'NO CHOICES')}")
 
@@ -419,5 +422,13 @@ class ChatService:
                     assistant_content or "",
                     reasoning_content=reasoning_content,
                 )
+
+        # Auto-name chat after first assistant response
+        if chat and chat.title in (None, "", "Untitled Chat"):
+            # Reload history to include the assistant's response we just saved
+            updated_history = self.db.get_chat_history(self.chat_id)
+            new_title = await self._auto_name_chat(updated_history)
+            if new_title:
+                self.db.update_chat(self.chat_id, title=new_title)
 
         return response
