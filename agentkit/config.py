@@ -47,11 +47,18 @@ class PluginConfig(BaseModel):
     chatbots_dir: str = "chatbots"
     tools_dir: str = "tools"
 
+class DefaultChatConfig(BaseModel):
+    provider_id: Optional[str] = None
+    model_id: Optional[str] = None
+    system_prompt: Optional[str] = None
+    tool_servers: Optional[List[str]] = None
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
     plugins: PluginConfig = PluginConfig()
+    default_chat: DefaultChatConfig = DefaultChatConfig()
     history_db_path: str = "agentkit.db"
     uploads_dir: str = "uploads"
     data_dir: str = "data"

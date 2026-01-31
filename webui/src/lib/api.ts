@@ -102,6 +102,12 @@ export interface TokenEstimate {
   files: Record<string, number>;
 }
 
+export interface DefaultChatConfig {
+  model?: string | null;
+  system_prompt?: string | null;
+  tool_servers: string[];
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -191,6 +197,10 @@ class ApiClient {
 
   async listTools(): Promise<{ tool_servers: ToolServer[] }> {
     return this.request('/tools');
+  }
+
+  async getDefaultChatConfig(): Promise<DefaultChatConfig> {
+    return this.request('/config/default-chat');
   }
 
   async uploadFiles(chatId: string, files: File[]): Promise<{ filenames: string[] }> {

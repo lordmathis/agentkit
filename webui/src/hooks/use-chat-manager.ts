@@ -30,6 +30,24 @@ export function useChatManager() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load default chat config on mount
+  useEffect(() => {
+    const loadDefaultConfig = async () => {
+      try {
+        const defaultConfig = await api.getDefaultChatConfig();
+        setChatSettings({
+          baseModel: defaultConfig.model || "",
+          systemPrompt: defaultConfig.system_prompt || "",
+          enabledTools: defaultConfig.tool_servers || [],
+        });
+      } catch (error) {
+        console.error("Failed to load default chat config:", error);
+      }
+    };
+
+    loadDefaultConfig();
+  }, []);
+
   // Function to refresh conversations list
   const refreshConversations = async () => {
     try {
@@ -202,7 +220,25 @@ export function useChatManager() {
   // Handle creating a new conversation
   const handleNewConversation = async () => {
     try {
-      if (!chatSettings.baseModel) {
+      // Reload default config to ensure we use defaults for new chat
+      let defaultConfig;
+      try {
+        defaultConfig = await api.getDefaultChatConfig();
+      } catch (error) {
+        console.error("Failed to load default chat config:", error);
+        // Fall back to current settings if we can't load defaults
+        defaultConfig = {
+          model: chatSettings.baseModel,
+          system_prompt: chatSettings.systemPrompt,
+          tool_servers: chatSettings.enabledTools,
+        };
+      }
+
+      const baseModel = defaultConfig.model || chatSettings.baseModel;
+      const systemPrompt = defaultConfig.system_prompt || "";
+      const toolServers = defaultConfig.tool_servers || [];
+
+      if (!baseModel) {
         alert("Please select a base model in the settings before creating a new conversation.");
         return;
       }
@@ -210,10 +246,9 @@ export function useChatManager() {
       const newChat = await api.createChat({
         title: "Untitled Chat",
         config: {
-          model: chatSettings.baseModel,
-          system_prompt: chatSettings.systemPrompt || undefined,
-          tool_servers:
-            chatSettings.enabledTools.length > 0 ? chatSettings.enabledTools : undefined,
+          model: baseModel,
+          system_prompt: systemPrompt || undefined,
+          tool_servers: toolServers.length > 0 ? toolServers : undefined,
         },
       });
 
@@ -227,6 +262,13 @@ export function useChatManager() {
 
       setCurrentConversationId(newChat.id);
       setMessages([]);
+
+      // Update UI settings to reflect the new chat's config
+      setChatSettings({
+        baseModel,
+        systemPrompt,
+        enabledTools: toolServers,
+      });
     } catch (error) {
       console.error("Failed to create new conversation:", error);
       alert(

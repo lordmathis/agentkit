@@ -99,6 +99,28 @@ async def list_chatbots(request: Request):
     }
 
 
+@router.get("/config/default-chat")
+async def get_default_chat_config(request: Request):
+    """
+    Get default chat configuration from the app config.
+    """
+    app_config = request.app.state.app_config
+    default_chat = app_config.default_chat
+
+    # Build the full model identifier if both provider and model are specified
+    model = None
+    if default_chat.provider_id and default_chat.model_id:
+        model = f"{default_chat.provider_id}:{default_chat.model_id}"
+    elif default_chat.model_id:
+        model = default_chat.model_id
+
+    return {
+        "model": model,
+        "system_prompt": default_chat.system_prompt,
+        "tool_servers": default_chat.tool_servers or []
+    }
+
+
 @router.get("/providers")
 async def list_providers(request: Request):
     """
