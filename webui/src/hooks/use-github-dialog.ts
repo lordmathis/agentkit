@@ -23,6 +23,7 @@ export function useGitHubDialog(
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string>("");
   const [tokenEstimate, setTokenEstimate] = useState<number | null>(null);
+  const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
 
   const parseGitHubLink = (link: string): string | null => {
     try {
@@ -280,10 +281,12 @@ export function useGitHubDialog(
       const repo = getRepoIdentifier();
       if (!repo || selectedPaths.size === 0) {
         setTokenEstimate(null);
+        setIsEstimatingTokens(false);
         return;
       }
 
       try {
+        setIsEstimatingTokens(true);
         const paths: string[] = [];
         const excludePaths: string[] = [];
 
@@ -297,6 +300,7 @@ export function useGitHubDialog(
 
         if (paths.length === 0) {
           setTokenEstimate(null);
+          setIsEstimatingTokens(false);
           return;
         }
 
@@ -305,6 +309,8 @@ export function useGitHubDialog(
       } catch (err) {
         console.error("Token estimation error:", err);
         setTokenEstimate(null);
+      } finally {
+        setIsEstimatingTokens(false);
       }
     };
 
@@ -372,6 +378,7 @@ export function useGitHubDialog(
     error,
     setError,
     tokenEstimate,
+    isEstimatingTokens,
     getRepoIdentifier,
     loadRepositories,
     loadTree,

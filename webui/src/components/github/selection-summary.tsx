@@ -1,9 +1,12 @@
+import { Loader2 } from "lucide-react";
+
 interface SelectionSummaryProps {
   selectedPaths: Set<string>;
   tokenEstimate: number | null;
+  isEstimatingTokens?: boolean;
 }
 
-export function SelectionSummary({ selectedPaths, tokenEstimate }: SelectionSummaryProps) {
+export function SelectionSummary({ selectedPaths, tokenEstimate, isEstimatingTokens = false }: SelectionSummaryProps) {
   const includedCount = Array.from(selectedPaths).filter((p) => !p.startsWith("!")).length;
   const excludedCount = Array.from(selectedPaths).filter((p) => p.startsWith("!")).length;
 
@@ -15,9 +18,14 @@ export function SelectionSummary({ selectedPaths, tokenEstimate }: SelectionSumm
         <strong>{includedCount}</strong> item{includedCount !== 1 ? "s" : ""} selected
         {excludedCount > 0 && ` (${excludedCount} excluded)`}
       </span>
-      {tokenEstimate !== null && (
+      {isEstimatingTokens ? (
+        <span className="text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Estimating tokens...
+        </span>
+      ) : tokenEstimate !== null ? (
         <span className="text-muted-foreground">~{tokenEstimate.toLocaleString()} tokens</span>
-      )}
+      ) : null}
     </div>
   );
 }

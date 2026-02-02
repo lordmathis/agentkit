@@ -54,6 +54,7 @@ export function AddGitHubDialog({
     error,
     setError,
     tokenEstimate,
+    isEstimatingTokens,
     getRepoIdentifier,
     loadRepositories,
     loadTree,
@@ -282,7 +283,7 @@ export function AddGitHubDialog({
             </div>
           )}
 
-          <SelectionSummary selectedPaths={selectedPaths} tokenEstimate={tokenEstimate} />
+          <SelectionSummary selectedPaths={selectedPaths} tokenEstimate={tokenEstimate} isEstimatingTokens={isEstimatingTokens} />
         </div>
 
         <DialogFooter>
