@@ -72,7 +72,7 @@ export function RepoSelector({
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{repo.full_name}</span>
                         {repo.description && (
-                          <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+                          <span className="text-xs opacity-70 truncate max-w-[300px]">
                             {repo.description}
                           </span>
                         )}
