@@ -98,13 +98,21 @@ class Chatbot:
         if api_tools:
             api_params["tools"] = api_tools
 
+        # Track all tool calls made during the conversation
+        all_tool_calls = []
+
         for _ in range(self.max_iterations):
             # Call API
             response = self.client.chat.completions.create(**api_params)
             message = response.choices[0].message
 
             if not message.tool_calls or len(message.tool_calls) == 0:
-                return response.model_dump()
+                # Add tool calls metadata to the response if any were made
+                result = response.model_dump()
+                if all_tool_calls:
+                    result["tool_calls_used"] = all_tool_calls
+                    logger.info(f"Tool calls tracked (success): {all_tool_calls}")
+                return result
 
             # Add assistant message with tool calls
             messages.append(
@@ -132,6 +140,12 @@ class Chatbot:
 
                 logger.debug(f"Calling tool: {tool_name}")
 
+                # Record tool call
+                all_tool_calls.append({
+                    "name": tool_name,
+                    "arguments": tool_args
+                })
+
                 result = await self.tool_manager.call_tool(tool_name, tool_args, self.provider, self.model_id)
 
                 # Add tool result
@@ -143,13 +157,18 @@ class Chatbot:
                     }
                 )
 
-                api_params["messages"] = messages
+            # Update messages for next iteration
+            api_params["messages"] = messages
 
             # Get response after tool execution
             response = self.client.chat.completions.create(**api_params)
 
-        # Max iterations reached, return error
-        return {
+        # Max iterations reached, add tool calls metadata and return error
+        result = {
             "error": "Max iterations reached without final response",
             "messages": messages,
         }
+        if all_tool_calls:
+            result["tool_calls_used"] = all_tool_calls
+            logger.info(f"Tool calls tracked: {all_tool_calls}")
+        return result

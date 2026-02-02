@@ -18,6 +18,10 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   reasoning_content?: string | null;
+  tool_calls?: Array<{
+    name: string;
+    arguments: Record<string, any>;
+  }> | null;
   sequence: number;
   created_at: string;
   files?: Array<{

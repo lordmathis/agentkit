@@ -416,11 +416,19 @@ class ChatService:
                     assistant_content = getattr(message_data, "content", "")
                     reasoning_content = getattr(message_data, "reasoning_content", None)
 
+                # Extract tool calls if present
+                tool_calls = response.get("tool_calls_used")
+                tool_calls_json = json.dumps(tool_calls) if tool_calls else None
+                
+                logger.info(f"Tool calls from response: {tool_calls}")
+                logger.info(f"Tool calls JSON: {tool_calls_json}")
+
                 self.db.save_message(
                     self.chat_id,
                     "assistant",
                     assistant_content or "",
                     reasoning_content=reasoning_content,
+                    tool_calls=tool_calls_json,
                 )
 
         # Auto-name chat after first assistant response

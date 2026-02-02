@@ -28,6 +28,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String)
     content: Mapped[str] = mapped_column(Text)
     reasoning_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tool_calls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array as string
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
     
     __table_args__ = (

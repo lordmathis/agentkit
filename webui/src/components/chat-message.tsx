@@ -12,18 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-
-export interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  reasoning_content?: string | null;
-  files?: Array<{
-    id: string;
-    filename: string;
-    content_type: string;
-  }>;
-}
+import { type Message } from "../lib/api";
 
 interface ChatMessageProps {
   message: Message;
@@ -33,6 +22,11 @@ interface ChatMessageProps {
 export function ChatMessage({ message, onBranch }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
+
+  // Debug logging
+  if (!isUser && message.tool_calls) {
+    console.log("Tool calls for message:", message.id, message.tool_calls);
+  }
 
   return (
     <div
@@ -141,6 +135,41 @@ export function ChatMessage({ message, onBranch }: ChatMessageProps) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* Tool calls - show if present and it's an assistant message */}
+        {!isUser && message.tool_calls && message.tool_calls.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <span className="font-medium">Tools used:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {message.tool_calls.map((tool, index) => (
+                  <TooltipProvider key={index} delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs hover:bg-muted transition-colors cursor-default">
+                          {tool.name.replace(/^\w+__/, '')}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md">
+                        <div className="space-y-1">
+                          <p className="font-semibold">{tool.name}</p>
+                          {Object.keys(tool.arguments).length > 0 && (
+                            <div className="text-xs">
+                              <p className="font-medium mb-1">Arguments:</p>
+                              <pre className="overflow-auto max-h-40 bg-background/50 rounded p-1">
+                                {JSON.stringify(tool.arguments, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+            </div>
           </div>
         )}
         

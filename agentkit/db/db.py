@@ -35,7 +35,7 @@ class Database:
             session.refresh(chat)
             return chat
     
-    def save_message(self, chat_id: str, role: str, content: str, reasoning_content: Optional[str] = None) -> Message:
+    def save_message(self, chat_id: str, role: str, content: str, reasoning_content: Optional[str] = None, tool_calls: Optional[str] = None) -> Message:
         with self.SessionLocal() as session:
             # Get next sequence number for this chat
             stmt = (
@@ -50,7 +50,8 @@ class Database:
                 sequence=next_sequence,
                 role=role,
                 content=content,
-                reasoning_content=reasoning_content
+                reasoning_content=reasoning_content,
+                tool_calls=tool_calls
             )
             session.add(message)
             
@@ -140,7 +141,7 @@ class Database:
             chat.system_prompt = system_prompt
             chat.tool_servers = json.dumps(tool_servers) if tool_servers else None
             chat.model_params = json.dumps(model_params) if model_params else None
-            chat.updated_at = datetime.now()
+            chat.updated_at = datetime.now(UTC)
 
             session.commit()
             session.refresh(chat)

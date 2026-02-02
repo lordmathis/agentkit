@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { type Message } from "../components/chat-message";
+import { type Message } from "../lib/api";
 import { type Conversation } from "../components/sidebar";
 import { type ChatSettings } from "../components/chat-settings-dialog";
 import { api } from "../lib/api";
@@ -113,6 +113,9 @@ export function useChatManager() {
           role: msg.role as "user" | "assistant",
           content: msg.content,
           reasoning_content: msg.reasoning_content,
+          tool_calls: msg.tool_calls,
+          sequence: msg.sequence,
+          created_at: msg.created_at,
           files: msg.files,
         }));
 
@@ -341,6 +344,8 @@ export function useChatManager() {
         id: `temp-user-${Date.now()}`,
         role: "user",
         content: trimmedMessage,
+        sequence: messages.length,
+        created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, tempUserMessage]);
 
@@ -360,11 +365,15 @@ export function useChatManager() {
             id: `user-${Date.now()}`,
             role: "user" as const,
             content: trimmedMessage,
+            sequence: withoutTemp.length,
+            created_at: new Date().toISOString(),
           },
           {
             id: `assistant-${Date.now()}`,
             role: "assistant" as const,
             content: assistantContent,
+            sequence: withoutTemp.length + 1,
+            created_at: new Date().toISOString(),
           },
         ];
       });
@@ -377,6 +386,9 @@ export function useChatManager() {
           role: msg.role as "user" | "assistant",
           content: msg.content,
           reasoning_content: msg.reasoning_content,
+          tool_calls: msg.tool_calls,
+          sequence: msg.sequence,
+          created_at: msg.created_at,
           files: msg.files,
         }));
         setMessages(formattedMessages);
