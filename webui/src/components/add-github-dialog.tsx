@@ -61,13 +61,9 @@ export function AddGitHubDialog({
     isPathExcluded,
     toggleSelect,
     handleAddFiles,
+    handleRepoSelect,
+    handleLinkPaste,
   } = useGitHubDialog(initialRepo, initialPaths, initialExcludePaths);
-
-  useEffect(() => {
-    if (open && initialRepo && initialPaths.length > 0 && !treeRoot) {
-      loadTree();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (open && inputMode === "select" && repositories.length === 0) {
@@ -116,7 +112,8 @@ export function AddGitHubDialog({
             repositories={repositories}
             isLoadingRepos={isLoadingRepos}
             isLoadingTree={isLoadingTree}
-            onLoadTree={loadTree}
+            onRepoSelect={handleRepoSelect}
+            onLinkPaste={handleLinkPaste}
             getRepoIdentifier={getRepoIdentifier}
           />
 

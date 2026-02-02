@@ -311,6 +311,49 @@ export function useGitHubDialog(
     estimateTokens();
   }, [selectedPaths, inputMode, selectedRepo, repoLink]);
 
+  const handleRepoSelect = async (repo: string) => {
+    setSelectedRepo(repo);
+    setInputMode("select");
+    
+    // Auto-load tree when repo is selected
+    try {
+      setIsLoadingTree(true);
+      setError("");
+      const tree = await api.browseGitHubTree(repo, "");
+      setTreeRoot(tree);
+      setExpandedPaths(new Set([tree.path]));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setTreeRoot(null);
+    } finally {
+      setIsLoadingTree(false);
+    }
+  };
+
+  const handleLinkPaste = async (link: string) => {
+    const parsed = parseGitHubLink(link);
+    if (!parsed) {
+      setError("Invalid GitHub repository link");
+      return;
+    }
+    
+    setRepoLink(link);
+    
+    // Auto-load tree when link is pasted
+    try {
+      setIsLoadingTree(true);
+      setError("");
+      const tree = await api.browseGitHubTree(parsed, "");
+      setTreeRoot(tree);
+      setExpandedPaths(new Set([tree.path]));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setTreeRoot(null);
+    } finally {
+      setIsLoadingTree(false);
+    }
+  };
+
   return {
     inputMode,
     setInputMode,
@@ -338,5 +381,7 @@ export function useGitHubDialog(
     isPathExcluded,
     toggleSelect,
     handleAddFiles,
+    handleRepoSelect,
+    handleLinkPaste,
   };
 }
