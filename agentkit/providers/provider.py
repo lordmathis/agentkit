@@ -88,21 +88,22 @@ class Provider:
         # Fetch models from API using LLM client
         try:
             llm_client = self.get_llm_client()
-            models_data = llm_client.get_models()
+            model_ids = llm_client.get_models()
             
             # Apply filters if configured
             if self.config.model_filter and self.config.model_filter.conditions:
                 filtered_ids = []
                 
-                for model_dict in models_data:
-                    # Check if model passes all filter conditions
+                for model_id in model_ids:
+                    # For simple ID-based filtering, create a dict with just the id
+                    model_dict = {'id': model_id}
                     if self._matches_filter(model_dict, self.config.model_filter.conditions):
-                        filtered_ids.append(model_dict.get('id'))
+                        filtered_ids.append(model_id)
                 
                 return filtered_ids
             
             # No filter, return all model IDs
-            return [model['id'] for model in models_data if 'id' in model and model['id']]
+            return model_ids
             
         except Exception as e:
             print(f"Error fetching models from {self._name}: {e}")

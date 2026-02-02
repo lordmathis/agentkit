@@ -9,11 +9,11 @@ class LLMClient(ABC):
     """Abstract base class for LLM API clients."""
     
     @abstractmethod
-    def get_models(self) -> List[Dict[str, Any]]:
-        """Fetch available models from the provider.
+    def get_models(self) -> List[str]:
+        """Fetch available model IDs from the provider.
         
         Returns:
-            List of model dictionaries
+            List of model ID strings
         """
         pass
     
@@ -52,11 +52,10 @@ class OpenAIClient(LLMClient):
         """
         self.client = client
     
-    def get_models(self) -> List[Dict[str, Any]]:
-        """Fetch available models from OpenAI API."""
+    def get_models(self) -> List[str]:
+        """Fetch available model IDs from OpenAI API."""
         models = self.client.models.list()
-        return [model.model_dump() if hasattr(model, 'model_dump') else model.dict() 
-                for model in models.data]
+        return [model.id for model in models.data]
     
     async def chat_completion(
         self,
@@ -96,12 +95,10 @@ class AnthropicClient(LLMClient):
         """
         self.client = client
     
-    def get_models(self) -> List[Dict[str, Any]]:
-        """Fetch available models from Anthropic API."""
+    def get_models(self) -> List[str]:
+        """Fetch available model IDs from Anthropic API."""
         models = self.client.models.list()
-        # Convert Anthropic model objects to dicts
-        return [model.model_dump() if hasattr(model, 'model_dump') else model.dict() 
-                for model in models.data]
+        return [model.id for model in models.data]
     
     async def chat_completion(
         self,
