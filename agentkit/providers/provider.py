@@ -2,6 +2,7 @@ from typing import Any, Optional
 
 import httpx
 from openai import OpenAI
+from anthropic import Anthropic
 
 from agentkit.config import ProviderConfig, ProviderType
 from agentkit.providers.client_base import (AnthropicClient, LLMClient,
@@ -51,25 +52,10 @@ class Provider:
             client_kwargs = self.get_client_kwargs()
             
             if self.config.type == ProviderType.ANTHROPIC:
-                # Import anthropic here to avoid requiring it if not used
-                try:
-                    import anthropic  # type: ignore
+                native_client = Anthropic(**client_kwargs)
+                self._llm_client = AnthropicClient(native_client)
 
-                    # Anthropic client uses different parameter names
-                    anthropic_kwargs = {
-                        "api_key": client_kwargs["api_key"],
-                        "base_url": client_kwargs["base_url"] if client_kwargs["base_url"] else None,
-                        "http_client": client_kwargs["http_client"],
-                    }
-                    native_client = anthropic.Anthropic(**anthropic_kwargs)
-                    self._llm_client = AnthropicClient(native_client)
-                except ImportError:
-                    raise ImportError(
-                        "anthropic package is required for Anthropic providers. "
-                        "Install it with: pip install anthropic"
-                    )
             else:
-                # Default to OpenAI
                 native_client = OpenAI(**client_kwargs)
                 self._llm_client = OpenAIClient(native_client)
         

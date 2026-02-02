@@ -3,20 +3,43 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence
 
-import httpx
-
 
 class LLMClient(ABC):
     """Abstract base class for LLM API clients."""
-    
-    @abstractmethod
+
     def get_models(self) -> List[str]:
-        """Fetch available model IDs from the provider.
-        
+        """Fetch available model IDs using direct HTTP request.
+
+        Uses the OpenAI-compatible /v1/models endpoint format.
+
         Returns:
             List of model ID strings
         """
-        pass
+        base_url = str(self.client.base_url).rstrip('/')
+        # Ensure we use the /v1 path for compatibility
+        if not base_url.endswith('/v1'):
+            base_url = f"{base_url}/v1"
+        models_url = f"{base_url}/models"
+
+        # Add authentication header
+        headers = {}
+        if self.client.api_key:
+            headers['Authorization'] = f'Bearer {self.client.api_key}'
+
+        # Use the configured HTTP client with auth
+        response = self.client._client.get(models_url, headers=headers)
+        response.raise_for_status()
+
+        # Debug: Check if response has content
+        if not response.content:
+            raise Exception(f"Empty response from {models_url}. Status: {response.status_code}")
+
+        try:
+            data = response.json()
+        except json.JSONDecodeError as e:
+            raise Exception(f"Invalid JSON from {models_url}. Error: {e}. Response: {response.text[:200]}")
+
+        return [model['id'] for model in data.get('data', [])]
     
     @abstractmethod
     async def chat_completion(
@@ -44,19 +67,14 @@ class LLMClient(ABC):
 
 class OpenAIClient(LLMClient):
     """Client for OpenAI-compatible APIs."""
-    
+
     def __init__(self, client: Any):
         """Initialize with an OpenAI client instance.
-        
+
         Args:
             client: openai.OpenAI instance
         """
         self.client = client
-    
-    def get_models(self) -> List[str]:
-        """Fetch available model IDs from OpenAI API."""
-        models = self.client.models.list()
-        return [model.id for model in models.data]
     
     async def chat_completion(
         self,
@@ -87,19 +105,14 @@ class OpenAIClient(LLMClient):
 
 class AnthropicClient(LLMClient):
     """Client for Anthropic API."""
-    
+
     def __init__(self, client: Any):
         """Initialize with an Anthropic client instance.
-        
+
         Args:
             client: anthropic.Anthropic instance
         """
         self.client = client
-    
-    def get_models(self) -> List[str]:
-        """Fetch available model IDs from Anthropic API."""
-        models = self.client.models.list()
-        return [model.id for model in models.data]
     
     async def chat_completion(
         self,
