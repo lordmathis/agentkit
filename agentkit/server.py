@@ -6,14 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.config import AppConfig
 from agentkit.db import Database
-from agentkit.chatbots.registry import ChatbotRegistry
-from agentkit.providers.registry import ProviderRegistry
-from agentkit.tools.manager import ToolManager
-from agentkit.services.manager import ChatServiceManager
-from agentkit.routes import register_routes
 from agentkit.github.client import GitHubClient
+from agentkit.providers.registry import ProviderRegistry
+from agentkit.routes import register_routes
+from agentkit.services.manager import ChatServiceManager
+from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 

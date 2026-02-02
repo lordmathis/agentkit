@@ -1,14 +1,15 @@
-from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel
-from openai.types.chat import ChatCompletionMessageParam
-import json
 import base64
+import json
 import logging
 import os
+from typing import Any, Dict, List, Optional, Union
+
+from openai.types.chat import ChatCompletionMessageParam
+from pydantic import BaseModel
 
 from agentkit.chatbots.chatbot import Chatbot
 from agentkit.db.db import Database
-from agentkit.github.client import GitHubClient, FileNode
+from agentkit.github.client import FileNode, GitHubClient
 
 logger = logging.getLogger(__name__)
 

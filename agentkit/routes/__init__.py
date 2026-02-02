@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from agentkit.routes import models, chats, github
+
+from agentkit.routes import chats, github, models
 
 
 def register_routes(app: FastAPI):

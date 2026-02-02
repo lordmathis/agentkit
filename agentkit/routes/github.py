@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
 import logging
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

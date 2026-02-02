@@ -1,9 +1,12 @@
-import httpx
-from openai import OpenAI
 from typing import Any, Optional
 
+import httpx
+from openai import OpenAI
+
 from agentkit.config import ProviderConfig, ProviderType
-from agentkit.providers.client_base import LLMClient, OpenAIClient, AnthropicClient
+from agentkit.providers.client_base import (AnthropicClient, LLMClient,
+                                            OpenAIClient)
+
 
 class PreEncodedBasicAuth(httpx.Auth):  
     def __init__(self, encoded_token):  
@@ -51,6 +54,7 @@ class Provider:
                 # Import anthropic here to avoid requiring it if not used
                 try:
                     import anthropic  # type: ignore
+
                     # Anthropic client uses different parameter names
                     anthropic_kwargs = {
                         "api_key": client_kwargs["api_key"],

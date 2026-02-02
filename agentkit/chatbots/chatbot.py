@@ -2,13 +2,11 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from openai.types.chat import (
-    ChatCompletionMessageParam,
-    ChatCompletionDeveloperMessageParam,
-)
+from openai.types.chat import (ChatCompletionDeveloperMessageParam,
+                               ChatCompletionMessageParam)
 
-from agentkit.providers.provider import Provider
 from agentkit.providers.client_base import LLMClient
+from agentkit.providers.provider import Provider
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)

@@ -1,13 +1,13 @@
-from typing import Dict, Optional
 import logging
+from typing import Dict, Optional
 
 from agentkit.chatbots.factory import ChatbotFactory
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.db.db import Database
+from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.services.chat_service import ChatConfig, ChatService
 from agentkit.tools.manager import ToolManager
-from agentkit.github.client import GitHubClient
 
 logger = logging.getLogger(__name__)
 

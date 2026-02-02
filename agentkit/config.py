@@ -1,9 +1,10 @@
-from enum import Enum
 import os
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel
+
 
 class ProviderType(str, Enum):
     OPENAI = "openai"

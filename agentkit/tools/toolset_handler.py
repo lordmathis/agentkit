@@ -1,11 +1,11 @@
-from typing import Callable, Any, Dict, Optional, List
-from abc import ABC
-from pydantic import BaseModel
 import inspect
 import logging
+from abc import ABC
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+
+from pydantic import BaseModel
 
 from agentkit.providers import Provider
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from agentkit.tools.manager import ToolManager

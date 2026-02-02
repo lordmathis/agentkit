@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Request, HTTPException, UploadFile
-from pydantic import BaseModel
-from typing import List, Optional
 import json
 import os
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 
 from agentkit.services.chat_service import ChatConfig
 from agentkit.services.manager import ChatServiceManager
