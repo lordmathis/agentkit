@@ -248,6 +248,26 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Transcription endpoints
+  async transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+
+    const url = `${this.baseURL}/transcribe`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();

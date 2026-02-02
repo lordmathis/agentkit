@@ -1,4 +1,4 @@
-import { Send, Bot, Zap, Plus, Upload, Github } from "lucide-react";
+import { Send, Bot, Zap, Plus, Upload, Github, Mic, Square } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import {
@@ -10,6 +10,9 @@ import {
 import { ChatSettingsDialog, type ChatSettings } from "./chat-settings-dialog";
 import { FileAttachments } from "./file-attachments";
 import { getModelLabel, getToolLabel } from "../lib/formatters";
+import { useVoiceRecording } from "../hooks/use-voice-recording";
+import { api } from "../lib/api";
+import { useEffect } from "react";
 
 interface ChatInputProps {
   inputValue: string;
@@ -54,6 +57,55 @@ export function ChatInput({
   fileInputRef,
   onFileChange,
 }: ChatInputProps) {
+  const {
+    isRecording,
+    isProcessing,
+    error: recordingError,
+    startRecording,
+    stopRecording,
+    setProcessing,
+    clearError,
+  } = useVoiceRecording();
+
+  // Show error message if recording fails
+  useEffect(() => {
+    if (recordingError) {
+      console.error('Voice recording error:', recordingError);
+      // You could show a toast notification here
+      setTimeout(clearError, 5000);
+    }
+  }, [recordingError, clearError]);
+
+  const handleVoiceRecording = async () => {
+    if (isRecording) {
+      // Stop recording and transcribe
+      try {
+        setProcessing(true);
+        const audioBlob = await stopRecording();
+        
+        // Send to transcription endpoint
+        const result = await api.transcribeAudio(audioBlob);
+        
+        // Add transcribed text to the input
+        onInputChange(inputValue + (inputValue ? ' ' : '') + result.text);
+        
+        // Focus the textarea
+        textareaRef.current?.focus();
+      } catch (err) {
+        console.error('Failed to transcribe audio:', err);
+      } finally {
+        setProcessing(false);
+      }
+    } else {
+      // Start recording
+      try {
+        await startRecording();
+      } catch (err) {
+        console.error('Failed to start recording:', err);
+      }
+    }
+  };
+
   return (
     <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
       <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
@@ -129,6 +181,22 @@ export function ChatInput({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              size="icon"
+              variant={isRecording ? "destructive" : "ghost"}
+              className="h-9 w-9"
+              onClick={handleVoiceRecording}
+              disabled={isSending || isProcessing || !currentConversationId}
+            >
+              {isRecording ? (
+                <Square className="h-5 w-5" />
+              ) : (
+                <Mic className="h-5 w-5" />
+              )}
+              <span className="sr-only">
+                {isRecording ? 'Stop recording' : 'Start voice recording'}
+              </span>
+            </Button>
             <ChatSettingsDialog
               settings={chatSettings}
               onSettingsChange={onSettingsChange}
