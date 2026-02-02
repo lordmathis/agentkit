@@ -5,6 +5,10 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseModel
 
+class ProviderType(str, Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+
 
 class FilterCondition(BaseModel):
     """A single filter condition"""
@@ -26,6 +30,7 @@ class ProviderConfig(BaseModel):
     model_filter: Optional[ModelFilter] = None
     api_key: Optional[str] = None
     api_base: str
+    type: ProviderType = ProviderType.OPENAI
     basic_auth_token: Optional[str] = None
     verify_ssl: bool = True
 

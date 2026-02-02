@@ -2,13 +2,13 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionDeveloperMessageParam,
 )
 
 from agentkit.providers.provider import Provider
+from agentkit.providers.client_base import LLMClient
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class Chatbot:
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
 
-    client: OpenAI
+    llm_client: LLMClient
 
     def __init__(
         self,
@@ -47,8 +47,7 @@ class Chatbot:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        client_kwargs = provider.get_client_kwargs()
-        self.client = OpenAI(**client_kwargs)
+        self.llm_client = provider.get_llm_client()
 
     def name(self) -> str:
         return f"{self.provider}/{self.model_id}"
@@ -83,60 +82,47 @@ class Chatbot:
                     }
                 )
 
-        # Prepare API call params
-        api_params: Dict[str, Any] = {
-            "model": self.model_id,
-            "messages": messages,
-        }
-
-        if self.temperature is not None:
-            api_params["temperature"] = self.temperature
-
-        if self.max_tokens is not None:
-            api_params["max_tokens"] = self.max_tokens
-
-        if api_tools:
-            api_params["tools"] = api_tools
-
         # Track all tool calls made during the conversation
         all_tool_calls = []
 
         for _ in range(self.max_iterations):
-            # Call API
-            response = self.client.chat.completions.create(**api_params)
-            message = response.choices[0].message
+            # Call API using the LLM client abstraction
+            response = await self.llm_client.chat_completion(
+                model=self.model_id,
+                messages=messages,
+                tools=api_tools if api_tools else None,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+            
+            message = response["choices"][0]["message"]
 
-            if not message.tool_calls or len(message.tool_calls) == 0:
+            if not message.get("tool_calls") or len(message.get("tool_calls", [])) == 0:
                 # Add tool calls metadata to the response if any were made
-                result = response.model_dump()
                 if all_tool_calls:
-                    result["tool_calls_used"] = all_tool_calls
+                    response["tool_calls_used"] = all_tool_calls
                     logger.info(f"Tool calls tracked (success): {all_tool_calls}")
-                return result
+                return response
 
             # Add assistant message with tool calls
             messages.append(
                 {
                     "role": "assistant",
-                    "content": message.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in message.tool_calls
-                    ],
+                    "content": message.get("content"),
+                    "tool_calls": message["tool_calls"],
                 }
             )
 
             # Execute tool calls (run agents)
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
+            for tool_call in message["tool_calls"]:
+                tool_name = tool_call["function"]["name"]
+                tool_args_str = tool_call["function"]["arguments"]
+                
+                # Handle both string and dict arguments
+                if isinstance(tool_args_str, str):
+                    tool_args = json.loads(tool_args_str)
+                else:
+                    tool_args = tool_args_str
 
                 logger.debug(f"Calling tool: {tool_name}")
 
@@ -152,16 +138,10 @@ class Chatbot:
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
+                        "tool_call_id": tool_call["id"],
                         "content": str(result),
                     }
                 )
-
-            # Update messages for next iteration
-            api_params["messages"] = messages
-
-            # Get response after tool execution
-            response = self.client.chat.completions.create(**api_params)
 
         # Max iterations reached, add tool calls metadata and return error
         result = {
