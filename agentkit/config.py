@@ -47,6 +47,11 @@ class PluginConfig(BaseModel):
     chatbots_dir: str = "chatbots"
     tools_dir: str = "tools"
 
+class TranscriptionConfig(BaseModel):
+    model: str = "whisper-1"
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
@@ -57,7 +62,7 @@ class AppConfig(BaseModel):
     data_dir: str = "data"
     mcp_timeout: int = 60
     github_token: Optional[str] = None
-
+    transcription: TranscriptionConfig = TranscriptionConfig()
 
 def load_config(path: str) -> AppConfig:
     with open(path, 'r') as f:
