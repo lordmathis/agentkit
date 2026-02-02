@@ -1,8 +1,9 @@
 import httpx
 from openai import OpenAI
-from typing import Any
+from typing import Any, Optional
 
-from agentkit.config import ProviderConfig
+from agentkit.config import ProviderConfig, ProviderType
+from agentkit.providers.client_base import LLMClient, OpenAIClient, AnthropicClient
 
 class PreEncodedBasicAuth(httpx.Auth):  
     def __init__(self, encoded_token):  
@@ -19,6 +20,7 @@ class Provider:
         self._name = name
         self._http_client = None
         self._openai_client = None
+        self._llm_client: Optional[LLMClient] = None
 
     def name(self) -> str:
         return self._name
@@ -39,6 +41,35 @@ class Provider:
             "base_url": self.config.api_base or "",
             "http_client": self._get_http_client(),
         }
+    
+    def get_llm_client(self) -> LLMClient:
+        """Get or create the appropriate LLM client based on provider type."""
+        if self._llm_client is None:
+            client_kwargs = self.get_client_kwargs()
+            
+            if self.config.type == ProviderType.ANTHROPIC:
+                # Import anthropic here to avoid requiring it if not used
+                try:
+                    import anthropic  # type: ignore
+                    # Anthropic client uses different parameter names
+                    anthropic_kwargs = {
+                        "api_key": client_kwargs["api_key"],
+                        "base_url": client_kwargs["base_url"] if client_kwargs["base_url"] else None,
+                        "http_client": client_kwargs["http_client"],
+                    }
+                    native_client = anthropic.Anthropic(**anthropic_kwargs)
+                    self._llm_client = AnthropicClient(native_client)
+                except ImportError:
+                    raise ImportError(
+                        "anthropic package is required for Anthropic providers. "
+                        "Install it with: pip install anthropic"
+                    )
+            else:
+                # Default to OpenAI
+                native_client = OpenAI(**client_kwargs)
+                self._llm_client = OpenAIClient(native_client)
+        
+        return self._llm_client
 
     def get_model_ids(self) -> list[str] | None:
         """Query the /models endpoint to get available model IDs.
@@ -54,29 +85,25 @@ class Provider:
         if self.config.model_ids and not self.config.model_filter:
             return self.config.model_ids
         
-        # Fetch models from API
-        if self._openai_client is None:
-            self._openai_client = OpenAI(**self.get_client_kwargs())
-        
+        # Fetch models from API using LLM client
         try:
-            models = self._openai_client.models.list()
+            llm_client = self.get_llm_client()
+            model_ids = llm_client.get_models()
             
             # Apply filters if configured
             if self.config.model_filter and self.config.model_filter.conditions:
                 filtered_ids = []
                 
-                for model in models.data:
-                    # Convert model to dict for easier field access
-                    model_dict = model.model_dump() if hasattr(model, 'model_dump') else model.dict()
-                    
-                    # Check if model passes all filter conditions
+                for model_id in model_ids:
+                    # For simple ID-based filtering, create a dict with just the id
+                    model_dict = {'id': model_id}
                     if self._matches_filter(model_dict, self.config.model_filter.conditions):
-                        filtered_ids.append(model_dict.get('id'))
+                        filtered_ids.append(model_id)
                 
                 return filtered_ids
             
             # No filter, return all model IDs
-            return [model.id for model in models.data]
+            return model_ids
             
         except Exception as e:
             print(f"Error fetching models from {self._name}: {e}")

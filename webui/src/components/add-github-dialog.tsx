@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Github, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Github, Loader2, Filter, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,13 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { TreeNode } from "./github/tree-node";
 import { RepoSelector } from "./github/repo-selector";
 import { SelectionSummary } from "./github/selection-summary";
 import { useGitHubDialog } from "../hooks/use-github-dialog";
+import { api } from "../lib/api";
 
 interface AddGitHubDialogProps {
   open: boolean;
@@ -52,6 +54,7 @@ export function AddGitHubDialog({
     error,
     setError,
     tokenEstimate,
+    isEstimatingTokens,
     getRepoIdentifier,
     loadRepositories,
     loadTree,
@@ -61,13 +64,108 @@ export function AddGitHubDialog({
     isPathExcluded,
     toggleSelect,
     handleAddFiles,
+    handleRepoSelect,
+    handleLinkPaste,
   } = useGitHubDialog(initialRepo, initialPaths, initialExcludePaths);
 
-  useEffect(() => {
-    if (open && initialRepo && initialPaths.length > 0 && !treeRoot) {
-      loadTree();
+  const [filterPattern, setFilterPattern] = useState("");
+  const [isApplyingFilter, setIsApplyingFilter] = useState(false);
+
+  // Helper function to match a file path against a pattern
+  const matchesPattern = (filePath: string, pattern: string): boolean => {
+    if (!pattern.trim()) return false;
+    
+    const fileName = filePath.split('/').pop() || filePath;
+    const normalizedPattern = pattern.trim();
+    
+    // Exact match
+    if (fileName === normalizedPattern || filePath === normalizedPattern) {
+      return true;
     }
-  }, [open]);
+    
+    // Wildcard pattern matching
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patternRegex = new RegExp(
+      '^' + normalizedPattern.split('*').map(escapeRegex).join('.*') + '$'
+    );
+    
+    return patternRegex.test(fileName) || patternRegex.test(filePath);
+  };
+
+  // Recursively collect all file paths from the tree
+  const collectAllFilePaths = (node: any): string[] => {
+    const paths: string[] = [];
+    if (node.type === 'file') {
+      paths.push(node.path);
+    }
+    if (node.children) {
+      node.children.forEach((child: any) => {
+        paths.push(...collectAllFilePaths(child));
+      });
+    }
+    return paths;
+  };
+
+  // Recursively fetch all file paths using the API directly
+  const fetchAllFilePaths = async (repo: string, path: string = ""): Promise<string[]> => {
+    const paths: string[] = [];
+    
+    try {
+      const node = await api.browseGitHubTree(repo, path);
+      
+      if (node.type === 'file') {
+        paths.push(node.path);
+      } else if (node.children) {
+        for (const child of node.children) {
+          if (child.type === 'file') {
+            paths.push(child.path);
+          } else if (child.type === 'dir') {
+            // Recursively fetch paths from subdirectories
+            const subPaths = await fetchAllFilePaths(repo, child.path);
+            paths.push(...subPaths);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch paths for ${path}:`, err);
+    }
+    
+    return paths;
+  };
+
+  // Apply the filter pattern
+  const applyFilter = async () => {
+    if (!filterPattern.trim() || !treeRoot) return;
+    
+    const repo = getRepoIdentifier();
+    if (!repo) return;
+    
+    setIsApplyingFilter(true);
+    setError(""); // Clear any previous errors
+    
+    try {
+      // Fetch all file paths recursively using the API
+      const allFilePaths = await fetchAllFilePaths(repo);
+      const matchingPaths = allFilePaths.filter(path => matchesPattern(path, filterPattern));
+      
+      // Uncheck all matching files
+      matchingPaths.forEach(path => {
+        const isCurrentlySelected = isPathSelected(path);
+        const isCurrentlyExcluded = isPathExcluded(path);
+        
+        // If file is selected and not already excluded, toggle it to uncheck
+        if (isCurrentlySelected && !isCurrentlyExcluded) {
+          toggleSelect(path, false);
+        }
+      });
+      
+      setFilterPattern(""); // Clear the filter input after applying
+    } catch (err) {
+      setError("Failed to fetch repository files. Please try again.");
+    } finally {
+      setIsApplyingFilter(false);
+    }
+  };
 
   useEffect(() => {
     if (open && inputMode === "select" && repositories.length === 0) {
@@ -105,7 +203,7 @@ export function AddGitHubDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col gap-4">
+        <div className="flex-1 overflow-hidden flex flex-col gap-4 px-1 -mx-1">
           <RepoSelector
             inputMode={inputMode}
             setInputMode={setInputMode}
@@ -116,9 +214,51 @@ export function AddGitHubDialog({
             repositories={repositories}
             isLoadingRepos={isLoadingRepos}
             isLoadingTree={isLoadingTree}
-            onLoadTree={loadTree}
+            onRepoSelect={handleRepoSelect}
+            onLinkPaste={handleLinkPaste}
             getRepoIdentifier={getRepoIdentifier}
           />
+
+          {treeRoot && (
+            <div className="flex gap-2 items-start">
+              <div className="relative flex-1 min-w-0">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+                <Input
+                  placeholder="Filter files (e.g., *.test.py, uv.lock, *lock.json)"
+                  value={filterPattern}
+                  onChange={(e) => setFilterPattern(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      applyFilter();
+                    }
+                  }}
+                  className="pl-9 pr-9"
+                />
+                {filterPattern && (
+                  <button
+                    onClick={() => setFilterPattern("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                onClick={applyFilter}
+                disabled={!filterPattern.trim() || isApplyingFilter}
+              >
+                {isApplyingFilter ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  "Apply"
+                )}
+              </Button>
+            </div>
+          )}
 
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>
@@ -143,7 +283,7 @@ export function AddGitHubDialog({
             </div>
           )}
 
-          <SelectionSummary selectedPaths={selectedPaths} tokenEstimate={tokenEstimate} />
+          <SelectionSummary selectedPaths={selectedPaths} tokenEstimate={tokenEstimate} isEstimatingTokens={isEstimatingTokens} />
         </div>
 
         <DialogFooter>

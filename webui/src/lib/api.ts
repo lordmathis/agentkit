@@ -18,6 +18,10 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   reasoning_content?: string | null;
+  tool_calls?: Array<{
+    name: string;
+    arguments: Record<string, any>;
+  }> | null;
   sequence: number;
   created_at: string;
   files?: Array<{
@@ -257,6 +261,26 @@ class ApiClient {
     return this.request(`/chats/${chatId}/github/files`, {
       method: 'DELETE',
     });
+  }
+
+  // Transcription endpoints
+  async transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+
+    const url = `${this.baseURL}/transcribe`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 }
 

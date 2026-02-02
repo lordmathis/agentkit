@@ -23,6 +23,7 @@ export function useGitHubDialog(
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string>("");
   const [tokenEstimate, setTokenEstimate] = useState<number | null>(null);
+  const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
 
   const parseGitHubLink = (link: string): string | null => {
     try {
@@ -280,10 +281,12 @@ export function useGitHubDialog(
       const repo = getRepoIdentifier();
       if (!repo || selectedPaths.size === 0) {
         setTokenEstimate(null);
+        setIsEstimatingTokens(false);
         return;
       }
 
       try {
+        setIsEstimatingTokens(true);
         const paths: string[] = [];
         const excludePaths: string[] = [];
 
@@ -297,6 +300,7 @@ export function useGitHubDialog(
 
         if (paths.length === 0) {
           setTokenEstimate(null);
+          setIsEstimatingTokens(false);
           return;
         }
 
@@ -305,11 +309,56 @@ export function useGitHubDialog(
       } catch (err) {
         console.error("Token estimation error:", err);
         setTokenEstimate(null);
+      } finally {
+        setIsEstimatingTokens(false);
       }
     };
 
     estimateTokens();
   }, [selectedPaths, inputMode, selectedRepo, repoLink]);
+
+  const handleRepoSelect = async (repo: string) => {
+    setSelectedRepo(repo);
+    setInputMode("select");
+    
+    // Auto-load tree when repo is selected
+    try {
+      setIsLoadingTree(true);
+      setError("");
+      const tree = await api.browseGitHubTree(repo, "");
+      setTreeRoot(tree);
+      setExpandedPaths(new Set([tree.path]));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setTreeRoot(null);
+    } finally {
+      setIsLoadingTree(false);
+    }
+  };
+
+  const handleLinkPaste = async (link: string) => {
+    const parsed = parseGitHubLink(link);
+    if (!parsed) {
+      setError("Invalid GitHub repository link");
+      return;
+    }
+    
+    setRepoLink(link);
+    
+    // Auto-load tree when link is pasted
+    try {
+      setIsLoadingTree(true);
+      setError("");
+      const tree = await api.browseGitHubTree(parsed, "");
+      setTreeRoot(tree);
+      setExpandedPaths(new Set([tree.path]));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setTreeRoot(null);
+    } finally {
+      setIsLoadingTree(false);
+    }
+  };
 
   return {
     inputMode,
@@ -329,6 +378,7 @@ export function useGitHubDialog(
     error,
     setError,
     tokenEstimate,
+    isEstimatingTokens,
     getRepoIdentifier,
     loadRepositories,
     loadTree,
@@ -338,5 +388,7 @@ export function useGitHubDialog(
     isPathExcluded,
     toggleSelect,
     handleAddFiles,
+    handleRepoSelect,
+    handleLinkPaste,
   };
 }

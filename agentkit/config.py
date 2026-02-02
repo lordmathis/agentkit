@@ -5,6 +5,10 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseModel
 
+class ProviderType(str, Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+
 
 class FilterCondition(BaseModel):
     """A single filter condition"""
@@ -26,6 +30,7 @@ class ProviderConfig(BaseModel):
     model_filter: Optional[ModelFilter] = None
     api_key: Optional[str] = None
     api_base: str
+    type: ProviderType = ProviderType.OPENAI
     basic_auth_token: Optional[str] = None
     verify_ssl: bool = True
 
@@ -53,6 +58,11 @@ class DefaultChatConfig(BaseModel):
     system_prompt: Optional[str] = None
     tool_servers: Optional[List[str]] = None
 
+class TranscriptionConfig(BaseModel):
+    model: str = "whisper-1"
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
@@ -64,7 +74,7 @@ class AppConfig(BaseModel):
     data_dir: str = "data"
     mcp_timeout: int = 60
     github_token: Optional[str] = None
-
+    transcription: TranscriptionConfig = TranscriptionConfig()
 
 def load_config(path: str) -> AppConfig:
     with open(path, 'r') as f:

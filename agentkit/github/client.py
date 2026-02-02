@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import logging
 from typing import Dict, List, Optional
 
@@ -41,6 +42,8 @@ class GitHubClient:
             },
             timeout=30.0
         )
+        # Cache for token estimation: (repo, commit_hash, path) -> token_count
+        self._token_cache: Dict[tuple, int] = {}
     
     async def authenticate(self) -> bool:
         """Verify that the token is valid
@@ -177,27 +180,55 @@ class GitHubClient:
             logger.error(f"Failed to fetch files from {repo}: {e}")
             raise
     
-    async def estimate_tokens(self, repo: str, paths: List[str]) -> TokenEstimate:
-        """Estimate token count for files
+    async def estimate_tokens(self, repo: str, paths: List[str], ref: str = "HEAD") -> TokenEstimate:
+        """Estimate token count for files with caching based on commit hash
         
         Args:
             repo: Repository in format "owner/repo"
             paths: List of file paths to estimate tokens for
+            ref: Git reference (branch, tag, or commit) to use (default: HEAD)
         
         Returns:
             TokenEstimate with total and per-file token counts
         """
         try:
-            file_contents = await self.fetch_files(repo, paths)
+            # Get the current commit hash for the ref
+            commits_url = f"{self.base_url}/repos/{repo}/commits/{ref}"
+            commits_response = await self.client.get(commits_url)
+            commits_response.raise_for_status()
+            commit_data = commits_response.json()
+            commit_hash = commit_data["sha"]
             
+            # Check cache for all files with this commit hash
             file_tokens = {}
             total_tokens = 0
+            paths_to_fetch = []
             
-            for path, content in file_contents.items():
-                # Simple estimation: divide character count by 4
-                tokens = len(content) // 4
-                file_tokens[path] = tokens
-                total_tokens += tokens
+            for path in paths:
+                cache_key = (repo, commit_hash, path)
+                
+                if cache_key in self._token_cache:
+                    # File is cached for this exact commit
+                    tokens = self._token_cache[cache_key]
+                    file_tokens[path] = tokens
+                    total_tokens += tokens
+                else:
+                    # Need to fetch this file
+                    paths_to_fetch.append(path)
+            
+            # Fetch and process files that weren't in cache
+            if paths_to_fetch:
+                file_contents = await self.fetch_files(repo, paths_to_fetch)
+                
+                for path, content in file_contents.items():
+                    # Simple estimation: divide character count by 4
+                    tokens = len(content) // 4
+                    file_tokens[path] = tokens
+                    total_tokens += tokens
+                    
+                    # Cache the result with commit hash
+                    cache_key = (repo, commit_hash, path)
+                    self._token_cache[cache_key] = tokens
             
             return TokenEstimate(
                 total_tokens=total_tokens,

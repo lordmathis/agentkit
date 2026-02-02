@@ -131,6 +131,7 @@ async def get_chat(request: Request, chat_id: str):
                 "role": msg.role,
                 "content": msg.content,
                 "reasoning_content": msg.reasoning_content,
+                "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
                 "sequence": msg.sequence,
                 "created_at": msg.created_at.isoformat(),
                 "files": [

@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, Link as LinkIcon } from "lucide-react";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import {
@@ -21,7 +21,8 @@ interface RepoSelectorProps {
   repositories: GitHubRepository[];
   isLoadingRepos: boolean;
   isLoadingTree: boolean;
-  onLoadTree: () => void;
+  onRepoSelect: (repo: string) => void;
+  onLinkPaste: (link: string) => void;
   getRepoIdentifier: () => string;
 }
 
@@ -35,58 +36,62 @@ export function RepoSelector({
   repositories,
   isLoadingRepos,
   isLoadingTree,
-  onLoadTree,
+  onRepoSelect,
+  onLinkPaste,
   getRepoIdentifier,
 }: RepoSelectorProps) {
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-1 border border-border rounded-md p-0.5 bg-muted/50">
-        <Button
-          variant={inputMode === "select" ? "secondary" : "ghost"}
-          size="sm"
-          onClick={() => setInputMode("select")}
-          className="flex-1 h-7 text-xs"
-        >
-          Select from list
-        </Button>
-        <Button
-          variant={inputMode === "paste" ? "secondary" : "ghost"}
-          size="sm"
-          onClick={() => setInputMode("paste")}
-          className="flex-1 h-7 text-xs"
-        >
-          Paste GitHub link
-        </Button>
-      </div>
+  const handleRepoChange = (repo: string) => {
+    setSelectedRepo(repo);
+    onRepoSelect(repo);
+  };
 
+  const handleLinkKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && repoLink.trim()) {
+      onLinkPaste(repoLink);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
       {inputMode === "select" ? (
         <div className="space-y-2">
           <Label htmlFor="repository">Repository</Label>
-          {isLoadingRepos ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : (
-            <Select value={selectedRepo} onValueChange={setSelectedRepo}>
-              <SelectTrigger id="repository">
-                <SelectValue placeholder="Select a repository" />
-              </SelectTrigger>
-              <SelectContent>
-                {repositories.map((repo) => (
-                  <SelectItem key={repo.id} value={repo.full_name}>
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium">{repo.full_name}</span>
-                      {repo.description && (
-                        <span className="text-xs text-muted-foreground truncate max-w-[300px]">
-                          {repo.description}
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex gap-2 items-center">
+            {isLoadingRepos ? (
+              <div className="flex-1 flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            ) : (
+              <Select value={selectedRepo} onValueChange={handleRepoChange}>
+                <SelectTrigger id="repository" className="flex-1">
+                  <SelectValue placeholder="Select a repository" />
+                </SelectTrigger>
+                <SelectContent>
+                  {repositories.map((repo) => (
+                    <SelectItem key={repo.id} value={repo.full_name}>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{repo.full_name}</span>
+                        {repo.description && (
+                          <span className="text-xs opacity-70 truncate max-w-[300px]">
+                            {repo.description}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setInputMode("paste")}
+              title="Paste GitHub link"
+            >
+              <LinkIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -96,26 +101,17 @@ export function RepoSelector({
             placeholder="https://github.com/owner/repo or owner/repo"
             value={repoLink}
             onChange={(e) => setRepoLink(e.target.value)}
+            onKeyDown={handleLinkKeyDown}
+            autoFocus
           />
         </div>
       )}
-
-      <Button
-        onClick={onLoadTree}
-        disabled={isLoadingTree || !getRepoIdentifier()}
-        variant="outline"
-        size="sm"
-        className="w-full h-8"
-      >
-        {isLoadingTree ? (
-          <>
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            Loading repository...
-          </>
-        ) : (
-          "Load Repository"
-        )}
-      </Button>
+      {isLoadingTree && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading repository...
+        </div>
+      )}
     </div>
   );
 }
