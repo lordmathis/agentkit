@@ -119,6 +119,12 @@ export interface DefaultChatConfig {
   model_params?: ModelParams | null;
 }
 
+export interface Skill {
+  name: string;
+  path: string;
+  exists: boolean;
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -212,6 +218,11 @@ class ApiClient {
 
   async getDefaultChatConfig(): Promise<DefaultChatConfig> {
     return this.request('/config/default-chat');
+  }
+
+  // Skills endpoints
+  async listSkills(): Promise<{ skills: Skill[] }> {
+    return this.request('/skills');
   }
 
   async uploadFiles(chatId: string, files: File[]): Promise<{ filenames: string[] }> {

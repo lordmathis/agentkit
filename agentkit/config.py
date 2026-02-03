@@ -52,6 +52,7 @@ class MCPConfig(BaseModel):
 class PluginConfig(BaseModel):
     chatbots_dir: str = "chatbots"
     tools_dir: str = "tools"
+    skills_dir: str = "skills"
 
 class DefaultChatConfig(BaseModel):
     provider_id: Optional[str] = None

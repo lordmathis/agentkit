@@ -13,6 +13,7 @@ from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.routes import register_routes
 from agentkit.services.manager import ChatServiceManager
+from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,11 @@ async def lifespan(app: FastAPI):
         app_config.plugins.chatbots_dir
     )
     app.state.model_registry = model_registry
+
+    # Initialize skill registry
+    logger.info("Initializing skill registry...")
+    skill_registry = SkillRegistry(app_config.plugins.skills_dir)
+    app.state.skill_registry = skill_registry
 
     # Initialize GitHub client if token is configured
     github_client = None
