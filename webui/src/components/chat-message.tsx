@@ -244,11 +244,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
-                    <span className="sr-only">Copy message</span>
+                    <span className="sr-only">Copy</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>{copied ? "Copied!" : "Copy message"}</p>
+                  <p>{copied ? "Copied!" : "Copy"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -265,11 +265,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
                     onClick={onEdit}
                   >
                     <Edit2 className="h-4 w-4" />
-                    <span className="sr-only">Edit this message</span>
+                    <span className="sr-only">Edit</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>Edit this message</p>
+                  <p>Edit</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -286,11 +286,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
                     onClick={onRetry}
                   >
                     <RotateCw className="h-4 w-4" />
-                    <span className="sr-only">Retry this message</span>
+                    <span className="sr-only">Retry</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>Retry this message</p>
+                  <p>Retry</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -307,11 +307,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
                     onClick={() => onBranch(message.id)}
                   >
                     <GitBranch className="h-4 w-4" />
-                    <span className="sr-only">Branch conversation from here</span>
+                    <span className="sr-only">Branch</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>Branch conversation from here</p>
+                  <p>Branch</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
