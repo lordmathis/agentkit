@@ -1,4 +1,4 @@
-import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2 } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -25,11 +25,22 @@ interface ChatMessageProps {
 export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMessage }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Debug logging
   if (!isUser && message.tool_calls) {
     console.log("Tool calls for message:", message.id, message.tool_calls);
   }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
   return (
     <div
@@ -216,8 +227,33 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
       </div>
       
       {/* Action buttons - shown on hover */}
-      {(onBranch || (onRetry && !isUser) || (onEdit && isUser && isLastUserMessage)) && (
+      {(onBranch || (onRetry && !isUser) || (onEdit && isUser && isLastUserMessage) || !isUser) && (
         <div className="absolute right-4 top-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!isUser && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleCopy}
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">Copy message</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>{copied ? "Copied!" : "Copy message"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           {onEdit && isUser && isLastUserMessage && (
             <TooltipProvider delayDuration={300}>
               <Tooltip>
