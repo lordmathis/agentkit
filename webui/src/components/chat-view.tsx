@@ -37,6 +37,7 @@ export function ChatView() {
     handleDeleteConversation,
     handleBranchChat,
     handleSendMessage,
+    handleRetryMessage,
     handleKeyDown,
     refreshConversations,
   } = useChatManager();
@@ -97,6 +98,7 @@ export function ChatView() {
           currentConversationId={currentConversationId}
           messagesEndRef={messagesEndRef}
           onBranch={handleBranchChat}
+          onRetry={handleRetryMessage}
         />
 
         {/* Input Area */}

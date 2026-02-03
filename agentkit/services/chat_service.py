@@ -518,3 +518,100 @@ class ChatService:
                 self.db.update_chat(self.chat_id, title=new_title)
 
         return response
+    async def retry_last_message(self) -> Dict[str, Any]:
+        """Retry the last message by deleting the last assistant response and re-processing.
+        
+        This is useful when the LLM fails or returns an error. It resends all messages
+        up to but not including the last assistant response.
+        
+        Returns:
+            The response from the LLM after retry
+            
+        Raises:
+            ValueError: If there's no last assistant message to retry
+        """
+        # Get the last assistant message
+        last_assistant_message = self.db.get_last_assistant_message(self.chat_id)
+        if not last_assistant_message:
+            raise ValueError("No assistant message to retry")
+        
+        # Delete the last assistant message (and its attachments)
+        self.db.delete_message(last_assistant_message.id)
+        
+        # Get the last user message
+        history = self.db.get_chat_history(self.chat_id)
+        if not history:
+            raise ValueError("No message history found")
+        
+        # Find the last user message
+        last_user_message = None
+        for msg in reversed(history):
+            if msg.role == "user":
+                last_user_message = msg
+                break
+        
+        if not last_user_message:
+            raise ValueError("No user message found to retry with")
+        
+        # Extract the user message content
+        user_message_content = last_user_message.content
+        
+        # Parse @mentions and load skill context
+        mentioned_skills = self._parse_mentions(user_message_content)
+        skill_context = self._build_skill_context(mentioned_skills)
+        
+        # Load updated history (without the last assistant response)
+        history = self.db.get_chat_history(self.chat_id)
+        chat = self.db.get_chat(self.chat_id)
+        messages = self._to_openai(history)
+        
+        # Augment system prompt with skill context if skills were mentioned
+        if skill_context:
+            if messages and messages[0].get("role") in ("system", "developer"):
+                existing_content = messages[0].get("content", "")
+                if isinstance(existing_content, str):
+                    messages[0]["content"] = existing_content + skill_context
+                else:
+                    messages[0]["content"] = str(existing_content) + skill_context
+            else:
+                messages.insert(0, {
+                    "role": "system",
+                    "content": skill_context.strip()
+                })
+        
+        # Send to LLM
+        response = await self.chatbot.chat(messages)
+        
+        logger.info(f"Retry response keys: {response.keys()}")
+        
+        if "error" in response:
+            error_msg = f"Error: {response['error']}"
+            self.db.save_message(
+                self.chat_id, "assistant", error_msg, reasoning_content=None
+            )
+            return {
+                "choices": [{"message": {"role": "assistant", "content": error_msg}}]
+            }
+        else:
+            choices = response.get("choices", [])
+            if choices:
+                message_data = choices[0].get("message", {})
+                if isinstance(message_data, dict):
+                    assistant_content = message_data.get("content", "")
+                    reasoning_content = message_data.get("reasoning_content", None)
+                else:
+                    assistant_content = getattr(message_data, "content", "")
+                    reasoning_content = getattr(message_data, "reasoning_content", None)
+                
+                tool_calls = response.get("tool_calls_used")
+                tool_calls_json = json.dumps(tool_calls) if tool_calls else None
+                
+                self.db.save_message(
+                    self.chat_id,
+                    "assistant",
+                    assistant_content or "",
+                    reasoning_content=reasoning_content,
+                    tool_calls=tool_calls_json,
+                )
+        
+        return response

@@ -1,6 +1,7 @@
 import { Bot } from "lucide-react";
-import { ChatMessage, type Message } from "./chat-message";
+import { ChatMessage } from "./chat-message";
 import { ScrollArea } from "./ui/scroll-area";
+import type { Message } from "../lib/api";
 
 interface MessagesListProps {
   messages: Message[];
@@ -9,6 +10,7 @@ interface MessagesListProps {
   currentConversationId: string | undefined;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onBranch?: (messageId: string) => void;
+  onRetry?: () => void;
 }
 
 export function MessagesList({
@@ -18,6 +20,7 @@ export function MessagesList({
   currentConversationId,
   messagesEndRef,
   onBranch,
+  onRetry,
 }: MessagesListProps) {
   return (
     <ScrollArea className="flex-1 min-h-0">
@@ -40,7 +43,7 @@ export function MessagesList({
         ) : (
           <>
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} onBranch={onBranch} />
+              <ChatMessage key={message.id} message={message} onBranch={onBranch} onRetry={onRetry} />
             ))}
             {isSending && (
               <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">

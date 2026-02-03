@@ -198,6 +198,42 @@ class Database:
             result = session.execute(stmt)
             return list(result.scalars().all())
 
+    def get_last_assistant_message(self, chat_id: str) -> Optional[Message]:
+        """Get the last assistant message in a chat"""
+        with self.SessionLocal() as session:
+            stmt = (
+                select(Message)
+                .where(Message.chat_id == chat_id, Message.role == "assistant")
+                .order_by(Message.sequence.desc())
+                .limit(1)
+            )
+            result = session.execute(stmt)
+            return result.scalars().first()
+
+    def delete_message(self, message_id: str) -> bool:
+        """Delete a message and its attachments"""
+        with self.SessionLocal() as session:
+            message = session.get(Message, message_id)
+            if not message:
+                return False
+            
+            # Delete attachments first (cascading should handle this, but explicit is safer)
+            stmt = select(FileAttachment).where(FileAttachment.message_id == message_id)
+            attachments = session.execute(stmt).scalars().all()
+            for attachment in attachments:
+                session.delete(attachment)
+            
+            # Delete message
+            session.delete(message)
+            
+            # Update chat's updated_at
+            chat = session.get(Chat, message.chat_id)
+            if chat:
+                chat.updated_at = datetime.now(UTC)
+            
+            session.commit()
+            return True
+
     def branch_chat(self, source_chat_id: str, up_to_message_id: str, new_title: Optional[str] = None) -> Optional[Chat]:
 
         with self.SessionLocal() as session:

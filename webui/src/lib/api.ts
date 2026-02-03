@@ -207,6 +207,14 @@ class ApiClient {
     });
   }
 
+  async retryLastMessage(
+    chatId: string
+  ): Promise<SendMessageResponse> {
+    return this.request(`/chats/${chatId}/retry`, {
+      method: 'POST',
+    });
+  }
+
   // Models and tools endpoints
   async listModels(): Promise<{ object: string; data: Model[] }> {
     return this.request('/models');

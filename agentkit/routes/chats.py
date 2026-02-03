@@ -405,6 +405,28 @@ async def remove_uploaded_file(request: Request, chat_id: str, filename: str):
             detail=f"Failed to remove file: {str(e)}"
         )
 
+@router.post("/chats/{chat_id}/retry")
+async def retry_message(request: Request, chat_id: str):
+    """
+    Retry the last message by deleting the last assistant response and re-processing.
+    
+    This is useful when the LLM fails or returns an error. It resends all messages
+    up to but not including the last assistant response.
+    """
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+    try:
+        result = await chat_service.retry_last_message()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/chats/{chat_id}/github/files")
 async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitHubFilesRequest):

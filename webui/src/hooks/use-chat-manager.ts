@@ -446,6 +446,45 @@ export function useChatManager() {
     }
   };
 
+  // Handle retrying the last message
+  const handleRetryMessage = async () => {
+    if (!currentConversationId) {
+      alert("No conversation selected");
+      return;
+    }
+
+    try {
+      setIsSending(true);
+
+      await api.retryLastMessage(currentConversationId);
+
+      // Reload messages from backend to get the updated message
+      try {
+        const chatData = await api.getChat(currentConversationId);
+        const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          reasoning_content: msg.reasoning_content,
+          tool_calls: msg.tool_calls,
+          sequence: msg.sequence,
+          created_at: msg.created_at,
+          files: msg.files,
+        }));
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error("Failed to reload messages:", error);
+      }
+
+      await refreshConversations();
+    } catch (error) {
+      console.error("Failed to retry message:", error);
+      alert(`Failed to retry message: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   // Handle keyboard shortcuts in textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -487,6 +526,7 @@ export function useChatManager() {
     handleDeleteConversation,
     handleBranchChat,
     handleSendMessage,
+    handleRetryMessage,
     handleKeyDown,
     refreshConversations,
   };

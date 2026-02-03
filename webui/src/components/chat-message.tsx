@@ -1,4 +1,4 @@
-import { Bot, User, Brain, File, GitBranch } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch, RotateCw } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -17,9 +17,10 @@ import { type Message } from "../lib/api";
 interface ChatMessageProps {
   message: Message;
   onBranch?: (messageId: string) => void;
+  onRetry?: () => void;
 }
 
-export function ChatMessage({ message, onBranch }: ChatMessageProps) {
+export function ChatMessage({ message, onBranch, onRetry }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
 
@@ -212,27 +213,50 @@ export function ChatMessage({ message, onBranch }: ChatMessageProps) {
         </div>
       </div>
       
-      {/* Branch button - shown on hover */}
-      {onBranch && (
-        <div className="absolute right-4 top-6 opacity-0 group-hover:opacity-100 transition-opacity">
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => onBranch(message.id)}
-                >
-                  <GitBranch className="h-4 w-4" />
-                  <span className="sr-only">Branch conversation from here</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p>Branch conversation from here</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      {/* Action buttons - shown on hover */}
+      {(onBranch || (onRetry && !isUser)) && (
+        <div className="absolute right-4 top-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onRetry && !isUser && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={onRetry}
+                  >
+                    <RotateCw className="h-4 w-4" />
+                    <span className="sr-only">Retry this message</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Retry this message</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {onBranch && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => onBranch(message.id)}
+                  >
+                    <GitBranch className="h-4 w-4" />
+                    <span className="sr-only">Branch conversation from here</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Branch conversation from here</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       )}
     </div>
