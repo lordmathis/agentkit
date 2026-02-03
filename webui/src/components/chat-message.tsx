@@ -2,6 +2,7 @@ import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check } from 
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { useState } from "react";
@@ -21,6 +22,68 @@ interface ChatMessageProps {
   onEdit?: () => void;
   isLastUserMessage?: boolean;
 }
+
+// Shared markdown component configuration
+const markdownComponents = {
+  h1: ({ children, ...props }: any) => (
+    <h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0" {...props}>{children}</h1>
+  ),
+  h2: ({ children, ...props }: any) => (
+    <h2 className="text-xl font-bold mt-5 mb-3 first:mt-0" {...props}>{children}</h2>
+  ),
+  h3: ({ children, ...props }: any) => (
+    <h3 className="text-lg font-bold mt-4 mb-2 first:mt-0" {...props}>{children}</h3>
+  ),
+  h4: ({ children, ...props }: any) => (
+    <h4 className="text-base font-bold mt-3 mb-2 first:mt-0" {...props}>{children}</h4>
+  ),
+  p: ({ children, ...props }: any) => (
+    <p className="mb-4 last:mb-0" {...props}>{children}</p>
+  ),
+  ul: ({ children, ...props }: any) => (
+    <ul className="list-disc pl-6 mb-4 space-y-1" {...props}>{children}</ul>
+  ),
+  ol: ({ children, ...props }: any) => (
+    <ol className="list-decimal pl-6 mb-4 space-y-1" {...props}>{children}</ol>
+  ),
+  li: ({ children, ...props }: any) => (
+    <li {...props}>{children}</li>
+  ),
+  strong: ({ children, ...props }: any) => (
+    <strong className="font-bold" {...props}>{children}</strong>
+  ),
+  em: ({ children, ...props }: any) => (
+    <em className="italic" {...props}>{children}</em>
+  ),
+  blockquote: ({ children, ...props }: any) => (
+    <blockquote className="border-l-4 border-muted pl-4 italic my-4" {...props}>{children}</blockquote>
+  ),
+  hr: ({ ...props }: any) => (
+    <hr className="my-6 border-border" {...props} />
+  ),
+  code: ({ inline, className, children, ...props }: any) => {
+    return inline ? (
+      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm" {...props}>
+        {children}
+      </code>
+    ) : (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  },
+  a: ({ children, href, ...props }: any) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary underline hover:text-primary/80"
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+};
 
 export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMessage }: ChatMessageProps) {
   const isUser = message.role === "user";
@@ -112,37 +175,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
             
             {showReasoning && (
               <div className="mt-2 rounded-md border border-border bg-muted/30 p-3">
-                <div className="prose prose-sm prose-invert max-w-none text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <div className="text-muted-foreground">
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
                     rehypePlugins={[rehypeHighlight]}
-                    components={{
-                      code: ({ inline, className, children, ...props }: any) => {
-                        return inline ? (
-                          <code
-                            className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs"
-                            {...props}
-                          >
-                            {children}
-                          </code>
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                      a: ({ children, href, ...props }: any) => (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline hover:text-primary/80"
-                          {...props}
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
+                    components={markdownComponents}
                   >
                     {message.reasoning_content}
                   </ReactMarkdown>
@@ -187,39 +224,11 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
           </div>
         )}
         
-        <div className="prose prose-sm prose-invert max-w-none text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div className="text-foreground">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkBreaks]}
             rehypePlugins={[rehypeHighlight]}
-            components={{
-              // Customize code block styling
-              code: ({ inline, className, children, ...props }: any) => {
-                return inline ? (
-                  <code
-                    className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              // Customize link styling
-              a: ({ children, href, ...props }: any) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline hover:text-primary/80"
-                  {...props}
-                >
-                  {children}
-                </a>
-              ),
-            }}
+            components={markdownComponents}
           >
             {message.content}
           </ReactMarkdown>
