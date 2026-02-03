@@ -10,7 +10,7 @@ export interface Chat {
   model?: string | null;
   system_prompt?: string | null;
   tool_servers?: string[] | null;
-  model_params?: Record<string, any> | null;
+  model_params?: ModelParams | null;
 }
 
 export interface Message {
@@ -31,17 +31,23 @@ export interface Message {
   }>;
 }
 
+export interface ModelParams {
+  max_iterations?: number;
+  temperature?: number;
+  max_tokens?: number;
+}
+
 export interface ChatWithMessages extends Chat {
   messages: Message[];
   tool_servers?: any;
-  model_params?: any;
+  model_params?: ModelParams;
 }
 
 export interface ChatConfig {
   model: string;
   system_prompt?: string;
   tool_servers?: string[];
-  model_params?: Record<string, any>;
+  model_params?: ModelParams;
 }
 
 export interface CreateChatRequest {
@@ -110,6 +116,7 @@ export interface DefaultChatConfig {
   model?: string | null;
   system_prompt?: string | null;
   tool_servers: string[];
+  model_params?: ModelParams | null;
 }
 
 class ApiClient {

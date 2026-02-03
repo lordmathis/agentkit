@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from agentkit.services.chat_service import ChatConfig
+from agentkit.services.chat_service import ChatConfig, ModelParams
 from agentkit.services.manager import ChatServiceManager
 
 router = APIRouter()
@@ -195,7 +195,7 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
         update_kwargs["model"] = body.config.model
         update_kwargs["system_prompt"] = body.config.system_prompt
         update_kwargs["tool_servers"] = json.dumps(body.config.tool_servers) if body.config.tool_servers else None
-        update_kwargs["model_params"] = json.dumps(body.config.model_params) if body.config.model_params else None
+        update_kwargs["model_params"] = json.dumps(body.config.model_params.model_dump()) if body.config.model_params else None
         
         # Recreate chat service with new config
         try:

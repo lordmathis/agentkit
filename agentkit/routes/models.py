@@ -121,7 +121,12 @@ async def get_default_chat_config(request: Request):
     return {
         "model": model,
         "system_prompt": default_chat.system_prompt,
-        "tool_servers": default_chat.tool_servers or []
+        "tool_servers": default_chat.tool_servers or [],
+        "model_params": {
+            "max_iterations": default_chat.max_iterations,
+            "temperature": default_chat.temperature,
+            "max_tokens": default_chat.max_tokens,
+        }
     }
 
 

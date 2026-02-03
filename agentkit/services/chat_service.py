@@ -14,11 +14,18 @@ from agentkit.github.client import FileNode, GitHubClient
 logger = logging.getLogger(__name__)
 
 
+class ModelParams(BaseModel):
+    """Model parameters for chatbot configuration."""
+    max_iterations: Optional[int] = 5
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+
+
 class ChatConfig(BaseModel):
     model: str
     system_prompt: Optional[str] = None
     tool_servers: Optional[List[str]] = None
-    model_params: Optional[Dict[str, Any]] = None
+    model_params: Optional[ModelParams] = None
 
 
 CHAT_NAMING_SYSTEM_PROMPT = """You are a chat title generator. Your ONLY job is to read a conversation and generate a concise, descriptive title of 3-5 words.

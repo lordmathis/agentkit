@@ -36,7 +36,7 @@ class ChatServiceManager:
         if not chat:
             raise ValueError(f"Chat '{chat_id}' not found")
 
-        model_params = config.model_params or {}
+        model_params = config.model_params
         chatbot = ChatbotFactory.create_chatbot(
             model=config.model,
             provider_registry=self.provider_registry,
@@ -44,9 +44,9 @@ class ChatServiceManager:
             tool_manager=self.tool_manager,
             system_prompt=config.system_prompt,
             tool_servers=config.tool_servers,
-            temperature=model_params.get("temperature"),
-            max_tokens=model_params.get("max_tokens"),
-            max_iterations=model_params.get("max_iterations"),
+            temperature=model_params.temperature if model_params else None,
+            max_tokens=model_params.max_tokens if model_params else None,
+            max_iterations=model_params.max_iterations if model_params else 5,
         )
 
         chat_service = ChatService(
@@ -63,7 +63,7 @@ class ChatServiceManager:
             model=config.model,
             system_prompt=config.system_prompt,
             tool_servers=config.tool_servers,
-            model_params=config.model_params or {},
+            model_params=config.model_params.model_dump() if config.model_params else {},
         )
 
         return chat_service

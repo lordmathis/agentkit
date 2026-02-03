@@ -12,6 +12,11 @@ export function useChatManager() {
     baseModel: "",
     systemPrompt: "",
     enabledTools: [],
+    modelParams: {
+      max_iterations: 5,
+      temperature: undefined,
+      max_tokens: undefined,
+    },
   });
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
@@ -39,6 +44,11 @@ export function useChatManager() {
           baseModel: defaultConfig.model || "",
           systemPrompt: defaultConfig.system_prompt || "",
           enabledTools: defaultConfig.tool_servers || [],
+          modelParams: defaultConfig.model_params || {
+            max_iterations: 5,
+            temperature: undefined,
+            max_tokens: undefined,
+          },
         });
       } catch (error) {
         console.error("Failed to load default chat config:", error);
@@ -120,6 +130,11 @@ export function useChatManager() {
           baseModel: chatData.model || "",
           systemPrompt: chatData.system_prompt || "",
           enabledTools: chatData.tool_servers || [],
+          modelParams: chatData.model_params || {
+            max_iterations: 5,
+            temperature: undefined,
+            max_tokens: undefined,
+          },
         });
 
         setUploadedFiles([]);
@@ -234,12 +249,14 @@ export function useChatManager() {
           model: chatSettings.baseModel,
           system_prompt: chatSettings.systemPrompt,
           tool_servers: chatSettings.enabledTools,
+          model_params: chatSettings.modelParams,
         };
       }
 
       const baseModel = defaultConfig.model || chatSettings.baseModel;
       const systemPrompt = defaultConfig.system_prompt || "";
       const toolServers = defaultConfig.tool_servers || [];
+      const modelParams = defaultConfig.model_params || chatSettings.modelParams;
 
       if (!baseModel) {
         alert("Please select a base model in the settings before creating a new conversation.");
@@ -252,6 +269,7 @@ export function useChatManager() {
           model: baseModel,
           system_prompt: systemPrompt || undefined,
           tool_servers: toolServers.length > 0 ? toolServers : undefined,
+          model_params: modelParams,
         },
       });
 
@@ -271,6 +289,7 @@ export function useChatManager() {
         baseModel,
         systemPrompt,
         enabledTools: toolServers,
+        modelParams,
       });
     } catch (error) {
       console.error("Failed to create new conversation:", error);

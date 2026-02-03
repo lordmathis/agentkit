@@ -19,12 +19,14 @@ import {
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
-import { api, type Model, type ToolServer } from "../lib/api";
+import { Input } from "./ui/input";
+import { api, type Model, type ToolServer, type ModelParams } from "../lib/api";
 
 export interface ChatSettings {
   baseModel: string;
   systemPrompt: string;
   enabledTools: string[];
+  modelParams: ModelParams;
 }
 
 interface ChatSettingsDialogProps {
@@ -139,6 +141,7 @@ export function ChatSettingsDialog({
             model: localSettings.baseModel,
             system_prompt: localSettings.systemPrompt || undefined,
             tool_servers: localSettings.enabledTools.length > 0 ? localSettings.enabledTools : undefined,
+            model_params: localSettings.modelParams,
           },
         });
         // Notify parent that chat was updated
@@ -258,12 +261,103 @@ export function ChatSettingsDialog({
             </p>
           </div>
 
+          {/* Model Parameters Section */}
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-semibold">Model Parameters</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure advanced model behavior settings.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Max Iterations */}
+              <div className="space-y-2">
+                <Label htmlFor="max-iterations">Max Iterations</Label>
+                <Input
+                  id="max-iterations"
+                  type="number"
+                  min="1"
+                  value={localSettings.modelParams.max_iterations ?? 5}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? undefined : parseInt(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      modelParams: {
+                        ...prev.modelParams,
+                        max_iterations: value,
+                      },
+                    }));
+                  }}
+                  placeholder="5"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Maximum tool call iterations
+                </p>
+              </div>
+
+              {/* Temperature */}
+              <div className="space-y-2">
+                <Label htmlFor="temperature">Temperature</Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={localSettings.modelParams.temperature ?? ""}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? undefined : parseFloat(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      modelParams: {
+                        ...prev.modelParams,
+                        temperature: value,
+                      },
+                    }));
+                  }}
+                  placeholder="Default"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Randomness (0-2, lower = focused)
+                </p>
+              </div>
+
+              {/* Max Tokens */}
+              <div className="space-y-2">
+                <Label htmlFor="max-tokens">Max Tokens</Label>
+                <Input
+                  id="max-tokens"
+                  type="number"
+                  min="1"
+                  value={localSettings.modelParams.max_tokens ?? ""}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? undefined : parseInt(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      modelParams: {
+                        ...prev.modelParams,
+                        max_tokens: value,
+                      },
+                    }));
+                  }}
+                  placeholder="Default"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Maximum response length
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Tools Section */}
-          <div className="space-y-3">
-            <Label>Tool Servers</Label>
-            <p className="text-sm text-muted-foreground">
-              Select which tool servers the assistant can use during the conversation.
-            </p>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-semibold">Tool Servers</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Select which tool servers the assistant can use during the conversation.
+              </p>
+            </div>
             {isLoadingTools ? (
               <div className="rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
                 Loading available tools...

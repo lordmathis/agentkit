@@ -58,6 +58,9 @@ class DefaultChatConfig(BaseModel):
     model_id: Optional[str] = None
     system_prompt: Optional[str] = None
     tool_servers: Optional[List[str]] = None
+    max_iterations: Optional[int] = 5
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
 
 class TranscriptionConfig(BaseModel):
     model: str = "whisper-1"
