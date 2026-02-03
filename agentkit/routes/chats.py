@@ -37,6 +37,10 @@ class BranchChatRequest(BaseModel):
     title: Optional[str] = None
 
 
+class EditLastMessageRequest(BaseModel):
+    message: str
+
+
 @router.post("/chats")
 async def create_chat(request: Request, body: CreateChatRequest):
     """
@@ -422,6 +426,28 @@ async def retry_message(request: Request, chat_id: str):
     
     try:
         result = await chat_service.retry_last_message()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/chats/{chat_id}/edit")
+async def edit_last_user_message(request: Request, chat_id: str, body: EditLastMessageRequest):
+    """
+    Edit the last user message and delete the assistant's response, then re-process.
+    
+    This allows users to modify their last message and get a new response from the LLM.
+    """
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+    try:
+        result = await chat_service.edit_last_user_message(body.message)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

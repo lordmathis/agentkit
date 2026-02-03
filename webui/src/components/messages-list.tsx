@@ -11,6 +11,7 @@ interface MessagesListProps {
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onBranch?: (messageId: string) => void;
   onRetry?: () => void;
+  onEdit?: () => void;
 }
 
 export function MessagesList({
@@ -21,6 +22,7 @@ export function MessagesList({
   messagesEndRef,
   onBranch,
   onRetry,
+  onEdit,
 }: MessagesListProps) {
   return (
     <ScrollArea className="flex-1 min-h-0">
@@ -42,9 +44,20 @@ export function MessagesList({
           </div>
         ) : (
           <>
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} onBranch={onBranch} onRetry={onRetry} />
-            ))}
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const isLastUserMessage = isLastMessage && message.role === "user";
+              return (
+                <ChatMessage 
+                  key={message.id} 
+                  message={message} 
+                  onBranch={onBranch} 
+                  onRetry={onRetry}
+                  onEdit={isLastUserMessage ? onEdit : undefined}
+                  isLastUserMessage={isLastUserMessage}
+                />
+              );
+            })}
             {isSending && (
               <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
                 <div className="flex-shrink-0">

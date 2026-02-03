@@ -13,6 +13,7 @@ export function ChatView() {
 
   const {
     inputValue,
+    isEditingMode,
     currentConversationId,
     chatSettings,
     conversations,
@@ -38,6 +39,7 @@ export function ChatView() {
     handleBranchChat,
     handleSendMessage,
     handleRetryMessage,
+    handleEditMessage,
     handleKeyDown,
     refreshConversations,
   } = useChatManager();
@@ -99,11 +101,13 @@ export function ChatView() {
           messagesEndRef={messagesEndRef}
           onBranch={handleBranchChat}
           onRetry={handleRetryMessage}
+          onEdit={handleEditMessage}
         />
 
         {/* Input Area */}
         <ChatInput
           inputValue={inputValue}
+          isEditingMode={isEditingMode}
           onInputChange={setInputValue}
           onSend={handleSendMessage}
           onKeyDown={handleKeyDown}

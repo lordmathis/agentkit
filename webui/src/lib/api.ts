@@ -215,6 +215,16 @@ class ApiClient {
     });
   }
 
+  async editLastMessage(
+    chatId: string,
+    message: string
+  ): Promise<SendMessageResponse> {
+    return this.request(`/chats/${chatId}/edit`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  }
+
   // Models and tools endpoints
   async listModels(): Promise<{ object: string; data: Model[] }> {
     return this.request('/models');

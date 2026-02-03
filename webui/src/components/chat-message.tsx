@@ -1,4 +1,4 @@
-import { Bot, User, Brain, File, GitBranch, RotateCw } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -18,9 +18,11 @@ interface ChatMessageProps {
   message: Message;
   onBranch?: (messageId: string) => void;
   onRetry?: () => void;
+  onEdit?: () => void;
+  isLastUserMessage?: boolean;
 }
 
-export function ChatMessage({ message, onBranch, onRetry }: ChatMessageProps) {
+export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMessage }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
 
@@ -214,8 +216,29 @@ export function ChatMessage({ message, onBranch, onRetry }: ChatMessageProps) {
       </div>
       
       {/* Action buttons - shown on hover */}
-      {(onBranch || (onRetry && !isUser)) && (
+      {(onBranch || (onRetry && !isUser) || (onEdit && isUser && isLastUserMessage)) && (
         <div className="absolute right-4 top-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onEdit && isUser && isLastUserMessage && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={onEdit}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    <span className="sr-only">Edit this message</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Edit this message</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           {onRetry && !isUser && (
             <TooltipProvider delayDuration={300}>
               <Tooltip>

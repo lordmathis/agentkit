@@ -1,4 +1,4 @@
-import { Send, Bot, Zap, Plus, Upload, Github, Mic, Square, AtSign } from "lucide-react";
+import { Send, Bot, Zap, Plus, Upload, Github, Mic, Square, AtSign, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import {
@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 
 interface ChatInputProps {
   inputValue: string;
+  isEditingMode?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -38,6 +39,7 @@ interface ChatInputProps {
 
 export function ChatInput({
   inputValue,
+  isEditingMode = false,
   onInputChange,
   onSend,
   onKeyDown,
@@ -199,6 +201,23 @@ export function ChatInput({
   return (
     <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
       <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+        {/* Edit mode indicator */}
+        {isEditingMode && (
+          <div className="mb-3 flex items-center justify-between rounded-md border border-blue-500/50 bg-blue-500/10 px-3 py-2">
+            <span className="text-xs font-medium text-blue-600">Editing message...</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => onInputChange("")}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Cancel edit</span>
+            </Button>
+          </div>
+        )}
+        
         {/* Model and tools info */}
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
@@ -325,7 +344,7 @@ export function ChatInput({
               disabled={isSending || !currentConversationId || !inputValue.trim()}
             >
               <Send className="h-5 w-5" />
-              <span className="sr-only">Send message</span>
+              <span className="sr-only">{isEditingMode ? 'Update message' : 'Send message'}</span>
             </Button>
           </div>
         </div>

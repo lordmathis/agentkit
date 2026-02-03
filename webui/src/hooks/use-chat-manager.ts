@@ -7,6 +7,7 @@ import { formatTimestamp } from "../lib/formatters";
 
 export function useChatManager() {
   const [inputValue, setInputValue] = useState("");
+  const [isEditingMode, setIsEditingMode] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
     baseModel: "",
@@ -374,64 +375,94 @@ export function useChatManager() {
     try {
       setIsSending(true);
 
-      setInputValue("");
-      setUploadedFiles([]);
-      setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+      if (isEditingMode) {
+        // Handle edit mode
+        await api.editLastMessage(currentConversationId, trimmedMessage);
+        
+        // Reset edit mode
+        setIsEditingMode(false);
+        setInputValue("");
+        setUploadedFiles([]);
+        setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+        
+        // Reload messages from backend
+        try {
+          const chatData = await api.getChat(currentConversationId);
+          const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+            reasoning_content: msg.reasoning_content,
+            tool_calls: msg.tool_calls,
+            sequence: msg.sequence,
+            created_at: msg.created_at,
+            files: msg.files,
+          }));
+          setMessages(formattedMessages);
+        } catch (error) {
+          console.error("Failed to reload messages:", error);
+        }
+      } else {
+        // Handle normal send mode
+        setInputValue("");
+        setUploadedFiles([]);
+        setGithubFiles({ repo: "", paths: [], excludePaths: [] });
 
-      const tempUserMessage: Message = {
-        id: `temp-user-${Date.now()}`,
-        role: "user",
-        content: trimmedMessage,
-        sequence: messages.length,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, tempUserMessage]);
+        const tempUserMessage: Message = {
+          id: `temp-user-${Date.now()}`,
+          role: "user",
+          content: trimmedMessage,
+          sequence: messages.length,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, tempUserMessage]);
 
-      const response = await api.sendMessage(currentConversationId, {
-        message: trimmedMessage,
-        stream: false,
-      });
+        const response = await api.sendMessage(currentConversationId, {
+          message: trimmedMessage,
+          stream: false,
+        });
 
-      const assistantContent = response.choices?.[0]?.message?.content || "No response";
+        const assistantContent = response.choices?.[0]?.message?.content || "No response";
 
-      setMessages((prev) => {
-        const withoutTemp = prev.filter((m) => m.id !== tempUserMessage.id);
+        setMessages((prev) => {
+          const withoutTemp = prev.filter((m) => m.id !== tempUserMessage.id);
 
-        return [
-          ...withoutTemp,
-          {
-            id: `user-${Date.now()}`,
-            role: "user" as const,
-            content: trimmedMessage,
-            sequence: withoutTemp.length,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: `assistant-${Date.now()}`,
-            role: "assistant" as const,
-            content: assistantContent,
-            sequence: withoutTemp.length + 1,
-            created_at: new Date().toISOString(),
-          },
-        ];
-      });
+          return [
+            ...withoutTemp,
+            {
+              id: `user-${Date.now()}`,
+              role: "user" as const,
+              content: trimmedMessage,
+              sequence: withoutTemp.length,
+              created_at: new Date().toISOString(),
+            },
+            {
+              id: `assistant-${Date.now()}`,
+              role: "assistant" as const,
+              content: assistantContent,
+              sequence: withoutTemp.length + 1,
+              created_at: new Date().toISOString(),
+            },
+          ];
+        });
 
-      // Reload messages from backend to get proper message IDs
-      try {
-        const chatData = await api.getChat(currentConversationId);
-        const formattedMessages: Message[] = chatData.messages.map((msg) => ({
-          id: msg.id,
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-          reasoning_content: msg.reasoning_content,
-          tool_calls: msg.tool_calls,
-          sequence: msg.sequence,
-          created_at: msg.created_at,
-          files: msg.files,
-        }));
-        setMessages(formattedMessages);
-      } catch (error) {
-        console.error("Failed to reload messages:", error);
+        // Reload messages from backend to get proper message IDs
+        try {
+          const chatData = await api.getChat(currentConversationId);
+          const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+            reasoning_content: msg.reasoning_content,
+            tool_calls: msg.tool_calls,
+            sequence: msg.sequence,
+            created_at: msg.created_at,
+            files: msg.files,
+          }));
+          setMessages(formattedMessages);
+        } catch (error) {
+          console.error("Failed to reload messages:", error);
+        }
       }
 
       await refreshConversations();
@@ -485,6 +516,28 @@ export function useChatManager() {
     }
   };
 
+  // Handle editing the last user message
+  const handleEditMessage = async () => {
+    // Find the last user message
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((msg) => msg.role === "user");
+
+    if (!lastUserMessage) {
+      alert("No user message found to edit");
+      return;
+    }
+
+    // Populate input with last message content and enable edit mode
+    setInputValue(lastUserMessage.content);
+    setIsEditingMode(true);
+    
+    // Focus on the textarea
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  };
+
   // Handle keyboard shortcuts in textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -496,6 +549,7 @@ export function useChatManager() {
   return {
     // State
     inputValue,
+    isEditingMode,
     currentConversationId,
     chatSettings,
     conversations,
@@ -527,6 +581,7 @@ export function useChatManager() {
     handleBranchChat,
     handleSendMessage,
     handleRetryMessage,
+    handleEditMessage,
     handleKeyDown,
     refreshConversations,
   };
