@@ -7,6 +7,7 @@ from agentkit.db.db import Database
 from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.services.chat_service import ChatConfig, ChatService
+from agentkit.skills.registry import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -20,12 +21,14 @@ class ChatServiceManager:
         chatbot_registry: ChatbotRegistry,
         tool_manager: ToolManager,
         github_client: Optional[GitHubClient] = None,
+        skill_registry: Optional[SkillRegistry] = None,
     ):
         self.db = db
         self.provider_registry = provider_registry
         self.chatbot_registry = chatbot_registry
         self.tool_manager = tool_manager
         self.github_client = github_client
+        self.skill_registry = skill_registry
         self._chat_services: Dict[str, ChatService] = {}
 
     def create_service(self, chat_id: str, config: ChatConfig) -> ChatService:
@@ -54,6 +57,7 @@ class ChatServiceManager:
             db=self.db,
             chatbot=chatbot,
             github_client=self.github_client,
+            skill_registry=self.skill_registry,
         )
 
         self._chat_services[chat_id] = chat_service

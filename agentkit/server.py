@@ -95,7 +95,8 @@ async def lifespan(app: FastAPI):
         provider_registry=provider_registry,
         chatbot_registry=model_registry,
         tool_manager=tool_manager,
-        github_client=github_client
+        github_client=github_client,
+        skill_registry=skill_registry
     )
     app.state.chat_service_manager = chat_service_manager
 

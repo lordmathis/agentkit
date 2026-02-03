@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional, Union
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from agentkit.chatbots.chatbot import Chatbot
 from agentkit.db.db import Database
 from agentkit.github.client import FileNode, GitHubClient
+from agentkit.skills.registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +50,13 @@ class ChatService:
         db: Database,
         chatbot: Chatbot,
         github_client: Optional[GitHubClient] = None,
+        skill_registry: Optional[SkillRegistry] = None,
     ):
         self.chat_id = chat_id
         self.db = db
         self.chatbot = chatbot
         self.github_client = github_client
+        self.skill_registry = skill_registry
         self._img_files: List[str] = []
         self._file_contents: Dict[str, str] = {}
         self._github_files: set[str] = set()  # Track which files came from GitHub
@@ -63,6 +67,49 @@ class ChatService:
             return json.loads(msg_content)
         except (json.JSONDecodeError, TypeError):
             return msg_content
+    
+    def _parse_mentions(self, message: str) -> List[str]:
+        """Extract @mentions from a message.
+        
+        Args:
+            message: The message text to parse
+            
+        Returns:
+            List of mentioned skill names (without the @ prefix)
+        """
+        # Match @word patterns (alphanumeric and underscores)
+        pattern = r'@([a-zA-Z0-9_]+)'
+        mentions = re.findall(pattern, message)
+        return mentions
+    
+    def _build_skill_context(self, skill_names: List[str]) -> str:
+        """Build context text from mentioned skills.
+        
+        Args:
+            skill_names: List of skill names to load
+            
+        Returns:
+            Formatted string with skill contents
+        """
+        if not self.skill_registry or not skill_names:
+            return ""
+        
+        skill_context_parts = []
+        for skill_name in skill_names:
+            content = self.skill_registry.get_skill_content(skill_name)
+            if content:
+                # Include the @mention in the context so LLM understands it
+                skill_context_parts.append(
+                    f"\n\n--- Skill @{skill_name} ---\n{content}"
+                )
+                logger.info(f"Loaded skill @{skill_name} for context")
+            else:
+                # Skill doesn't exist, just log it (treat as plain text)
+                logger.debug(f"Skill @{skill_name} not found, treating as plain text")
+        
+        if skill_context_parts:
+            return "\n".join(skill_context_parts)
+        return ""
 
     def _process_user_message(self, msg) -> ChatCompletionMessageParam:
         """Process user message and reconstruct content with attachments from disk."""
@@ -394,10 +441,33 @@ class ChatService:
         self._file_contents.clear()
         self._github_files.clear()  # Clear GitHub file tracking
         
+        # Parse @mentions and load skill context
+        mentioned_skills = self._parse_mentions(message)
+        skill_context = self._build_skill_context(mentioned_skills)
+        
         # Load history (will reconstruct messages with attachments from disk)
         history = self.db.get_chat_history(self.chat_id)
         chat = self.db.get_chat(self.chat_id)
         messages = self._to_openai(history)
+        
+        # Augment system prompt with skill context if skills were mentioned
+        if skill_context:
+            # Find existing system/developer message or prepend a new one
+            if messages and messages[0].get("role") in ("system", "developer"):
+                # Append skill context to existing system prompt
+                existing_content = messages[0].get("content", "")
+                if isinstance(existing_content, str):
+                    messages[0]["content"] = existing_content + skill_context
+                else:
+                    # If content is structured, add as text part
+                    messages[0]["content"] = str(existing_content) + skill_context
+            else:
+                # Prepend new system message with skill context
+                messages.insert(0, {
+                    "role": "system",
+                    "content": skill_context.strip()
+                })
+        
         response = await self.chatbot.chat(messages)
 
         logger.info(f"Chat response keys: {response.keys()}")
