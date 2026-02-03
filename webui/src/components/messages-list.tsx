@@ -46,14 +46,19 @@ export function MessagesList({
           <>
             {messages.map((message, index) => {
               const isLastMessage = index === messages.length - 1;
-              const isLastUserMessage = isLastMessage && message.role === "user";
+              const isLastAssistantMessage = isLastMessage && message.role === "assistant";
+              
+              // Find the last user message in the entire conversation
+              const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
+              const isLastUserMessage = lastUserMessageIndex !== -1 && index === messages.length - 1 - lastUserMessageIndex;
+              
               return (
                 <ChatMessage 
                   key={message.id} 
                   message={message} 
                   onBranch={onBranch} 
-                  onRetry={onRetry}
-                  onEdit={isLastUserMessage ? onEdit : undefined}
+                  onRetry={isLastAssistantMessage ? onRetry : undefined}
+                  onEdit={onEdit}
                   isLastUserMessage={isLastUserMessage}
                 />
               );
