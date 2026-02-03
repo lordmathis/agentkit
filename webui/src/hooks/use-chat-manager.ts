@@ -376,14 +376,39 @@ export function useChatManager() {
       setIsSending(true);
 
       if (isEditingMode) {
-        // Handle edit mode
-        await api.editLastMessage(currentConversationId, trimmedMessage);
-        
-        // Reset edit mode
+        // Handle edit mode - remove the last user message and any following assistant message(s)
+        setMessages((prev) => {
+          // Find the last user message
+          const lastUserMessage = [...prev].reverse().find(m => m.role === "user");
+          if (!lastUserMessage) return prev;
+          
+          // Find its index in the original array
+          const lastUserMessageIndex = prev.findIndex(m => m.id === lastUserMessage.id);
+          if (lastUserMessageIndex === -1) return prev;
+          
+          // Remove from this message onwards
+          return prev.slice(0, lastUserMessageIndex);
+        });
+
+        // Add the new edited user message to the UI
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `user-edited-${Date.now()}`,
+            role: "user" as const,
+            content: trimmedMessage,
+            sequence: prev.length,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+        // Reset edit mode and clear input
         setIsEditingMode(false);
         setInputValue("");
         setUploadedFiles([]);
         setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+
+        await api.editLastMessage(currentConversationId, trimmedMessage);
         
         // Reload messages from backend
         try {
@@ -486,6 +511,17 @@ export function useChatManager() {
 
     try {
       setIsSending(true);
+      
+      // Remove the last assistant message before retrying
+      setMessages((prev) => {
+        // Find the last assistant message index
+        const lastAssistantIndex = [...prev].reverse().findIndex(m => m.role === "assistant");
+        if (lastAssistantIndex === -1) return prev;
+        
+        const actualLastAssistantIndex = prev.length - 1 - lastAssistantIndex;
+        // Remove from the last assistant message onwards
+        return prev.slice(0, actualLastAssistantIndex);
+      });
 
       await api.retryLastMessage(currentConversationId);
 
