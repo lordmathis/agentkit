@@ -1,5 +1,13 @@
 // API client for the backend
 // Use /api prefix which gets proxied to the backend by Vite
+//
+// API Structure:
+// - /api/chats/* - Chat management and messaging
+// - /api/config/* - Configuration (models, chatbots, providers, default settings)
+// - /api/github/* - GitHub integration
+// - /api/media/* - Media processing (transcription, etc.)
+// - /api/skills/* - Skills management
+// - /api/tools/* - Tool servers and tools
 const API_BASE_URL = '/api';
 
 export interface Chat {
@@ -225,17 +233,39 @@ class ApiClient {
     });
   }
 
-  // Models and tools endpoints
+  // Configuration endpoints
   async listModels(): Promise<{ object: string; data: Model[] }> {
-    return this.request('/models');
-  }
-
-  async listTools(): Promise<{ tool_servers: ToolServer[] }> {
-    return this.request('/tools');
+    return this.request('/config/models');
   }
 
   async getDefaultChatConfig(): Promise<DefaultChatConfig> {
     return this.request('/config/default-chat');
+  }
+
+  async listChatbots(): Promise<{ chatbots: Array<{
+    name: string;
+    system_prompt: string;
+    provider: string;
+    model_id: string;
+    tool_servers: string[];
+    temperature?: number;
+    max_tokens?: number;
+    max_iterations: number;
+  }> }> {
+    return this.request('/config/chatbots');
+  }
+
+  async listProviders(): Promise<{ providers: Array<{
+    name: string;
+    api_base: string;
+    models: string[];
+  }> }> {
+    return this.request('/config/providers');
+  }
+
+  // Tools endpoints
+  async listTools(): Promise<{ tool_servers: ToolServer[] }> {
+    return this.request('/tools');
   }
 
   // Skills endpoints
@@ -299,12 +329,12 @@ class ApiClient {
     });
   }
 
-  // Transcription endpoints
+  // Media endpoints
   async transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.webm');
 
-    const url = `${this.baseURL}/transcribe`;
+    const url = `${this.baseURL}/media/transcribe`;
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
