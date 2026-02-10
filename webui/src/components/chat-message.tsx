@@ -56,7 +56,7 @@ const markdownComponents = {
     <em className="italic" {...props}>{children}</em>
   ),
   blockquote: ({ children, ...props }: any) => (
-    <blockquote className="border-l-4 border-muted pl-4 italic my-4" {...props}>{children}</blockquote>
+    <blockquote className="border-l-4 border-border pl-4 italic my-4" {...props}>{children}</blockquote>
   ),
   hr: ({ ...props }: any) => (
     <hr className="my-6 border-border" {...props} />
@@ -108,9 +108,13 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
   return (
     <div
       className={cn(
-        "group relative flex gap-4 px-4 py-6 sm:px-6",
+        "group relative flex gap-4 px-4 py-6 sm:px-6 border rounded-md",
         isUser ? "bg-background" : "bg-muted/50"
       )}
+      style={{
+        borderColor: isUser ? "var(--color-cyan-soft)" : "var(--color-red-soft)",
+        boxShadow: isUser ? "0 0 10px var(--color-cyan-glow)" : "0 0 10px var(--color-red-glow)"
+      }}
     >
       <div className="flex-shrink-0">
         <div

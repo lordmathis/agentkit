@@ -44,53 +44,55 @@ export function MessagesList({
           </div>
         ) : (
           <>
-            {messages.map((message, index) => {
-              const isLastMessage = index === messages.length - 1;
-              const isLastAssistantMessage = isLastMessage && message.role === "assistant";
-              
-              // Find the last user message in the entire conversation
-              const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
-              const isLastUserMessage = lastUserMessageIndex !== -1 && index === messages.length - 1 - lastUserMessageIndex;
-              
-              return (
-                <ChatMessage 
-                  key={message.id} 
-                  message={message} 
-                  onBranch={onBranch} 
-                  onRetry={isLastAssistantMessage ? onRetry : undefined}
-                  onEdit={onEdit}
-                  isLastUserMessage={isLastUserMessage}
-                />
-              );
-            })}
-            {isSending && (
-              <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
-                <div className="flex-shrink-0">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground">
-                    <Bot className="h-5 w-5" />
-                  </div>
-                </div>
-                <div className="flex-1 space-y-2 overflow-hidden">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold leading-none">Assistant</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="flex gap-1">
-                      <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
-                        ●
-                      </span>
-                      <span className="animate-bounce" style={{ animationDelay: "150ms" }}>
-                        ●
-                      </span>
-                      <span className="animate-bounce" style={{ animationDelay: "300ms" }}>
-                        ●
-                      </span>
+            <div className="space-y-4">
+              {messages.map((message, index) => {
+                const isLastMessage = index === messages.length - 1;
+                const isLastAssistantMessage = isLastMessage && message.role === "assistant";
+                
+                // Find the last user message in the entire conversation
+                const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
+                const isLastUserMessage = lastUserMessageIndex !== -1 && index === messages.length - 1 - lastUserMessageIndex;
+                
+                return (
+                  <ChatMessage 
+                    key={message.id} 
+                    message={message} 
+                    onBranch={onBranch} 
+                    onRetry={isLastAssistantMessage ? onRetry : undefined}
+                    onEdit={onEdit}
+                    isLastUserMessage={isLastUserMessage}
+                  />
+                );
+              })}
+              {isSending && (
+                <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground">
+                      <Bot className="h-5 w-5" />
                     </div>
-                    <span>Generating response...</span>
+                  </div>
+                  <div className="flex-1 space-y-2 overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold leading-none">Assistant</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex gap-1">
+                        <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
+                          ●
+                        </span>
+                        <span className="animate-bounce" style={{ animationDelay: "150ms" }}>
+                          ●
+                        </span>
+                        <span className="animate-bounce" style={{ animationDelay: "300ms" }}>
+                          ●
+                        </span>
+                      </div>
+                      <span>Generating response...</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
         <div ref={messagesEndRef} />

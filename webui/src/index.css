@@ -1,25 +1,75 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(0.1 0 0);
-  --color-foreground: oklch(0.98 0 0);
+  /* ========================================
+     BASE PALETTE - Core cyberpunk colors
+     ======================================== */
+
+  /* Deep black - used for backgrounds and dark surfaces */
+  --color-black: oklch(0.1 0 0);
+  /* Bright white - used for text and bright foreground */
+  --color-white: oklch(0.98 0 0);
+  
+  /* ========================================
+     CYAN - Primary brand color (bright neon cyan)
+     ======================================== */
+  --color-cyan: oklch(0.8524 0.1296 181.48);
+  --color-cyan-dark: oklch(0.1 0 0);
+  --color-cyan-soft: color-mix(in oklch, var(--color-cyan) 45%, transparent);
+  --color-cyan-glow: color-mix(in oklch, var(--color-cyan) 30%, transparent);
+
+  /* ========================================
+     YELLOW - Accent color (neon yellow/lime)
+     ======================================== */
+  --color-yellow: oklch(0.9062 0.1927 105.48);
+  --color-yellow-dark: oklch(0.1 0 0);
+
+  /* ========================================
+     RED - New cyberpunk accent (neon red)
+     ======================================== */
+  --color-red: oklch(0.5225 0.2091 16.74);
+  --color-red-dark: oklch(0.1 0 0);
+  --color-red-soft: color-mix(in oklch, var(--color-red) 45%, transparent);
+  --color-red-glow: color-mix(in oklch, var(--color-red) 35%, transparent);
+
+  /* ========================================
+     MUTED DARK - Secondary and muted colors
+     ======================================== */
+  --color-muted-dark: oklch(0.2 0.02 290);
+  --color-muted-text: oklch(0.65 0 0);
+
+  /* ========================================
+     SEMANTIC COLORS - Usage in the UI
+     ======================================== */
+  
+  /* Layout */
+  --color-background: var(--color-black);
+  --color-foreground: var(--color-white);
   --color-card: oklch(0.12 0 0);
-  --color-card-foreground: oklch(0.98 0 0);
+  --color-card-foreground: var(--color-white);
   --color-popover: oklch(0.12 0 0);
-  --color-popover-foreground: oklch(0.98 0 0);
-  --color-primary: oklch(0.9078 0.15 194.83);
-  --color-primary-foreground: oklch(0.1 0 0);
+  --color-popover-foreground: var(--color-white);
+  
+  /* Branding */
+  --color-primary: var(--color-cyan);
+  --color-primary-foreground: var(--color-black);
   --color-secondary: oklch(0.2 0.02 210);
-  --color-secondary-foreground: oklch(0.98 0 0);
-  --color-muted: oklch(0.2 0.02 290);
-  --color-muted-foreground: oklch(0.65 0 0);
-  --color-accent: oklch(0.9291 0.1991 106.93);
-  --color-accent-foreground: oklch(0.1 0 0);
+  --color-secondary-foreground: var(--color-white);
+  --color-accent: var(--color-yellow);
+  --color-accent-foreground: var(--color-black);
+  
+  /* States */
   --color-destructive: oklch(0.75 0.2 95);
-  --color-destructive-foreground: oklch(0.1 0 0);
+  --color-destructive-foreground: var(--color-black);
+  
+  /* UI Chrome */
+  --color-muted: var(--color-muted-dark);
+  --color-muted-foreground: var(--color-muted-text);
   --color-border: oklch(0.25 0 0);
   --color-input: oklch(0.2 0.02 210);
   --color-ring: oklch(0.7 0.2 210);
+  
+  /* Spacing and styling */
   --radius: 0.5rem;
 }
 
@@ -31,4 +81,15 @@ body {
   margin: 0;
   background-color: var(--color-background);
   color: var(--color-foreground);
+}
+
+.typing-area {
+   border-color: var(--color-red-soft);
+   box-shadow: 0 0 0 1px var(--color-red-soft);
+}
+
+.typing-area:focus,
+.typing-area:focus-visible {
+   border-color: var(--color-red);
+   box-shadow: 0 0 16px var(--color-red-glow);
 }

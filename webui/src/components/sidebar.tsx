@@ -48,11 +48,11 @@ export function Sidebar({
       {/* Sidebar */}
       <div
         className={`
-          fixed left-0 top-0 z-40 h-screen w-[280px] transform border-r border-border bg-muted/30 backdrop-blur-sm transition-transform duration-200 ease-in-out
+          fixed left-0 top-0 z-40 h-screen w-[280px] transform border-r-2 bg-muted/30 backdrop-blur-sm transition-transform duration-200 ease-in-out
           lg:relative lg:z-0
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-0 lg:border-0"}
         `}
-        style={{ maxWidth: '280px', overflow: 'hidden' }}
+        style={{ maxWidth: '280px', overflow: 'hidden', borderRightColor: 'var(--color-red-soft)' }}
       >
         <div className={`flex h-full flex-col overflow-hidden ${isOpen ? "" : "lg:hidden"}`} style={{ maxWidth: '280px' }}>
           {/* Header */}
@@ -136,7 +136,7 @@ export function Sidebar({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="group/delete h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (window.confirm(`Delete "${conversation.title}"?`)) {
@@ -144,7 +144,7 @@ export function Sidebar({
                               }
                             }}
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            <Trash2 className="h-4 w-4 text-muted-foreground group-hover/delete:text-[color:var(--color-red)]" />
                             <span className="sr-only">Delete conversation</span>
                           </Button>
                         </div>

@@ -251,7 +251,7 @@ export function ChatInput({
             onChange={(e) => handleInputChangeWithMentions(e.target.value)}
             onKeyDown={handleKeyDownWithMentions}
             placeholder="Type your message... (use @ to mention skills)"
-            className="min-h-[60px] resize-none pr-32 overflow-y-auto"
+            className="typing-area min-h-[60px] resize-none pr-32 overflow-y-auto"
             rows={1}
             disabled={isSending || !currentConversationId}
           />
