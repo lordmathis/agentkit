@@ -50,7 +50,7 @@ class Chatbot:
     def name(self) -> str:
         return f"{self.provider}/{self.model_id}"
 
-    async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
+    async def chat(self, messages: List[ChatCompletionMessageParam], additional_tool_servers: Optional[List[str]] = None) -> Dict[str, Any]:
         if self.system_prompt:
             if not messages or messages[0].get("role") != "system":
                 messages = [
@@ -59,8 +59,22 @@ class Chatbot:
                     )
                 ] + messages
 
+        # Merge configured tool servers with additional ones from skills
+        all_tool_servers = list(self.tool_servers)
+        if additional_tool_servers:
+            # Add tool servers that aren't already in the list
+            for server in additional_tool_servers:
+                if server not in all_tool_servers:
+                    # Check if the server is actually available
+                    available_servers = await self.tool_manager.list_tool_servers()
+                    if server in available_servers:
+                        all_tool_servers.append(server)
+                        logger.info(f"Auto-enabling tool server '{server}' required by skill")
+                    else:
+                        logger.warning(f"Tool server '{server}' required by skill but not available")
+
         api_tools = []
-        for tool_server in self.tool_servers:
+        for tool_server in all_tool_servers:
 
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:

@@ -82,34 +82,45 @@ class ChatService:
         mentions = re.findall(pattern, message)
         return mentions
     
-    def _build_skill_context(self, skill_names: List[str]) -> str:
-        """Build context text from mentioned skills.
+    def _build_skill_context(self, skill_names: List[str]) -> tuple[str, List[str]]:
+        """Build context text from mentioned skills and collect required tool servers.
         
         Args:
             skill_names: List of skill names to load
             
         Returns:
-            Formatted string with skill contents
+            Tuple of (formatted string with skill contents, list of required tool servers)
         """
         if not self.skill_registry or not skill_names:
-            return ""
+            return "", []
         
         skill_context_parts = []
+        required_tool_servers = []
+        
         for skill_name in skill_names:
-            content = self.skill_registry.get_skill_content(skill_name)
-            if content:
-                # Include the @mention in the context so LLM understands it
-                skill_context_parts.append(
-                    f"\n\n--- Skill @{skill_name} ---\n{content}"
-                )
-                logger.info(f"Loaded skill @{skill_name} for context")
+            skill = self.skill_registry.get_skill(skill_name)
+            if skill:
+                try:
+                    content = skill.read_content()
+                    # Include the @mention in the context so LLM understands it
+                    skill_context_parts.append(
+                        f"\n\n--- Skill @{skill_name} ---\n{content}"
+                    )
+                    logger.info(f"Loaded skill @{skill_name} for context")
+                    
+                    # Collect required tool servers
+                    tool_servers = skill.get_required_tool_servers()
+                    if tool_servers:
+                        required_tool_servers.extend(tool_servers)
+                        logger.info(f"Skill @{skill_name} requires tool servers: {tool_servers}")
+                except Exception as e:
+                    logger.error(f"Error loading skill @{skill_name}: {e}")
             else:
                 # Skill doesn't exist, just log it (treat as plain text)
                 logger.debug(f"Skill @{skill_name} not found, treating as plain text")
         
-        if skill_context_parts:
-            return "\n".join(skill_context_parts)
-        return ""
+        context_str = "\n".join(skill_context_parts) if skill_context_parts else ""
+        return context_str, required_tool_servers
 
     def _process_user_message(self, msg) -> ChatCompletionMessageParam:
         """Process user message and reconstruct content with attachments from disk."""
@@ -443,7 +454,7 @@ class ChatService:
         
         # Parse @mentions and load skill context
         mentioned_skills = self._parse_mentions(message)
-        skill_context = self._build_skill_context(mentioned_skills)
+        skill_context, required_tool_servers = self._build_skill_context(mentioned_skills)
         
         # Load history (will reconstruct messages with attachments from disk)
         history = self.db.get_chat_history(self.chat_id)
@@ -468,7 +479,7 @@ class ChatService:
                     "content": skill_context.strip()
                 })
         
-        response = await self.chatbot.chat(messages)
+        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
 
         logger.info(f"Chat response keys: {response.keys()}")
         logger.info(f"Chat response choices: {response.get('choices', 'NO CHOICES')}")
@@ -558,7 +569,7 @@ class ChatService:
         
         # Parse @mentions and load skill context
         mentioned_skills = self._parse_mentions(user_message_content)
-        skill_context = self._build_skill_context(mentioned_skills)
+        skill_context, required_tool_servers = self._build_skill_context(mentioned_skills)
         
         # Load updated history (without the last assistant response)
         history = self.db.get_chat_history(self.chat_id)
@@ -580,7 +591,7 @@ class ChatService:
                 })
         
         # Send to LLM
-        response = await self.chatbot.chat(messages)
+        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
         
         logger.info(f"Retry response keys: {response.keys()}")
         
@@ -661,7 +672,7 @@ class ChatService:
         
         # Parse @mentions and load skill context
         mentioned_skills = self._parse_mentions(new_message)
-        skill_context = self._build_skill_context(mentioned_skills)
+        skill_context, required_tool_servers = self._build_skill_context(mentioned_skills)
         
         # Convert to OpenAI format
         chat = self.db.get_chat(self.chat_id)
@@ -682,7 +693,7 @@ class ChatService:
                 })
         
         # Send to LLM
-        response = await self.chatbot.chat(messages)
+        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
         
         logger.info(f"Edit response keys: {response.keys()}")
         
