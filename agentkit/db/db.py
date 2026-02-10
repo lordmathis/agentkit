@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
-from agentkit.db.models import Base, Chat, FileAttachment, Message
+from agentkit.db.models import Base, Chat, FileAttachment, Message, PendingToolApproval
 
 
 class Database:
@@ -318,3 +318,145 @@ class Database:
             session.commit()
             session.refresh(new_chat)
             return new_chat
+    
+    # Tool Approval Methods
+    
+    def create_pending_approval(
+        self, 
+        chat_id: str, 
+        message_id: Optional[str], 
+        tool_name: str, 
+        arguments: str
+    ) -> str:
+        """Create a pending tool approval record. Returns approval_id."""
+        with self.SessionLocal() as session:
+            approval = PendingToolApproval(
+                id=str(uuid.uuid4()),
+                chat_id=chat_id,
+                message_id=message_id,
+                tool_name=tool_name,
+                arguments=arguments,
+                status="pending"
+            )
+            session.add(approval)
+            session.commit()
+            session.refresh(approval)
+            return approval.id
+    
+    def get_pending_approvals(self, chat_id: str) -> List[Dict]:
+        """Get all pending approvals for a chat"""
+        with self.SessionLocal() as session:
+            stmt = (
+                select(PendingToolApproval)
+                .where(
+                    PendingToolApproval.chat_id == chat_id,
+                    PendingToolApproval.status == "pending"
+                )
+                .order_by(PendingToolApproval.created_at)
+            )
+            result = session.execute(stmt)
+            approvals = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "chat_id": a.chat_id,
+                    "message_id": a.message_id,
+                    "tool_name": a.tool_name,
+                    "arguments": a.arguments,
+                    "status": a.status,
+                    "created_at": a.created_at
+                }
+                for a in approvals
+            ]
+    
+    def get_approval_by_id(self, approval_id: str) -> Optional[Dict]:
+        """Get a single approval record by ID"""
+        with self.SessionLocal() as session:
+            approval = session.get(PendingToolApproval, approval_id)
+            if not approval:
+                return None
+            return {
+                "id": approval.id,
+                "chat_id": approval.chat_id,
+                "message_id": approval.message_id,
+                "tool_name": approval.tool_name,
+                "arguments": approval.arguments,
+                "status": approval.status,
+                "created_at": approval.created_at
+            }
+    
+    def get_pending_approvals_for_message(self, message_id: str) -> List[Dict]:
+        """Get all pending approvals for a specific message"""
+        with self.SessionLocal() as session:
+            stmt = (
+                select(PendingToolApproval)
+                .where(
+                    PendingToolApproval.message_id == message_id,
+                    PendingToolApproval.status == "pending"
+                )
+                .order_by(PendingToolApproval.created_at)
+            )
+            result = session.execute(stmt)
+            approvals = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "chat_id": a.chat_id,
+                    "message_id": a.message_id,
+                    "tool_name": a.tool_name,
+                    "arguments": a.arguments,
+                    "status": a.status,
+                    "created_at": a.created_at
+                }
+                for a in approvals
+            ]
+    
+    def get_approved_tools_for_message(self, message_id: str) -> List[Dict]:
+        """Get all approved tools for a specific message"""
+        with self.SessionLocal() as session:
+            stmt = (
+                select(PendingToolApproval)
+                .where(
+                    PendingToolApproval.message_id == message_id,
+                    PendingToolApproval.status == "approved"
+                )
+                .order_by(PendingToolApproval.created_at)
+            )
+            result = session.execute(stmt)
+            approvals = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "chat_id": a.chat_id,
+                    "message_id": a.message_id,
+                    "tool_name": a.tool_name,
+                    "arguments": a.arguments,
+                    "status": a.status,
+                    "created_at": a.created_at
+                }
+                for a in approvals
+            ]
+    
+    def update_approval_status(self, approval_id: str, status: str):
+        """Update approval status to 'approved' or 'denied'"""
+        with self.SessionLocal() as session:
+            approval = session.get(PendingToolApproval, approval_id)
+            if approval:
+                approval.status = status
+                session.commit()
+    
+    def update_message_status(self, message_id: str, status: str):
+        """Update message status column"""
+        with self.SessionLocal() as session:
+            message = session.get(Message, message_id)
+            if message:
+                message.status = status
+                session.commit()
+    
+    def update_message_content(self, message_id: str, content: str):
+        """Update message content"""
+        with self.SessionLocal() as session:
+            message = session.get(Message, message_id)
+            if message:
+                message.content = content
+                session.commit()

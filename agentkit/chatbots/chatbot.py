@@ -49,6 +49,46 @@ class Chatbot:
 
     def name(self) -> str:
         return f"{self.provider}/{self.model_id}"
+    
+    def check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
+        """Check if any tool call requires user approval
+        
+        Args:
+            tool_calls: List of tool call objects from LLM response
+            
+        Returns:
+            True if any tool requires approval, False otherwise
+        """
+        for tool_call in tool_calls:
+            tool_name = tool_call.get("function", {}).get("name", "")
+            tool_def = self.tool_manager.get_tool_definition(tool_name)
+            if tool_def and tool_def.require_approval:
+                logger.info(f"Tool '{tool_name}' requires user approval")
+                return True
+        return False
+    
+    def serialize_tool_call(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert tool call object to dict for storage
+        
+        Args:
+            tool_call: Tool call object from LLM response
+            
+        Returns:
+            Serialized tool call with name and arguments
+        """
+        tool_args_str = tool_call.get("function", {}).get("arguments", "{}")
+        
+        # Handle both string and dict arguments
+        if isinstance(tool_args_str, str):
+            tool_args = json.loads(tool_args_str)
+        else:
+            tool_args = tool_args_str
+            
+        return {
+            "id": tool_call.get("id"),
+            "name": tool_call.get("function", {}).get("name", ""),
+            "arguments": tool_args
+        }
 
     async def chat(self, messages: List[ChatCompletionMessageParam], additional_tool_servers: Optional[List[str]] = None) -> Dict[str, Any]:
         if self.system_prompt:
@@ -115,6 +155,14 @@ class Chatbot:
                     response["tool_calls_used"] = all_tool_calls
                     logger.info(f"Tool calls tracked (success): {all_tool_calls}")
                 return response
+            
+            # NEW: Check for required approvals BEFORE execution
+            if self.check_tool_approvals_needed(message["tool_calls"]):
+                return {
+                    "pending_approval": True,
+                    "tool_calls": [self.serialize_tool_call(tc) for tc in message["tool_calls"]],
+                    "assistant_message": message  # Include full message for context
+                }
 
             # Add assistant message with tool calls
             messages.append(

@@ -519,3 +519,61 @@ async def remove_github_files_from_chat(request: Request, chat_id: str):
             status_code=500,
             detail=f"Failed to remove GitHub files: {str(e)}"
         )
+
+
+# Tool Approval Endpoints
+
+@router.get("/chats/{chat_id}/approvals")
+async def get_pending_approvals(request: Request, chat_id: str):
+    """Get all pending tool approvals for a chat"""
+    database = request.app.state.database
+    
+    approvals = database.get_pending_approvals(chat_id)
+    
+    return {
+        "approvals": [
+            {
+                "id": a["id"],
+                "tool_name": a["tool_name"],
+                "arguments": json.loads(a["arguments"]),
+                "created_at": a["created_at"].isoformat() if hasattr(a["created_at"], "isoformat") else a["created_at"]
+            }
+            for a in approvals
+        ]
+    }
+
+
+@router.post("/chats/{chat_id}/approvals/{approval_id}/approve")
+async def approve_tool(request: Request, chat_id: str, approval_id: str):
+    """Approve a pending tool call"""
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+        result = await chat_service.approve_tool(approval_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to approve tool: {str(e)}"
+        )
+
+
+@router.post("/chats/{chat_id}/approvals/{approval_id}/deny")
+async def deny_tool(request: Request, chat_id: str, approval_id: str):
+    """Deny a pending tool call"""
+    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    
+    try:
+        chat_service = chat_service_manager.get_service(chat_id)
+        result = await chat_service.deny_tool(approval_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to deny tool: {str(e)}"
+        )

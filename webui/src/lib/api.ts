@@ -133,6 +133,18 @@ export interface Skill {
   exists: boolean;
 }
 
+export interface PendingToolApproval {
+  id: string;
+  tool_name: string;
+  arguments: Record<string, any>;
+  created_at: string;
+}
+
+export interface ApprovalResponse {
+  status: string;
+  pending_count?: number;
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -347,6 +359,23 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  // Tool Approval endpoints
+  async getPendingApprovals(chatId: string): Promise<{ approvals: PendingToolApproval[] }> {
+    return this.request(`/chats/${chatId}/approvals`);
+  }
+
+  async approveTool(chatId: string, approvalId: string): Promise<ApprovalResponse> {
+    return this.request(`/chats/${chatId}/approvals/${approvalId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async denyTool(chatId: string, approvalId: string): Promise<ApprovalResponse> {
+    return this.request(`/chats/${chatId}/approvals/${approvalId}/deny`, {
+      method: 'POST',
+    });
   }
 }
 

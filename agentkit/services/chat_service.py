@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
+import json
 
 from pydantic import BaseModel
 
@@ -106,6 +107,32 @@ class ChatService:
         
         # Send to LLM
         response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
+        
+        # NEW: Handle pending approval
+        if response.get("pending_approval"):
+            # Save placeholder assistant message with pending status
+            saved_message = self.db.save_message(
+                self.chat_id, 
+                "assistant", 
+                "",  # Empty content, will be filled after approval
+                reasoning_content=None
+            )
+            self.db.update_message_status(saved_message.id, "awaiting_tool_approval")
+            
+            # Save each tool call as a pending approval
+            for tool_call in response["tool_calls"]:
+                self.db.create_pending_approval(
+                    self.chat_id,
+                    saved_message.id,
+                    tool_call["name"],
+                    json.dumps(tool_call["arguments"])
+                )
+            
+            return {
+                "status": "awaiting_tool_approval",
+                "message_id": saved_message.id,
+                "pending_approvals": response["tool_calls"]
+            }
         
         # Handle and save response
         response = self.response_handler.handle_llm_response(self.chat_id, response)
@@ -233,5 +260,116 @@ class ChatService:
         
         # Handle and save response
         response = self.response_handler.handle_llm_response(self.chat_id, response)
+        
+        return response
+    
+    # Tool Approval Methods
+    
+    async def approve_tool(self, approval_id: str) -> Dict[str, Any]:
+        """Approve a specific tool and check if ready to resume
+        
+        Args:
+            approval_id: The ID of the approval to approve
+            
+        Returns:
+            Dict with status and optionally pending_count or response
+        """
+        approval = self.db.get_approval_by_id(approval_id)
+        if not approval:
+            raise ValueError(f"Approval {approval_id} not found")
+        
+        self.db.update_approval_status(approval_id, "approved")
+        
+        # Check if all approvals for this message are resolved
+        pending = self.db.get_pending_approvals_for_message(approval["message_id"])
+        
+        if len(pending) > 0:
+            return {
+                "status": "more_approvals_needed", 
+                "pending_count": len(pending)
+            }
+        
+        # All approved - execute and continue
+        return await self._resume_with_approved_tools(approval["message_id"])
+
+    async def deny_tool(self, approval_id: str) -> Dict[str, Any]:
+        """Deny a tool and abort execution
+        
+        Args:
+            approval_id: The ID of the approval to deny
+            
+        Returns:
+            Dict with status="denied"
+        """
+        approval = self.db.get_approval_by_id(approval_id)
+        if not approval:
+            raise ValueError(f"Approval {approval_id} not found")
+        
+        self.db.update_approval_status(approval_id, "denied")
+        self.db.update_message_status(approval["message_id"], "tool_approval_denied")
+        
+        # Save error message to user
+        self.db.save_message(
+            self.chat_id,
+            "assistant",
+            f"I cannot proceed because the tool '{approval['tool_name']}' was not approved."
+        )
+        
+        return {"status": "denied"}
+
+    async def _resume_with_approved_tools(self, message_id: str) -> Dict[str, Any]:
+        """Execute all approved tools and get final LLM response
+        
+        Args:
+            message_id: The message ID that was awaiting approval
+            
+        Returns:
+            The final LLM response after tool execution
+        """
+        approvals = self.db.get_approved_tools_for_message(message_id)
+        
+        # Get chat history up to the message awaiting approval
+        history = self.db.get_chat_history(self.chat_id)
+        messages = self.message_processor.to_openai_format(history)
+        
+        # Execute each approved tool
+        tool_results = []
+        for approval in approvals:
+            try:
+                result = await self.chatbot.tool_manager.call_tool(
+                    approval["tool_name"],
+                    json.loads(approval["arguments"]),
+                    self.chatbot.provider,
+                    self.chatbot.model_id
+                )
+                tool_results.append({
+                    "tool_call_id": approval["id"],
+                    "name": approval["tool_name"],
+                    "content": str(result)
+                })
+            except Exception as e:
+                logger.error(f"Error executing approved tool {approval['tool_name']}: {e}")
+                tool_results.append({
+                    "tool_call_id": approval["id"],
+                    "name": approval["tool_name"],
+                    "content": f"Error: {str(e)}"
+                })
+        
+        # Add tool results to messages
+        for tool_result in tool_results:
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_result["tool_call_id"],
+                "content": tool_result["content"]
+            })
+        
+        # Continue conversation with tool results
+        response = await self.chatbot.chat(messages)
+        
+        # Update message with final response
+        if "choices" in response and len(response["choices"]) > 0:
+            assistant_content = response["choices"][0].get("message", {}).get("content", "")
+            self.db.update_message_content(message_id, assistant_content)
+            self.db.update_message_status(message_id, "completed")
         
         return response

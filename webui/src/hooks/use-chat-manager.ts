@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { type Message } from "../lib/api";
+import { type Message, type PendingToolApproval } from "../lib/api";
 import { type Conversation } from "../components/sidebar";
 import { type ChatSettings } from "../components/chat-settings-dialog";
 import { api } from "../lib/api";
@@ -31,6 +31,9 @@ export function useChatManager() {
     paths: string[];
     excludePaths: string[];
   }>({ repo: "", paths: [], excludePaths: [] });
+  const [pendingApproval, setPendingApproval] = useState<PendingToolApproval | null>(null);
+  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
+  const [shouldPollForApprovals, setShouldPollForApprovals] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -164,6 +167,33 @@ export function useChatManager() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
+
+  // Poll for pending approvals while chat is active
+  useEffect(() => {
+    if (!currentConversationId || !shouldPollForApprovals || pendingApproval) {
+      // Don't poll if no chat, not waiting for response, or already showing approval
+      return;
+    }
+
+    const checkApprovals = async () => {
+      try {
+        const { approvals } = await api.getPendingApprovals(currentConversationId);
+        if (approvals.length > 0) {
+          setPendingApproval(approvals[0]); // Show first pending
+          setShouldPollForApprovals(false); // Stop polling once we have an approval
+        }
+      } catch (error) {
+        console.error("Failed to check approvals:", error);
+      }
+    };
+
+    // Check immediately
+    checkApprovals();
+
+    // Then poll every second while waiting
+    const interval = setInterval(checkApprovals, 1000);
+    return () => clearInterval(interval);
+  }, [currentConversationId, shouldPollForApprovals, pendingApproval]);
 
   // Handle file upload
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -442,10 +472,16 @@ export function useChatManager() {
         };
         setMessages((prev) => [...prev, tempUserMessage]);
 
+        // Start polling for approvals
+        setShouldPollForApprovals(true);
+
         const response = await api.sendMessage(currentConversationId, {
           message: trimmedMessage,
           stream: false,
         });
+
+        // Stop polling - we got a response (message completed without approval)
+        setShouldPollForApprovals(false);
 
         const assistantContent = response.choices?.[0]?.message?.content || "No response";
 
@@ -493,6 +529,7 @@ export function useChatManager() {
       await refreshConversations();
     } catch (error) {
       console.error("Failed to send message:", error);
+        setShouldPollForApprovals(false); // Stop polling on error
       alert(`Failed to send message: ${error instanceof Error ? error.message : "Unknown error"}`);
 
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-user-")));
@@ -582,6 +619,76 @@ export function useChatManager() {
     }
   };
 
+  // Helper to refresh messages
+  const refreshMessages = async () => {
+    if (!currentConversationId) return;
+    try {
+      const chatData = await api.getChat(currentConversationId);
+      const formattedMessages: Message[] = chatData.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        reasoning_content: msg.reasoning_content,
+        tool_calls: msg.tool_calls,
+        sequence: msg.sequence,
+        created_at: msg.created_at,
+        files: msg.files,
+      }));
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error("Failed to refresh messages:", error);
+    }
+  };
+
+  // Handle tool approval
+  const handleApproveTool = async () => {
+    if (!pendingApproval || !currentConversationId) return;
+
+    try {
+      setIsProcessingApproval(true);
+      const result = await api.approveTool(currentConversationId, pendingApproval.id);
+
+      setPendingApproval(null);
+
+      // If more approvals needed, polling will catch them
+            if (result.status === "more_approvals_needed") {
+              setShouldPollForApprovals(true); // Resume polling for next approval
+            } else {
+              setShouldPollForApprovals(false); // All done, stop polling
+            }
+
+      // If execution complete, refresh messages
+      if (result.status !== "more_approvals_needed") {
+        await refreshMessages();
+      }
+    } catch (error) {
+      console.error("Failed to approve tool:", error);
+      alert(`Failed to approve: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessingApproval(false);
+    }
+  };
+
+  // Handle tool denial
+  const handleDenyTool = async () => {
+    if (!pendingApproval || !currentConversationId) return;
+
+    try {
+      setIsProcessingApproval(true);
+      await api.denyTool(currentConversationId, pendingApproval.id);
+
+      setPendingApproval(null);
+
+      // Refresh to show denial message
+      await refreshMessages();
+    } catch (error) {
+      console.error("Failed to deny tool:", error);
+      alert(`Failed to deny: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessingApproval(false);
+    }
+  };
+
   return {
     // State
     inputValue,
@@ -596,6 +703,8 @@ export function useChatManager() {
     isUploadingFiles,
     uploadedFiles,
     githubFiles,
+    pendingApproval,
+    isProcessingApproval,
 
     // Refs
     textareaRef,
@@ -620,5 +729,7 @@ export function useChatManager() {
     handleEditMessage,
     handleKeyDown,
     refreshConversations,
+    handleApproveTool,
+    handleDenyTool,
   };
 }

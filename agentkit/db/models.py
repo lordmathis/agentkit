@@ -32,6 +32,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text)
     reasoning_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tool_calls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array as string
+    status: Mapped[str] = mapped_column(String, default="completed")  # completed, awaiting_tool_approval, tool_approval_denied
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
     
     __table_args__ = (
@@ -53,3 +54,19 @@ class FileAttachment(Base):
     __table_args__ = (
         Index('idx_message_attachments', 'message_id'),
     )
+
+class PendingToolApproval(Base):
+    __tablename__ = "pending_tool_approvals"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    chat_id: Mapped[str] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"))
+    message_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    tool_name: Mapped[str] = mapped_column(String)
+    arguments: Mapped[str] = mapped_column(Text)  # JSON
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending, approved, denied
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
+    
+    __table_args__ = (
+        Index('idx_chat_approvals', 'chat_id'),
+        Index('idx_message_approvals', 'message_id'),
+    )
+

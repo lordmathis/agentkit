@@ -153,6 +153,27 @@ class ToolManager:
         """List all registered tool servers"""
         return list(self._server_map.keys())
     
+    def get_tool_definition(self, call_name: str):
+        """Get tool definition by full call name (e.g., 'server__tool')
+        
+        Returns:
+            ToolDefinition if found and handler is a ToolSetHandler, None otherwise
+        """
+        try:
+            server_name, tool_name = call_name.split("__", 1)
+        except ValueError:
+            logger.warning(f"Invalid tool name format: '{call_name}'. Expected 'server__tool'")
+            return None
+        
+        # Only ToolSetHandlers have tool definitions with require_approval
+        handler = self._toolset_handlers.get(server_name)
+        if handler is None:
+            return None
+        
+        # Access the _tools dictionary directly
+        tool_def = handler._tools.get(tool_name)
+        return tool_def
+    
     async def stop(self):
         """Cleanup all handlers"""
         logger.info("Starting ToolManager cleanup...")

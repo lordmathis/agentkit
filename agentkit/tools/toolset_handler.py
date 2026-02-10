@@ -19,6 +19,7 @@ class ToolDefinition(BaseModel):
     description: str
     parameters: Dict[str, Any]  # JSON Schema
     func: Callable
+    require_approval: bool = False  # NEW: Whether tool requires user approval
 
     class Config:
         arbitrary_types_allowed = True
@@ -66,7 +67,8 @@ class ToolSetHandler(ABC):
                 name=tool_def.name,
                 description=tool_def.description,
                 parameters=tool_def.parameters,
-                func=method
+                func=method,
+                require_approval=tool_def.require_approval
             )
             self._tools[tool_def.name] = bound_tool_def
             logger.info(f"Registered tool '{tool_def.name}' in toolset '{self.server_name}'")
@@ -108,19 +110,21 @@ class ToolSetHandler(ABC):
         return result
 
 
-def tool(description: str, parameters: Dict[str, Any]):
+def tool(description: str, parameters: Dict[str, Any], require_approval: bool = False):
     """Decorator to mark a method as a tool
     
     Args:
         description: Description of what the tool does
         parameters: JSON Schema for parameters (auto-generated from type hints if not provided)
+        require_approval: Whether the tool requires user approval before execution (default: False)
     """
     def decorator(func: Callable) -> Callable:
         func._tool_definition = ToolDefinition(
             name=func.__name__,
             description=description,
             parameters=parameters,
-            func=func
+            func=func,
+            require_approval=require_approval
         )
         
         return func
