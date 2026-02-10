@@ -30,10 +30,10 @@ class ChatNaming:
 
     async def auto_name_chat(self, history) -> Optional[str]:
         """Generate a chat title based on conversation history.
-        
+
         Args:
             history: List of message objects from the database
-            
+
         Returns:
             Generated title string, or None if generation fails
         """
@@ -55,7 +55,7 @@ class ChatNaming:
                         content_str = str(content)
                 except (json.JSONDecodeError, TypeError):
                     content_str = msg.content
-                
+
                 conversation_text += f"{msg.role.capitalize()}: {content_str}\n"
 
         # Generate title using the chatbot
@@ -74,16 +74,18 @@ class ChatNaming:
             model=self.chatbot.model_id,
             messages=naming_messages,
             tools=None,
-            temperature=0.2,
-            max_tokens=32,
+            temperature=0.2
         )
+
         if "error" in response:
+            logger.error(f"Failed to generate chat title: {response.get('error')}")
             return None
 
         choices = response.get("choices", [])
         if choices:
             title = choices[0].get("message", {}).get("content", "").strip()
             if title:
+                logger.info(f"Generated chat title: '{title}'")
                 return title
 
         return None
