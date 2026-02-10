@@ -70,7 +70,13 @@ class ChatNaming:
             }
         ]
 
-        response = await self.chatbot.chat(naming_messages)
+        response = await self.chatbot.llm_client.chat_completion(
+            model=self.chatbot.model_id,
+            messages=naming_messages,
+            tools=None,
+            temperature=0.2,
+            max_tokens=32,
+        )
         if "error" in response:
             return None
 

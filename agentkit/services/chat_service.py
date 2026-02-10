@@ -371,5 +371,13 @@ class ChatService:
             assistant_content = response["choices"][0].get("message", {}).get("content", "")
             self.db.update_message_content(message_id, assistant_content)
             self.db.update_message_status(message_id, "completed")
+
+        # Auto-name chat after tool-approved response
+        chat = self.db.get_chat(self.chat_id)
+        if chat and chat.title in (None, "", "Untitled Chat"):
+            updated_history = self.db.get_chat_history(self.chat_id)
+            new_title = await self.chat_naming.auto_name_chat(updated_history)
+            if new_title:
+                self.db.update_chat(self.chat_id, title=new_title)
         
         return response
