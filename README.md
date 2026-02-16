@@ -52,9 +52,19 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
 ### Running with Docker
 
 1. **Build the Docker image:**
-   ```bash
-   docker build -t agentkit .
-   ```
+    ```bash
+    docker build -t agentkit .
+    ```
+
+   For multi-platform builds (amd64 and arm64):
+    ```bash
+    docker buildx build --platform linux/amd64,linux/arm64 -t agentkit --load .
+    ```
+
+   For arm64 only:
+    ```bash
+    docker buildx build --platform linux/arm64 -t agentkit --load .
+    ```
 
 2. **Run the container:**
 
