@@ -53,6 +53,22 @@ class ChatService:
         self.skill_context_builder = SkillContextBuilder(skill_registry)
         self.chat_naming = ChatNaming(chatbot)
 
+    def _activate_skill_tool_servers(self, required_servers: List[str]) -> None:
+        """Add skill-required tool servers to the chatbot, persisting them like a settings change.
+
+        Once activated, the servers live in self.chatbot.tool_servers and the DB,
+        so they are available for all future messages without re-scanning history.
+        """
+        new_servers = [s for s in required_servers if s not in self.chatbot.tool_servers]
+        if not new_servers:
+            return
+        self.chatbot.tool_servers = self.chatbot.tool_servers + new_servers
+        self.db.update_chat(
+            self.chat_id,
+            tool_servers=json.dumps(self.chatbot.tool_servers),
+        )
+        logger.info(f"Activated skill tool servers for chat {self.chat_id}: {new_servers}")
+
     # Delegate file operations to FileHandler
     async def handle_file_upload(self, file_path: str, content_type: str) -> None:
         """Handle a file upload by storing it in the pending context."""
@@ -96,19 +112,22 @@ class ChatService:
         # Parse @mentions and load skill context
         mentioned_skills = self.skill_context_builder.parse_mentions(message)
         skill_context, required_tool_servers = self.skill_context_builder.build_skill_context(mentioned_skills)
-        
+
+        # Persist any new skill-required tool servers exactly like a settings change
+        if required_tool_servers:
+            self._activate_skill_tool_servers(required_tool_servers)
+
         # Load history and convert to OpenAI format
         history = self.db.get_chat_history(self.chat_id)
         chat = self.db.get_chat(self.chat_id)
         messages = self.message_processor.to_openai_format(history)
-        
+
         # Apply skill context to messages
         messages = self.skill_context_builder.apply_skill_context_to_messages(messages, skill_context)
+
+        # Send to LLM (skill tool servers are already in self.chatbot.tool_servers)
+        response = await self.chatbot.chat(messages)
         
-        # Send to LLM
-        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
-        
-        # NEW: Handle pending approval
         if response.get("pending_approval"):
             # Save placeholder assistant message with pending status
             saved_message = self.db.save_message(
@@ -188,20 +207,24 @@ class ChatService:
         # Parse @mentions and load skill context
         mentioned_skills = self.skill_context_builder.parse_mentions(user_message_content)
         skill_context, required_tool_servers = self.skill_context_builder.build_skill_context(mentioned_skills)
-        
+
+        # Persist any new skill-required tool servers exactly like a settings change
+        if required_tool_servers:
+            self._activate_skill_tool_servers(required_tool_servers)
+
         # Load updated history and convert to OpenAI format
         history = self.db.get_chat_history(self.chat_id)
         messages = self.message_processor.to_openai_format(history)
-        
+
         # Apply skill context to messages
         messages = self.skill_context_builder.apply_skill_context_to_messages(messages, skill_context)
-        
-        # Send to LLM
-        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
-        
+
+        # Send to LLM (skill tool servers are already in self.chatbot.tool_servers)
+        response = await self.chatbot.chat(messages)
+
         # Handle and save response
         response = self.response_handler.handle_llm_response(self.chat_id, response)
-        
+
         return response
 
     async def edit_last_user_message(self, new_message: str) -> Dict[str, Any]:
@@ -247,16 +270,20 @@ class ChatService:
         # Parse @mentions and load skill context
         mentioned_skills = self.skill_context_builder.parse_mentions(new_message)
         skill_context, required_tool_servers = self.skill_context_builder.build_skill_context(mentioned_skills)
-        
+
+        # Persist any new skill-required tool servers exactly like a settings change
+        if required_tool_servers:
+            self._activate_skill_tool_servers(required_tool_servers)
+
         # Get updated history and convert to OpenAI format
         history = self.db.get_chat_history(self.chat_id)
         messages = self.message_processor.to_openai_format(history)
-        
+
         # Apply skill context to messages
         messages = self.skill_context_builder.apply_skill_context_to_messages(messages, skill_context)
-        
-        # Send to LLM
-        response = await self.chatbot.chat(messages, additional_tool_servers=required_tool_servers)
+
+        # Send to LLM (skill tool servers are already in self.chatbot.tool_servers)
+        response = await self.chatbot.chat(messages)
         
         # Handle and save response
         response = self.response_handler.handle_llm_response(self.chat_id, response)
