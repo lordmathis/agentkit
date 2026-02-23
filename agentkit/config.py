@@ -68,6 +68,12 @@ class TranscriptionConfig(BaseModel):
     base_url: Optional[str] = None
     api_key: Optional[str] = None
 
+class LoggingConfig(BaseModel):
+    target: str = "agentkit.log"  # file path, or "stdout"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    date_format: str = "%Y-%m-%d %H:%M:%S"
+    level: str = "INFO"
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
@@ -80,6 +86,7 @@ class AppConfig(BaseModel):
     mcp_timeout: int = 60
     github_token: Optional[str] = None
     transcription: TranscriptionConfig = TranscriptionConfig()
+    logging: LoggingConfig = LoggingConfig()
 
 def load_config(path: str) -> AppConfig:
     with open(path, 'r') as f:

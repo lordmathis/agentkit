@@ -28,3 +28,6 @@ uploads/
 
 # Plugins
 plugins/
+
+# Logs
+*.log
