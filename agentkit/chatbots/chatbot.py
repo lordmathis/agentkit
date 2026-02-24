@@ -47,9 +47,6 @@ class Chatbot:
 
         self.llm_client = provider.get_llm_client()
 
-    def name(self) -> str:
-        return f"{self.provider}/{self.model_id}"
-    
     def check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
         """Check if any tool call requires user approval
         

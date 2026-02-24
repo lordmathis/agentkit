@@ -63,7 +63,7 @@ class ChatbotRegistry:
                         continue
                     
                     # Register the class itself, not an instance
-                    chatbot_name = name.lower()
+                    chatbot_name = obj.name if obj.name else name.lower()
                     self._chatbot_classes[chatbot_name] = obj
                     logger.info(f"Registered chatbot class: {chatbot_name} from {file_path.name}")
             except Exception as e:
@@ -81,3 +81,10 @@ class ChatbotRegistry:
     def list_chatbots(self) -> list[str]:
         """List all registered chatbot names."""
         return list(self._chatbot_classes.keys())
+
+    def get_default_chatbot_name(self) -> Optional[str]:
+        """Return the name of the first registered chatbot class with default=True."""
+        for name, cls in self._chatbot_classes.items():
+            if getattr(cls, 'default', False):
+                return name
+        return None

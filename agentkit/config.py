@@ -54,15 +54,6 @@ class PluginConfig(BaseModel):
     tools_dir: str = "tools"
     skills_dir: str = "skills"
 
-class DefaultChatConfig(BaseModel):
-    provider_id: Optional[str] = None
-    model_id: Optional[str] = None
-    system_prompt: Optional[str] = None
-    tool_servers: Optional[List[str]] = None
-    max_iterations: Optional[int] = 5
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-
 class TranscriptionConfig(BaseModel):
     model: str = "whisper-1"
     base_url: Optional[str] = None
@@ -79,7 +70,6 @@ class AppConfig(BaseModel):
     providers: Dict[str, ProviderConfig] = {}
     mcps: Dict[str, MCPConfig] = {}
     plugins: PluginConfig = PluginConfig()
-    default_chat: DefaultChatConfig = DefaultChatConfig()
     history_db_path: str = "agentkit.db"
     uploads_dir: str = "uploads"
     data_dir: str = "data"

@@ -103,26 +103,24 @@ async def list_chatbots(request: Request):
 @router.get("/config/default-chat")
 async def get_default_chat_config(request: Request):
     """
-    Get default chat configuration from the app config.
+    Get the default chatbot plugin (the one with default=True).
     """
-    app_config = request.app.state.app_config
-    default_chat = app_config.default_chat
+    chatbot_registry = request.app.state.model_registry
+    default_name = chatbot_registry.get_default_chatbot_name()
+    if default_name is None:
+        return {"model": None}
 
-    # Build the full model identifier if both provider and model are specified
-    model = None
-    if default_chat.provider_id and default_chat.model_id:
-        model = f"{default_chat.provider_id}:{default_chat.model_id}"
-    elif default_chat.model_id:
-        model = default_chat.model_id
+    chatbot_cls = chatbot_registry.get_chatbot_class(default_name)
+    chatbot = chatbot_cls(chatbot_registry.provider_registry, chatbot_registry.tool_manager)
 
     return {
-        "model": model,
-        "system_prompt": default_chat.system_prompt,
-        "tool_servers": default_chat.tool_servers or [],
+        "model": default_name,
+        "system_prompt": chatbot.system_prompt,
+        "tool_servers": chatbot.tool_servers,
         "model_params": {
-            "max_iterations": default_chat.max_iterations,
-            "temperature": default_chat.temperature,
-            "max_tokens": default_chat.max_tokens,
+            "max_iterations": chatbot.max_iterations,
+            "temperature": chatbot.temperature,
+            "max_tokens": chatbot.max_tokens,
         }
     }
 
