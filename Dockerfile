@@ -31,4 +31,4 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
 # Run the application
-CMD ["uv", "run", "python", "-m", "agentkit.main"]
+CMD ["uv", "run", "python", "-m", "agentkit.main", "--watch"]
