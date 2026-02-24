@@ -1,95 +1,25 @@
 import json
 import logging
+from abc import ABC
 from typing import Any, Dict, List, Optional
 
-from openai.types.chat import (ChatCompletionDeveloperMessageParam,
-                               ChatCompletionMessageParam)
+from openai.types.chat import ChatCompletionMessageParam
 
-from agentkit.providers.client_base import LLMClient
+from agentkit.chatbots.base import BaseAgent
 from agentkit.providers.provider import Provider
+from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
-class Chatbot:
-    """Base model for OpenAI-compatible chat with agent tool calling."""
 
-    system_prompt: str = ""
-
-    provider: Provider
-    model_id: str = ""
-
-    max_iterations: int = 5
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-
-    llm_client: LLMClient
-
-    def __init__(
-        self,
-        provider: Provider,
-        tool_manager: ToolManager,
-        model_id: str = "",
-        system_prompt: str = "",
-        tool_servers: List[str] = [],
-        max_iterations: Optional[int] = 5,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-    ):
-        self.system_prompt = system_prompt
-        self.provider = provider
-        self.model_id = model_id
-        self.tool_manager = tool_manager
-        self.tool_servers = tool_servers
-        self.max_iterations = max_iterations or 5
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-
-        self.llm_client = provider.get_llm_client()
-
-    def _check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
-        """Check if any tool call requires user approval
-        
-        Args:
-            tool_calls: List of tool call objects from LLM response
-            
-        Returns:
-            True if any tool requires approval, False otherwise
-        """
-        for tool_call in tool_calls:
-            tool_name = tool_call.get("function", {}).get("name", "")
-            tool_def = self.tool_manager.get_tool_definition(tool_name)
-            if tool_def and tool_def.require_approval:
-                logger.info(f"Tool '{tool_name}' requires user approval")
-                return True
-        return False
-    
-    def _serialize_tool_call(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert tool call object to dict for storage
-        
-        Args:
-            tool_call: Tool call object from LLM response
-            
-        Returns:
-            Serialized tool call with name and arguments
-        """
-        tool_args_str = tool_call.get("function", {}).get("arguments", "{}")
-        
-        # Handle both string and dict arguments
-        if isinstance(tool_args_str, str):
-            tool_args = json.loads(tool_args_str)
-        else:
-            tool_args = tool_args_str
-            
-        return {
-            "id": tool_call.get("id"),
-            "name": tool_call.get("function", {}).get("name", ""),
-            "arguments": tool_args
-        }
+class ReActAgent(BaseAgent):
+    """ReAct agent: iterative think → act → observe loop."""
 
     async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         if self.system_prompt:
             if not messages or messages[0].get("role") != "system":
+                from openai.types.chat import ChatCompletionDeveloperMessageParam
                 messages = [
                     ChatCompletionDeveloperMessageParam(
                         content=self.system_prompt, role="developer"
@@ -104,7 +34,7 @@ class Chatbot:
                     parameters = tool.parameters
                 else:
                     parameters = {}
-                
+
                 api_tools.append(
                     {
                         "type": "function",
@@ -116,11 +46,9 @@ class Chatbot:
                     }
                 )
 
-        # Track all tool calls made during the conversation
         all_tool_calls = []
 
         for _ in range(self.max_iterations):
-            # Call API using the LLM client abstraction
             response = await self.llm_client.chat_completion(
                 model=self.model_id,
                 messages=messages,
@@ -128,25 +56,22 @@ class Chatbot:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
-            
+
             message = response["choices"][0]["message"]
 
             if not message.get("tool_calls") or len(message.get("tool_calls", [])) == 0:
-                # Add tool calls metadata to the response if any were made
                 if all_tool_calls:
                     response["tool_calls_used"] = all_tool_calls
                     logger.info(f"Tool calls tracked (success): {all_tool_calls}")
                 return response
-            
-            # NEW: Check for required approvals BEFORE execution
+
             if self._check_tool_approvals_needed(message["tool_calls"]):
                 return {
                     "pending_approval": True,
                     "tool_calls": [self._serialize_tool_call(tc) for tc in message["tool_calls"]],
-                    "assistant_message": message  # Include full message for context
+                    "assistant_message": message,
                 }
 
-            # Add assistant message with tool calls
             messages.append(
                 {
                     "role": "assistant",
@@ -155,12 +80,10 @@ class Chatbot:
                 }
             )
 
-            # Execute tool calls (run agents)
             for tool_call in message["tool_calls"]:
                 tool_name = tool_call["function"]["name"]
                 tool_args_str = tool_call["function"]["arguments"]
-                
-                # Handle both string and dict arguments
+
                 if isinstance(tool_args_str, str):
                     tool_args = json.loads(tool_args_str)
                 else:
@@ -168,15 +91,13 @@ class Chatbot:
 
                 logger.debug(f"Calling tool: {tool_name}")
 
-                # Record tool call
                 all_tool_calls.append({
                     "name": tool_name,
-                    "arguments": tool_args
+                    "arguments": tool_args,
                 })
 
                 result = await self.tool_manager.call_tool(tool_name, tool_args, self.provider, self.model_id)
 
-                # Add tool result
                 messages.append(
                     {
                         "role": "tool",
@@ -185,7 +106,6 @@ class Chatbot:
                     }
                 )
 
-        # Max iterations reached, add tool calls metadata and return error
         result = {
             "error": "Max iterations reached without final response",
             "messages": messages,
@@ -194,3 +114,41 @@ class Chatbot:
             result["tool_calls_used"] = all_tool_calls
             logger.info(f"Tool calls tracked: {all_tool_calls}")
         return result
+
+
+class ReActAgentPlugin(ReActAgent, ABC):
+    """
+    Base class for ReAct agent plugins.
+
+    Override class attributes to configure the agent:
+
+        class MyChatbot(ReActAgentPlugin):
+            default = True
+            provider_id = "llamactl"
+            model_id = "my-model"
+            system_prompt = "You are a helpful assistant."
+            tool_servers = ["time"]
+    """
+
+    default: bool = False
+    name: str = ""
+
+    provider_id: str = ""
+    model_id: str = ""
+    system_prompt: str = ""
+    tool_servers: List[str] = []
+    max_iterations: int = 5
+    temperature: Optional[float] = None
+    max_tokens: Optional[float] = None
+
+    def __init__(self, provider_registry: ProviderRegistry, tool_manager: ToolManager):
+        super().__init__(
+            provider=provider_registry.get_provider(self.provider_id),
+            tool_manager=tool_manager,
+            model_id=self.model_id,
+            system_prompt=self.system_prompt,
+            tool_servers=self.tool_servers,
+            max_iterations=self.max_iterations,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )

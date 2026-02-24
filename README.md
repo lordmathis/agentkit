@@ -171,21 +171,6 @@ plugins:
   skills_dir: "skills"  # Directory for skill plugins
 ```
 
-### Default Chat Configuration
-
-Configure default settings for new chats:
-
-```yaml
-default_chat:
-  provider_id: "openrouter"
-  model_id: "anthropic/claude-3.5-sonnet"
-  system_prompt: "You are a helpful AI assistant."
-  tool_servers: ["web_tools", "time"]  # Default tools available
-  max_iterations: 5
-  temperature: 0.7
-  max_tokens: 4000
-```
-
 ### Transcription Configuration
 
 Configure audio transcription service (optional):
