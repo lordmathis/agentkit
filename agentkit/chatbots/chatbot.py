@@ -47,7 +47,7 @@ class Chatbot:
 
         self.llm_client = provider.get_llm_client()
 
-    def check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
+    def _check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
         """Check if any tool call requires user approval
         
         Args:
@@ -64,7 +64,7 @@ class Chatbot:
                 return True
         return False
     
-    def serialize_tool_call(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_tool_call(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
         """Convert tool call object to dict for storage
         
         Args:
@@ -87,7 +87,7 @@ class Chatbot:
             "arguments": tool_args
         }
 
-    async def chat(self, messages: List[ChatCompletionMessageParam], additional_tool_servers: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         if self.system_prompt:
             if not messages or messages[0].get("role") != "system":
                 messages = [
@@ -96,23 +96,8 @@ class Chatbot:
                     )
                 ] + messages
 
-        # Merge configured tool servers with additional ones from skills
-        all_tool_servers = list(self.tool_servers)
-        if additional_tool_servers:
-            # Add tool servers that aren't already in the list
-            for server in additional_tool_servers:
-                if server not in all_tool_servers:
-                    # Check if the server is actually available
-                    available_servers = await self.tool_manager.list_tool_servers()
-                    if server in available_servers:
-                        all_tool_servers.append(server)
-                        logger.info(f"Auto-enabling tool server '{server}' required by skill")
-                    else:
-                        logger.warning(f"Tool server '{server}' required by skill but not available")
-
         api_tools = []
-        for tool_server in all_tool_servers:
-
+        for tool_server in self.tool_servers:
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:
                 if hasattr(tool, 'parameters'):
@@ -154,10 +139,10 @@ class Chatbot:
                 return response
             
             # NEW: Check for required approvals BEFORE execution
-            if self.check_tool_approvals_needed(message["tool_calls"]):
+            if self._check_tool_approvals_needed(message["tool_calls"]):
                 return {
                     "pending_approval": True,
-                    "tool_calls": [self.serialize_tool_call(tc) for tc in message["tool_calls"]],
+                    "tool_calls": [self._serialize_tool_call(tc) for tc in message["tool_calls"]],
                     "assistant_message": message  # Include full message for context
                 }
 
