@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from agentkit.chatbots.chatbot import Chatbot
+from agentkit.chatbots.base import BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ CHAT_NAMING_USER_PROMPT = """Generate a 3-5 word title for this conversation:
 class ChatNaming:
     """Automatically generates descriptive chat titles from conversation history."""
 
-    def __init__(self, chatbot: Chatbot):
+    def __init__(self, chatbot: BaseAgent):
         self.chatbot = chatbot
 
     async def auto_name_chat(self, history) -> Optional[str]:

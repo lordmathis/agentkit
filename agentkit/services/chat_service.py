@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel
 
-from agentkit.chatbots.chatbot import Chatbot
+from agentkit.chatbots.base import BaseAgent
 from agentkit.db.db import Database
 from agentkit.github.client import GitHubClient
 from agentkit.services.chat_naming import ChatNaming
@@ -38,7 +38,7 @@ class ChatService:
         self,
         chat_id: str,
         db: Database,
-        chatbot: Chatbot,
+        chatbot: BaseAgent,
         github_client: Optional[GitHubClient] = None,
         skill_registry: Optional[SkillRegistry] = None,
     ):

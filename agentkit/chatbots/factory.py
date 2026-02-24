@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from agentkit.chatbots.chatbot import Chatbot
+from agentkit.chatbots.base import BaseAgent
+from agentkit.chatbots.react import ReActAgent
 from agentkit.chatbots.registry import ChatbotRegistry
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
@@ -20,7 +21,7 @@ class ChatbotFactory:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         max_iterations: Optional[int] = None,
-    ) -> Chatbot:
+    ) -> BaseAgent:
         """
         Create chatbot from model string.
 
@@ -52,7 +53,7 @@ class ChatbotFactory:
                 raise ValueError(f"Provider '{provider_name}' not found")
 
             # Create a new chatbot instance with provider config
-            return Chatbot(
+            return ReActAgent(
                 provider=provider,
                 tool_manager=tool_manager,
                 system_prompt=system_prompt or "",
