@@ -19,12 +19,7 @@ class ReActAgent(BaseAgent):
     async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
         if self.system_prompt:
             if not messages or messages[0].get("role") != "system":
-                from openai.types.chat import ChatCompletionDeveloperMessageParam
-                messages = [
-                    ChatCompletionDeveloperMessageParam(
-                        content=self.system_prompt, role="developer"
-                    )
-                ] + messages
+                messages = [{"role": "system", "content": self.system_prompt}] + messages
 
         api_tools = []
         for tool_server in self.tool_servers:
