@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from agentkit.chatbots.base import BaseAgent
 from agentkit.db.db import Database
+from agentkit.db.models import Message as DBMessage
 from agentkit.github.client import GitHubClient
 from agentkit.services.chat_naming import ChatNaming
 from agentkit.services.message_processor import MessageProcessor
@@ -54,8 +55,7 @@ class ChatService:
         self.chat_naming = ChatNaming(chatbot)
 
     def _activate_skill_tool_servers(self, required_servers: List[str]) -> None:
-        """Add skill-required tool servers to the chatbot, persisting them like a settings change.
-        """
+        """Add skill-required tool servers to the chatbot, persisting them like a settings change."""
         new_servers = [
             s for s in required_servers if s not in self.chatbot.tool_servers
         ]
@@ -69,6 +69,24 @@ class ChatService:
         logger.info(
             f"Activated skill tool servers for chat {self.chat_id}: {new_servers}"
         )
+
+    def _get_last_message_by_role(self, role: str) -> DBMessage:
+        """Get the last message with the given role from history.
+
+        Args:
+            role: The role to search for ('user' or 'assistant')
+
+        Returns:
+            The most recent message with the given role
+
+        Raises:
+            ValueError: If no message with the given role is found
+        """
+        history = self.db.get_chat_history(self.chat_id)
+        for msg in reversed(history):
+            if msg.role == role:
+                return msg
+        raise ValueError(f"No {role} message found")
 
     async def _process_and_respond(self, message_for_mentions: str) -> Dict[str, Any]:
         """Process mentions and respond via LLM.
@@ -148,24 +166,10 @@ class ChatService:
         Raises:
             ValueError: If there's no last assistant message to retry
         """
-        last_assistant_message = self.db.get_last_assistant_message(self.chat_id)
-        if not last_assistant_message:
-            raise ValueError("No assistant message to retry")
-
+        last_assistant_message = self._get_last_message_by_role("assistant")
         self.db.delete_message(last_assistant_message.id)
 
-        history = self.db.get_chat_history(self.chat_id)
-        if not history:
-            raise ValueError("No message history found")
-
-        last_user_message = None
-        for msg in reversed(history):
-            if msg.role == "user":
-                last_user_message = msg
-                break
-
-        if not last_user_message:
-            raise ValueError("No user message found to retry with")
+        last_user_message = self._get_last_message_by_role("user")
 
         return await self._process_and_respond(last_user_message.content)
 
@@ -181,26 +185,17 @@ class ChatService:
         Raises:
             ValueError: If there's no last user message to edit
         """
-        history = self.db.get_chat_history(self.chat_id)
-        if not history:
-            raise ValueError("No message history found")
-
-        last_user_message = None
-        for msg in reversed(history):
-            if msg.role == "user":
-                last_user_message = msg
-                break
-
-        if not last_user_message:
-            raise ValueError("No user message found to edit")
+        last_user_message = self._get_last_message_by_role("user")
 
         file_ids_str = getattr(last_user_message, "file_ids", None)
 
         self.db.delete_message(last_user_message.id)
 
-        last_assistant_message = self.db.get_last_assistant_message(self.chat_id)
-        if last_assistant_message:
+        try:
+            last_assistant_message = self._get_last_message_by_role("assistant")
             self.db.delete_message(last_assistant_message.id)
+        except ValueError:
+            pass
 
         self.db.save_message(self.chat_id, "user", new_message, file_ids=file_ids_str)
 
