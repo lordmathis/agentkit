@@ -44,27 +44,6 @@ class BaseAgent(ABC):
         self.max_tokens = max_tokens
         self.llm_client = provider.get_llm_client()
 
-    def _check_tool_approvals_needed(self, tool_calls: List[Dict[str, Any]]) -> bool:
-        for tool_call in tool_calls:
-            tool_name = tool_call.get("function", {}).get("name", "")
-            tool_def = self.tool_manager.get_tool_definition(tool_name)
-            if tool_def and tool_def.require_approval:
-                logger.info(f"Tool '{tool_name}' requires user approval")
-                return True
-        return False
-
-    def _serialize_tool_call(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
-        tool_args_str = tool_call.get("function", {}).get("arguments", "{}")
-        if isinstance(tool_args_str, str):
-            tool_args = json.loads(tool_args_str)
-        else:
-            tool_args = tool_args_str
-        return {
-            "id": tool_call.get("id"),
-            "name": tool_call.get("function", {}).get("name", ""),
-            "arguments": tool_args,
-        }
-
     @abstractmethod
     async def chat(
         self,
