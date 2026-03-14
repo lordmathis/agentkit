@@ -22,7 +22,6 @@ from agentkit.tools.manager import ToolManager
 logger = logging.getLogger(__name__)
 
 
-
 async def _orphan_file_cleanup_task(app: FastAPI):
     """Background task to clean up orphan files"""
     logger.info("Starting orphan file cleanup task")
@@ -31,41 +30,42 @@ async def _orphan_file_cleanup_task(app: FastAPI):
             try:
                 db: Database = app.state.database
                 app_config: AppConfig = app.state.app_config
-                
-                retention_hours = getattr(app_config, 'file_retention_hours', 24)
+
+                retention_hours = getattr(app_config, "file_retention_hours", 24)
                 cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)
-                
+
                 # We need a query to get pending files older than cutoff
                 from sqlalchemy import select
                 from agentkit.db.models import File
-                
+
                 with db.SessionLocal() as session:
                     stmt = select(File).where(
-                        File.status == "pending",
-                        File.created_at < cutoff_time
+                        File.status == "pending", File.created_at < cutoff_time
                     )
                     orphans = session.execute(stmt).scalars().all()
-                    
+
                     if orphans:
                         logger.info(f"Cleaning up {len(orphans)} orphan files")
                         for orphan in orphans:
                             try:
                                 import shutil
+
                                 upload_dir = os.path.join("uploads", orphan.id)
                                 if os.path.exists(upload_dir):
                                     shutil.rmtree(upload_dir, ignore_errors=True)
                                 session.delete(orphan)
                             except Exception as e:
                                 logger.error(f"Error cleaning up file {orphan.id}: {e}")
-                        
+
                         session.commit()
             except Exception as e:
                 logger.error(f"Error in orphan cleanup task: {e}")
-            
+
             # Sleep for an hour before checking again
             await asyncio.sleep(3600)
     except asyncio.CancelledError:
         logger.info("Orphan cleanup task cancelled")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -90,6 +90,7 @@ async def lifespan(app: FastAPI):
             app_config.data_dir,
             app_config.plugins.tools_dir,
             app_config.mcps,
+            database,
             app_config.mcp_timeout,
         )
         await tool_manager.start()
@@ -103,9 +104,7 @@ async def lifespan(app: FastAPI):
     # Initialize model registry
     logger.info("Initializing chatbot registry...")
     model_registry = ChatbotRegistry(
-        provider_registry, 
-        tool_manager,
-        app_config.plugins.chatbots_dir
+        provider_registry, tool_manager, app_config.plugins.chatbots_dir
     )
     app.state.model_registry = model_registry
 
@@ -125,7 +124,9 @@ async def lifespan(app: FastAPI):
                 logger.info("GitHub client authenticated successfully")
                 app.state.github_client = github_client
             else:
-                logger.warning("GitHub authentication failed - GitHub features will be unavailable")
+                logger.warning(
+                    "GitHub authentication failed - GitHub features will be unavailable"
+                )
                 await github_client.close()
                 github_client = None
         except Exception as e:
@@ -144,7 +145,7 @@ async def lifespan(app: FastAPI):
         chatbot_registry=model_registry,
         tool_manager=tool_manager,
         github_client=github_client,
-        skill_registry=skill_registry
+        skill_registry=skill_registry,
     )
     app.state.chat_service_manager = chat_service_manager
 
@@ -164,23 +165,23 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Clean up resources
     logger.info("Shutting down server...")
-    
+
     if github_client:
         try:
             await github_client.close()
         except Exception as e:
             logger.error(f"Error during GitHub client shutdown: {e}", exc_info=True)
-    
+
     try:
         await tool_manager.stop()
     except Exception as e:
         logger.error(f"Error during tool manager shutdown: {e}", exc_info=True)
-    
+
     try:
         database.close()
     except Exception as e:
         logger.error(f"Error during database shutdown: {e}", exc_info=True)
-    
+
     logger.info("Server shutdown complete")
 
 
@@ -189,7 +190,10 @@ app = FastAPI(lifespan=lifespan)
 # Configure CORS for web UI
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite default port and common dev port
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],  # Vite default port and common dev port
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -198,83 +202,91 @@ app.add_middleware(
 # Register API routes
 register_routes(app)
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
+
 # Serve static files from the web UI build (production)
 webui_dist = Path(__file__).parent.parent / "webui" / "dist"
 if webui_dist.exists():
-    def _serve_with_compression(file_path: Path, request: Request, content_type: str | None = None) -> FileResponse:
+
+    def _serve_with_compression(
+        file_path: Path, request: Request, content_type: str | None = None
+    ) -> FileResponse:
         """Serve a file with compression support (brotli/gzip)"""
         logger.debug(f"Attempting to serve file: {file_path}")
         accept_encoding = request.headers.get("accept-encoding", "")
         supports_brotli = "br" in accept_encoding.lower()
         supports_gzip = "gzip" in accept_encoding.lower()
-        
+
         logger.debug(f"Accept-Encoding header: {accept_encoding}")
-        logger.debug(f"Supports brotli: {supports_brotli}, Supports gzip: {supports_gzip}")
-        
+        logger.debug(
+            f"Supports brotli: {supports_brotli}, Supports gzip: {supports_gzip}"
+        )
+
         if content_type is None:
             content_type = _get_content_type(file_path)
-        
+
         logger.debug(f"Content-Type: {content_type}")
-        
+
         # Check for brotli version first (better compression)
         if supports_brotli:
             br_path = Path(str(file_path) + ".br")
-            logger.debug(f"Checking for brotli file: {br_path}, exists: {br_path.exists()}")
+            logger.debug(
+                f"Checking for brotli file: {br_path}, exists: {br_path.exists()}"
+            )
             if br_path.exists():
                 logger.info(f"Serving brotli compressed file: {br_path}")
                 return FileResponse(
                     br_path,
-                    headers={
-                        "Content-Encoding": "br",
-                        "Content-Type": content_type
-                    }
+                    headers={"Content-Encoding": "br", "Content-Type": content_type},
                 )
-        
+
         # Fall back to gzip
         if supports_gzip:
             gz_path = Path(str(file_path) + ".gz")
-            logger.debug(f"Checking for gzip file: {gz_path}, exists: {gz_path.exists()}")
+            logger.debug(
+                f"Checking for gzip file: {gz_path}, exists: {gz_path.exists()}"
+            )
             if gz_path.exists():
                 logger.info(f"Serving gzip compressed file: {gz_path}")
                 return FileResponse(
                     gz_path,
-                    headers={
-                        "Content-Encoding": "gzip",
-                        "Content-Type": content_type
-                    }
+                    headers={"Content-Encoding": "gzip", "Content-Type": content_type},
                 )
-        
+
         # Serve uncompressed
         logger.debug(f"Serving uncompressed file: {file_path}")
         return FileResponse(file_path)
-    
+
     @app.get("/{full_path:path}")
     async def serve_static(full_path: str, request: Request):
         """Serve static files with compression support"""
         logger.debug(f"Request for path: /{full_path}")
-        
+
         # Serve index.html on root
         if not full_path:
             logger.debug("Serving index.html for root path")
             index_path = webui_dist / "index.html"
             return _serve_with_compression(index_path, request, "text/html")
-        
+
         file_path = webui_dist / full_path
         logger.debug(f"Checking: {file_path}")
-        
+
         if file_path.exists() and file_path.is_file():
             logger.debug(f"File exists, serving: {file_path}")
             return _serve_with_compression(file_path, request)
-        
+
         logger.warning(f"File not found: {full_path}")
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="File not found")
 else:
-    logger.warning(f"Web UI build not found at {webui_dist}. Run 'cd webui && npm run build' to build the frontend.")
+    logger.warning(
+        f"Web UI build not found at {webui_dist}. Run 'cd webui && npm run build' to build the frontend."
+    )
 
 
 def _get_content_type(file_path: Path) -> str:
@@ -297,4 +309,3 @@ def _get_content_type(file_path: Path) -> str:
         ".eot": "application/vnd.ms-fontobject",
     }
     return content_types.get(suffix, "application/octet-stream")
-

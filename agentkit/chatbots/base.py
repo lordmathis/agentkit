@@ -66,5 +66,9 @@ class BaseAgent(ABC):
         }
 
     @abstractmethod
-    async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
-        ...
+    async def chat(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        *,
+        chat_id: Optional[str] = None,
+    ) -> Dict[str, Any]: ...

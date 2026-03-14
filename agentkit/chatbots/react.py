@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 from openai.types.chat import ChatCompletionMessageParam
 
 from agentkit.chatbots.base import BaseAgent
-from agentkit.providers.provider import Provider
 from agentkit.providers.registry import ProviderRegistry
+from agentkit.tools.approval import ToolDeniedError
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -16,16 +16,23 @@ logger = logging.getLogger(__name__)
 class ReActAgent(BaseAgent):
     """ReAct agent: iterative think → act → observe loop."""
 
-    async def chat(self, messages: List[ChatCompletionMessageParam]) -> Dict[str, Any]:
+    async def chat(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        *,
+        chat_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if self.system_prompt:
             if not messages or messages[0].get("role") != "system":
-                messages = [{"role": "system", "content": self.system_prompt}] + messages
+                messages = [
+                    {"role": "system", "content": self.system_prompt}
+                ] + messages
 
         api_tools = []
         for tool_server in self.tool_servers:
             tools = await self.tool_manager.list_tools(tool_server)
             for tool in tools:
-                if hasattr(tool, 'parameters'):
+                if hasattr(tool, "parameters"):
                     parameters = tool.parameters
                 else:
                     parameters = {}
@@ -37,7 +44,7 @@ class ReActAgent(BaseAgent):
                             "name": f"{tool_server}__{tool.name}",
                             "description": tool.description,
                             "parameters": parameters,
-                        }
+                        },
                     }
                 )
 
@@ -60,13 +67,6 @@ class ReActAgent(BaseAgent):
                     logger.info(f"Tool calls tracked (success): {all_tool_calls}")
                 return response
 
-            if self._check_tool_approvals_needed(message["tool_calls"]):
-                return {
-                    "pending_approval": True,
-                    "tool_calls": [self._serialize_tool_call(tc) for tc in message["tool_calls"]],
-                    "assistant_message": message,
-                }
-
             messages.append(
                 {
                     "role": "assistant",
@@ -86,12 +86,19 @@ class ReActAgent(BaseAgent):
 
                 logger.debug(f"Calling tool: {tool_name}")
 
-                all_tool_calls.append({
-                    "name": tool_name,
-                    "arguments": tool_args,
-                })
+                all_tool_calls.append(
+                    {
+                        "name": tool_name,
+                        "arguments": tool_args,
+                    }
+                )
 
-                result = await self.tool_manager.call_tool(tool_name, tool_args, self.provider, self.model_id)
+                try:
+                    result = await self.tool_manager.call_tool(
+                        tool_name, tool_args, self.provider, self.model_id, chat_id
+                    )
+                except ToolDeniedError as e:
+                    result = f"Tool '{e.tool_name}' was denied by the user."
 
                 messages.append(
                     {

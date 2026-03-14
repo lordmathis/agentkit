@@ -180,7 +180,7 @@ export function useChatManager() {
         const { approvals } = await api.getPendingApprovals(currentConversationId);
         if (approvals.length > 0) {
           setPendingApproval(approvals[0]); // Show first pending
-          setShouldPollForApprovals(false); // Stop polling once we have an approval
+          // Don't stop polling - send_message is still pending and may have more approvals
         }
       } catch (error) {
         console.error("Failed to check approvals:", error);
@@ -650,21 +650,12 @@ export function useChatManager() {
 
     try {
       setIsProcessingApproval(true);
-      const result = await api.approveTool(currentConversationId, pendingApproval.id);
+      await api.approveTool(pendingApproval.id);
 
+      // Clear the pending approval modal
+      // The send_message call is still pending and will resume when the tool executes
+      // Polling will continue to check for any new approvals
       setPendingApproval(null);
-
-      // If more approvals needed, polling will catch them
-            if (result.status === "more_approvals_needed") {
-              setShouldPollForApprovals(true); // Resume polling for next approval
-            } else {
-              setShouldPollForApprovals(false); // All done, stop polling
-            }
-
-      // If execution complete, refresh messages
-      if (result.status !== "more_approvals_needed") {
-        await refreshMessages();
-      }
     } catch (error) {
       console.error("Failed to approve tool:", error);
       alert(`Failed to approve: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -679,12 +670,11 @@ export function useChatManager() {
 
     try {
       setIsProcessingApproval(true);
-      await api.denyTool(currentConversationId, pendingApproval.id);
+      await api.denyTool(pendingApproval.id);
 
+      // Clear the pending approval modal
+      // The send_message call is still pending and will receive the denial result
       setPendingApproval(null);
-
-      // Refresh to show denial message
-      await refreshMessages();
     } catch (error) {
       console.error("Failed to deny tool:", error);
       alert(`Failed to deny: ${error instanceof Error ? error.message : "Unknown error"}`);

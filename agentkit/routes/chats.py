@@ -1,11 +1,10 @@
 import json
-import os
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from agentkit.services.chat_service import ChatConfig, ModelParams
+from agentkit.services.chat_service import ChatConfig
 from agentkit.services.manager import ChatServiceManager
 
 router = APIRouter()
@@ -49,10 +48,7 @@ async def create_chat(request: Request, body: CreateChatRequest):
 
     # Create chat service with chatbot
     try:
-        chat_service_manager.create_service(
-            chat_id=chat.id,
-            config=body.config
-        )
+        chat_service_manager.create_service(chat_id=chat.id, config=body.config)
     except ValueError as e:
         # If chat service creation fails, clean up the chat
         database.delete_chat(chat.id)
@@ -60,11 +56,13 @@ async def create_chat(request: Request, body: CreateChatRequest):
     except Exception as e:
         # If chat service creation fails, clean up the chat
         database.delete_chat(chat.id)
-        raise HTTPException(status_code=500, detail=f"Failed to create chat service: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create chat service: {str(e)}"
+        )
 
     # Retrieve updated chat with config
     updated_chat = database.get_chat(chat.id)
-    
+
     return {
         "id": updated_chat.id,
         "title": updated_chat.title,
@@ -72,8 +70,12 @@ async def create_chat(request: Request, body: CreateChatRequest):
         "updated_at": updated_chat.updated_at.isoformat(),
         "model": updated_chat.model,
         "system_prompt": updated_chat.system_prompt,
-        "tool_servers": json.loads(updated_chat.tool_servers) if updated_chat.tool_servers else None,
-        "model_params": json.loads(updated_chat.model_params) if updated_chat.model_params else None,
+        "tool_servers": json.loads(updated_chat.tool_servers)
+        if updated_chat.tool_servers
+        else None,
+        "model_params": json.loads(updated_chat.model_params)
+        if updated_chat.model_params
+        else None,
     }
 
 
@@ -95,8 +97,12 @@ async def list_chats(request: Request, limit: int = 20):
                 "updated_at": chat.updated_at.isoformat(),
                 "model": chat.model,
                 "system_prompt": chat.system_prompt,
-                "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
-                "model_params": json.loads(chat.model_params) if chat.model_params else None,
+                "tool_servers": json.loads(chat.tool_servers)
+                if chat.tool_servers
+                else None,
+                "model_params": json.loads(chat.model_params)
+                if chat.model_params
+                else None,
             }
             for chat in chats
         ]
@@ -142,10 +148,10 @@ async def get_chat(request: Request, chat_id: str):
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
                     if database.get_file(fid)
-                ]
+                ],
             }
             for msg in messages
-        ]
+        ],
     }
 
 
@@ -167,9 +173,7 @@ async def delete_chat(request: Request, chat_id: str):
     # Delete from database
     database.delete_chat(chat_id)
 
-    return {
-        "success": True
-    }
+    return {"success": True}
 
 
 @router.patch("/chats/{chat_id}")
@@ -186,28 +190,33 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
 
     # Prepare update kwargs
     update_kwargs = {}
-    
+
     if body.title is not None:
         update_kwargs["title"] = body.title
-    
+
     # Update configuration if provided
     if body.config:
         update_kwargs["model"] = body.config.model
         update_kwargs["system_prompt"] = body.config.system_prompt
-        update_kwargs["tool_servers"] = json.dumps(body.config.tool_servers) if body.config.tool_servers else None
-        update_kwargs["model_params"] = json.dumps(body.config.model_params.model_dump()) if body.config.model_params else None
-        
+        update_kwargs["tool_servers"] = (
+            json.dumps(body.config.tool_servers) if body.config.tool_servers else None
+        )
+        update_kwargs["model_params"] = (
+            json.dumps(body.config.model_params.model_dump())
+            if body.config.model_params
+            else None
+        )
+
         # Recreate chat service with new config
         try:
             chat_service_manager.remove_service(chat_id)
-            chat_service_manager.create_service(
-                chat_id=chat_id,
-                config=body.config
-            )
+            chat_service_manager.create_service(chat_id=chat_id, config=body.config)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to update chat service: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update chat service: {str(e)}"
+            )
 
     # Update database
     updated_chat = database.update_chat(chat_id, **update_kwargs)
@@ -221,8 +230,12 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
         "updated_at": updated_chat.updated_at.isoformat(),
         "model": updated_chat.model,
         "system_prompt": updated_chat.system_prompt,
-        "tool_servers": json.loads(updated_chat.tool_servers) if updated_chat.tool_servers else None,
-        "model_params": json.loads(updated_chat.model_params) if updated_chat.model_params else None,
+        "tool_servers": json.loads(updated_chat.tool_servers)
+        if updated_chat.tool_servers
+        else None,
+        "model_params": json.loads(updated_chat.model_params)
+        if updated_chat.model_params
+        else None,
     }
 
 
@@ -243,15 +256,13 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
 
     # Create branched chat in database
     branched_chat = database.branch_chat(
-        source_chat_id=chat_id,
-        up_to_message_id=body.message_id,
-        new_title=body.title
+        source_chat_id=chat_id, up_to_message_id=body.message_id, new_title=body.title
     )
 
     if not branched_chat:
         raise HTTPException(
             status_code=400,
-            detail=f"Failed to branch chat. Message '{body.message_id}' may not exist in chat '{chat_id}'."
+            detail=f"Failed to branch chat. Message '{body.message_id}' may not exist in chat '{chat_id}'.",
         )
 
     # Create chat service for the new branched chat
@@ -260,18 +271,22 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
         config = ChatConfig(
             model=branched_chat.model,
             system_prompt=branched_chat.system_prompt,
-            tool_servers=json.loads(branched_chat.tool_servers) if branched_chat.tool_servers else None,
-            model_params=json.loads(branched_chat.model_params) if branched_chat.model_params else None,
+            tool_servers=json.loads(branched_chat.tool_servers)
+            if branched_chat.tool_servers
+            else None,
+            model_params=json.loads(branched_chat.model_params)
+            if branched_chat.model_params
+            else None,
         )
-        
-        chat_service_manager.create_service(
-            chat_id=branched_chat.id,
-            config=config
-        )
+
+        chat_service_manager.create_service(chat_id=branched_chat.id, config=config)
     except Exception as e:
         # If chat service creation fails, clean up the branched chat
         database.delete_chat(branched_chat.id)
-        raise HTTPException(status_code=500, detail=f"Failed to create chat service for branch: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create chat service for branch: {str(e)}",
+        )
 
     # Get messages for the response
     messages = database.get_chat_history(branched_chat.id, limit=1000)
@@ -283,8 +298,12 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
         "updated_at": branched_chat.updated_at.isoformat(),
         "model": branched_chat.model,
         "system_prompt": branched_chat.system_prompt,
-        "tool_servers": json.loads(branched_chat.tool_servers) if branched_chat.tool_servers else None,
-        "model_params": json.loads(branched_chat.model_params) if branched_chat.model_params else None,
+        "tool_servers": json.loads(branched_chat.tool_servers)
+        if branched_chat.tool_servers
+        else None,
+        "model_params": json.loads(branched_chat.model_params)
+        if branched_chat.model_params
+        else None,
         "messages": [
             {
                 "id": msg.id,
@@ -301,10 +320,10 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
                     if database.get_file(fid)
-                ]
+                ],
             }
             for msg in messages
-        ]
+        ],
     }
 
 
@@ -327,34 +346,38 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
         # TODO: Implement streaming support
         # For now, return error
         raise HTTPException(
-            status_code=501,
-            detail="Streaming support not yet implemented"
+            status_code=501, detail="Streaming support not yet implemented"
         )
     else:
         # Non-streaming response
         try:
-            result = await chat_service.send_message(message=body.message, file_ids=body.file_ids)
+            result = await chat_service.send_message(
+                message=body.message, file_ids=body.file_ids
+            )
             return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Internal server error: {str(e)}"
+            )
+
 
 @router.post("/chats/{chat_id}/retry")
 async def retry_message(request: Request, chat_id: str):
     """
     Retry the last message by deleting the last assistant response and re-processing.
-    
+
     This is useful when the LLM fails or returns an error. It resends all messages
     up to but not including the last assistant response.
     """
     chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
+
     try:
         chat_service = chat_service_manager.get_service(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    
+
     try:
         result = await chat_service.retry_last_message()
         return result
@@ -363,20 +386,23 @@ async def retry_message(request: Request, chat_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
 @router.post("/chats/{chat_id}/edit")
-async def edit_last_user_message(request: Request, chat_id: str, body: EditLastMessageRequest):
+async def edit_last_user_message(
+    request: Request, chat_id: str, body: EditLastMessageRequest
+):
     """
     Edit the last user message and delete the assistant's response, then re-process.
-    
+
     This allows users to modify their last message and get a new response from the LLM.
     """
     chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
+
     try:
         chat_service = chat_service_manager.get_service(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    
+
     try:
         result = await chat_service.edit_last_user_message(body.message)
         return result
@@ -384,60 +410,3 @@ async def edit_last_user_message(request: Request, chat_id: str, body: EditLastM
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-# Tool Approval Endpoints
-
-@router.get("/chats/{chat_id}/approvals")
-async def get_pending_approvals(request: Request, chat_id: str):
-    """Get all pending tool approvals for a chat"""
-    database = request.app.state.database
-    
-    approvals = database.get_pending_approvals(chat_id)
-    
-    return {
-        "approvals": [
-            {
-                "id": a["id"],
-                "tool_name": a["tool_name"],
-                "arguments": json.loads(a["arguments"]),
-                "created_at": a["created_at"].isoformat() if hasattr(a["created_at"], "isoformat") else a["created_at"]
-            }
-            for a in approvals
-        ]
-    }
-
-
-@router.post("/chats/{chat_id}/approvals/{approval_id}/approve")
-async def approve_tool(request: Request, chat_id: str, approval_id: str):
-    """Approve a pending tool call"""
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
-    try:
-        chat_service = chat_service_manager.get_service(chat_id)
-        result = await chat_service.approve_tool(approval_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to approve tool: {str(e)}"
-        )
-
-
-@router.post("/chats/{chat_id}/approvals/{approval_id}/deny")
-async def deny_tool(request: Request, chat_id: str, approval_id: str):
-    """Deny a pending tool call"""
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
-    try:
-        chat_service = chat_service_manager.get_service(chat_id)
-        result = await chat_service.deny_tool(approval_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to deny tool: {str(e)}"
-        )

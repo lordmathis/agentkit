@@ -367,17 +367,17 @@ class ApiClient {
 
   // Tool Approval endpoints
   async getPendingApprovals(chatId: string): Promise<{ approvals: PendingToolApproval[] }> {
-    return this.request(`/chats/${chatId}/approvals`);
+    return this.request(`/approvals?chat_id=${chatId}`);
   }
 
-  async approveTool(chatId: string, approvalId: string): Promise<ApprovalResponse> {
-    return this.request(`/chats/${chatId}/approvals/${approvalId}/approve`, {
+  async approveTool(approvalId: string): Promise<ApprovalResponse> {
+    return this.request(`/approvals/${approvalId}/approve`, {
       method: 'POST',
     });
   }
 
-  async denyTool(chatId: string, approvalId: string): Promise<ApprovalResponse> {
-    return this.request(`/chats/${chatId}/approvals/${approvalId}/deny`, {
+  async denyTool(approvalId: string): Promise<ApprovalResponse> {
+    return this.request(`/approvals/${approvalId}/deny`, {
       method: 'POST',
     });
   }

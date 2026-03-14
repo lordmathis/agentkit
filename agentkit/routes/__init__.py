@@ -1,11 +1,21 @@
 from fastapi import FastAPI
 
-from agentkit.routes import chats, config, github, media, skills, tools, files
+from agentkit.routes import (
+    approvals,
+    chats,
+    config,
+    github,
+    media,
+    skills,
+    tools,
+    files,
+)
 
 
 def register_routes(app: FastAPI):
     """Register all API routes with the FastAPI application."""
     prefix = "/api"
+    app.include_router(approvals.router, prefix=prefix, tags=["approvals"])
     app.include_router(chats.router, prefix=prefix, tags=["chats"])
     app.include_router(config.router, prefix=prefix, tags=["config"])
     app.include_router(github.router, prefix=prefix, tags=["github"])
