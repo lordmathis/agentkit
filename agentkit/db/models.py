@@ -1,13 +1,21 @@
 from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import (DateTime, ForeignKey, Index, Integer, String, Text,
-                        UniqueConstraint)
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
+
 
 class Chat(Base):
     __tablename__ = "chats"
@@ -17,11 +25,18 @@ class Chat(Base):
     # Configuration fields for storing chat settings
     model: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    tool_servers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array as string
-    model_params: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON object as string
+    tool_servers: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON array as string
+    model_params: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON object as string
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC)
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -31,28 +46,36 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String)
     content: Mapped[str] = mapped_column(Text)
     reasoning_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    tool_calls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array as string
-    status: Mapped[str] = mapped_column(String, default="completed")  # completed, awaiting_tool_approval, tool_approval_denied
+    tool_calls: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON array as string
+    file_ids: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON array as string
+    status: Mapped[str] = mapped_column(
+        String, default="completed"
+    )  # completed, awaiting_tool_approval, tool_approval_denied
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
-    
+
     __table_args__ = (
         # Ensure unique sequence per chat
-        UniqueConstraint('chat_id', 'sequence', name='uq_chat_sequence'),
+        UniqueConstraint("chat_id", "sequence", name="uq_chat_sequence"),
         # Index for efficient ordering
-        Index('idx_chat_sequence', 'chat_id', 'sequence'),
+        Index("idx_chat_sequence", "chat_id", "sequence"),
     )
 
-class FileAttachment(Base):
-    __tablename__ = "file_attachments"
+
+class File(Base):
+    __tablename__ = "files"
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    message_id: Mapped[str] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"))
     filename: Mapped[str] = mapped_column(String)
     file_path: Mapped[str] = mapped_column(String)  # Path on disk
     content_type: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending, attached
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     
     __table_args__ = (
-        Index('idx_message_attachments', 'message_id'),
+        Index('idx_file_status', 'status'),
     )
 
 class PendingToolApproval(Base):
@@ -62,11 +85,12 @@ class PendingToolApproval(Base):
     message_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     tool_name: Mapped[str] = mapped_column(String)
     arguments: Mapped[str] = mapped_column(Text)  # JSON
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, approved, denied
+    status: Mapped[str] = mapped_column(
+        String, default="pending"
+    )  # pending, approved, denied
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
-    
-    __table_args__ = (
-        Index('idx_chat_approvals', 'chat_id'),
-        Index('idx_message_approvals', 'message_id'),
-    )
 
+    __table_args__ = (
+        Index("idx_chat_approvals", "chat_id"),
+        Index("idx_message_approvals", "message_id"),
+    )

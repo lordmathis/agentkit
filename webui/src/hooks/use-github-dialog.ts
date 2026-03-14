@@ -225,7 +225,7 @@ export function useGitHubDialog(
     });
   };
 
-  const handleAddFiles = async (chatId: string | undefined, onSuccess: (repo: string, paths: string[], excludePaths: string[], count: number) => void) => {
+  const handleAddFiles = async (chatId: string | undefined, onSuccess: (repo: string, paths: string[], excludePaths: string[], count: number) => void): Promise<import('../lib/api').FileResource[] | false> => {
     if (!chatId) {
       setError("No active chat selected");
       return false;
@@ -262,11 +262,15 @@ export function useGitHubDialog(
       setIsAdding(true);
       setError("");
 
-      await api.removeGitHubFilesFromChat(chatId);
-      const result = await api.addGitHubFilesToChat(chatId, repo, paths, excludePaths);
+      const fileResources = await api.uploadGitHubFiles(repo, paths, excludePaths);
 
-      onSuccess(repo, paths, excludePaths, result.count);
-      return true;
+      // the onSuccess now doesn't strictly know "count" except from array length, but wait
+      // The original onSuccess took: (repo, paths, excludePaths, count). We can pass fileResources length.
+      // Or we can just pass the array back. Wait, let's see how onSuccess is used in chat-manager.
+      
+      // Let's modify onSuccess signature or just pass length.
+      onSuccess(repo, paths, excludePaths, fileResources.length);
+      return fileResources;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add files");
       return false;

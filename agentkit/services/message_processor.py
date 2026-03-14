@@ -3,7 +3,7 @@ import base64
 import json
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -28,9 +28,26 @@ class MessageProcessor:
     def process_user_message(self, msg) -> ChatCompletionMessageParam:
         """Process user message and reconstruct content with attachments from disk."""
         content = self.parse_content(msg.content)
-        attachments = self.db.get_message_attachments(msg.id)
         
-        if not attachments:
+        file_ids_str = getattr(msg, 'file_ids', None)
+        file_ids = []
+        if file_ids_str:
+            try:
+                import json
+                file_ids = json.loads(file_ids_str)
+            except json.JSONDecodeError:
+                pass
+        
+        files = []
+        if file_ids:
+            for fid in file_ids:
+                f = self.db.get_file(fid)
+                if f:
+                    files.append(f)
+                else:
+                    logger.warning(f"File {fid} referenced by message {msg.id} not found.")
+
+        if not files:
             return {"role": "user", "content": content}
         
         # Extract text content
@@ -44,7 +61,7 @@ class MessageProcessor:
         # Separate attachments into text files and images
         text_files = []
         image_files = []
-        for attachment in attachments:
+        for attachment in files:
             if attachment.content_type.startswith("image/"):
                 image_files.append(attachment)
             else:

@@ -25,7 +25,7 @@ export function useChatManager() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<import('../lib/api').FileResource[]>([]);
   const [githubFiles, setGithubFiles] = useState<{
     repo: string;
     paths: string[];
@@ -209,13 +209,12 @@ export function useChatManager() {
 
     try {
       setIsUploadingFiles(true);
-      const fileArray = Array.from(files);
+            const fileArray = Array.from(files);
+      const fileResources = await api.uploadFiles(fileArray);
 
-      const response = await api.uploadFiles(currentConversationId, fileArray);
+      setUploadedFiles((prev) => [...(prev || []), ...(fileResources || [])]);
 
-      setUploadedFiles((prev) => [...prev, ...response.filenames]);
-
-      const fileNames = response.filenames.join(", ");
+      const fileNames = fileResources.map(f => f.filename).join(", ");
       console.log(`Successfully uploaded: ${fileNames}`);
 
       if (fileInputRef.current) {
@@ -230,15 +229,15 @@ export function useChatManager() {
   };
 
   // Handle removing an uploaded file
-  const handleRemoveFile = async (filename: string) => {
+  const handleRemoveFile = async (fileId: string) => {
     if (!currentConversationId) return;
 
     try {
-      await api.removeUploadedFile(currentConversationId, filename);
-      setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+      await api.deleteFile(fileId);
+      setUploadedFiles((prev) => (prev || []).filter((f) => f.id !== fileId));
     } catch (error) {
       console.error("Failed to remove uploaded file:", error);
-      setUploadedFiles((prev) => prev.filter((f) => f !== filename));
+      setUploadedFiles((prev) => (prev || []).filter((f) => f.id !== fileId));
     }
   };
 
@@ -260,9 +259,10 @@ export function useChatManager() {
     repo: string,
     paths: string[],
     excludePaths: string[],
-    count: number
+    files: import('../lib/api').FileResource[]
   ) => {
-    console.log(`Successfully added ${count} file${count !== 1 ? "s" : ""} from GitHub`);
+    console.log(`Successfully added ${files.length} file${files.length !== 1 ? "s" : ""} from GitHub`);
+    setUploadedFiles((prev) => [...(prev || []), ...(files || [])]);
     setGithubFiles({ repo, paths, excludePaths });
   };
 
@@ -469,14 +469,17 @@ export function useChatManager() {
           content: trimmedMessage,
           sequence: messages.length,
           created_at: new Date().toISOString(),
+          files: uploadedFiles,
         };
         setMessages((prev) => [...prev, tempUserMessage]);
 
         // Start polling for approvals
         setShouldPollForApprovals(true);
 
+        const fileIdsToAttach = (uploadedFiles || []).map(f => f.id);
         const response = await api.sendMessage(currentConversationId, {
           message: trimmedMessage,
+          file_ids: fileIdsToAttach,
           stream: false,
         });
 
@@ -496,6 +499,7 @@ export function useChatManager() {
               content: trimmedMessage,
               sequence: withoutTemp.length,
               created_at: new Date().toISOString(),
+              files: uploadedFiles,
             },
             {
               id: `assistant-${Date.now()}`,

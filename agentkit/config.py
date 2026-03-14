@@ -77,6 +77,7 @@ class AppConfig(BaseModel):
     github_token: Optional[str] = None
     transcription: TranscriptionConfig = TranscriptionConfig()
     logging: LoggingConfig = LoggingConfig()
+    file_retention_hours: int = 24
 
 def load_config(path: str) -> AppConfig:
     with open(path, 'r') as f:

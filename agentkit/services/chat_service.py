@@ -8,7 +8,6 @@ from agentkit.chatbots.base import BaseAgent
 from agentkit.db.db import Database
 from agentkit.github.client import GitHubClient
 from agentkit.services.chat_naming import ChatNaming
-from agentkit.services.file_handler import FileHandler
 from agentkit.services.message_processor import MessageProcessor
 from agentkit.services.response_handler import ResponseHandler
 from agentkit.services.skill_context_builder import SkillContextBuilder
@@ -47,7 +46,6 @@ class ChatService:
         self.chatbot = chatbot
         
         # Initialize specialized handlers
-        self.file_handler = FileHandler(chat_id, db, github_client)
         self.message_processor = MessageProcessor(db)
         self.response_handler = ResponseHandler(db)
         self.skill_context_builder = SkillContextBuilder(skill_registry)
@@ -69,29 +67,7 @@ class ChatService:
         )
         logger.info(f"Activated skill tool servers for chat {self.chat_id}: {new_servers}")
 
-    # Delegate file operations to FileHandler
-    async def handle_file_upload(self, file_path: str, content_type: str) -> None:
-        """Handle a file upload by storing it in the pending context."""
-        await self.file_handler.handle_file_upload(file_path, content_type)
-
-    async def add_files_from_github(
-        self, 
-        repo: str, 
-        paths: List[str], 
-        exclude_paths: Optional[List[str]] = None
-    ) -> List[str]:
-        """Add files from GitHub to chat context."""
-        return await self.file_handler.add_files_from_github(repo, paths, exclude_paths)
-
-    def remove_github_files(self) -> None:
-        """Remove all GitHub files from the pending context."""
-        self.file_handler.remove_github_files()
-
-    def remove_uploaded_file(self, file_path: str) -> None:
-        """Remove a specific uploaded file from the pending context."""
-        self.file_handler.remove_uploaded_file(file_path)
-
-    async def send_message(self, message: str) -> Dict[str, Any]:
+    async def send_message(self, message: str, file_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """Send a user message and get an assistant response.
         
         Args:
@@ -100,14 +76,24 @@ class ChatService:
         Returns:
             The LLM response dictionary
         """
-        # Save the user's text message (WITHOUT file contents)
-        saved_message = self.db.save_message(self.chat_id, "user", message)
+        file_ids = file_ids or []
         
-        # Save file attachments metadata to database
-        self.file_handler.save_attachments_to_db(saved_message.id)
+        # Verify file_ids are pending and exist
+        if file_ids:
+            pending_files = self.db.list_pending_files()
+            pending_file_ids = {f.id for f in pending_files}
+            for fid in file_ids:
+                if fid not in pending_file_ids:
+                    logger.warning(f"File {fid} is either not found or already attached.")
+
+        # Save the user's text message with file_ids
+        import json
+        file_ids_str = json.dumps(file_ids) if file_ids else None
+        saved_message = self.db.save_message(self.chat_id, "user", message, file_ids=file_ids_str)
         
-        # Clear files after saving metadata
-        self.file_handler.clear_pending_files()
+        # Mark files as attached
+        if file_ids:
+            self.db.attach_files(file_ids)
         
         # Parse @mentions and load skill context
         mentioned_skills = self.skill_context_builder.parse_mentions(message)
@@ -256,6 +242,9 @@ class ChatService:
         if not last_user_message:
             raise ValueError("No user message found to edit")
         
+        # Keep the file_ids from the original message
+        file_ids_str = getattr(last_user_message, 'file_ids', None)
+
         # Delete the last user message and any following assistant response
         self.db.delete_message(last_user_message.id)
         
@@ -264,8 +253,8 @@ class ChatService:
         if last_assistant_message:
             self.db.delete_message(last_assistant_message.id)
         
-        # Save the edited user message
-        self.db.save_message(self.chat_id, "user", new_message)
+        # Save the edited user message with the old file_ids
+        self.db.save_message(self.chat_id, "user", new_message, file_ids=file_ids_str)
         
         # Parse @mentions and load skill context
         mentioned_skills = self.skill_context_builder.parse_mentions(new_message)

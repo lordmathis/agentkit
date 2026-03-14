@@ -21,7 +21,7 @@ interface AddGitHubDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chatId?: string;
-  onFilesAdded?: (repo: string, paths: string[], excludePaths: string[], count: number) => void;
+  onFilesAdded?: (repo: string, paths: string[], excludePaths: string[], files: import('../lib/api').FileResource[]) => void;
   initialRepo?: string;
   initialPaths?: string[];
   initialExcludePaths?: string[];
@@ -174,11 +174,10 @@ export function AddGitHubDialog({
   }, [open, inputMode]);
 
   const handleAdd = async () => {
-    const success = await handleAddFiles(chatId, (repo, paths, excludePaths, count) => {
-      onFilesAdded?.(repo, paths, excludePaths, count);
-    });
+    const result = await handleAddFiles(chatId, () => {});
 
-    if (success) {
+    if (result) {
+      onFilesAdded?.(getRepoIdentifier() || "", Array.from(selectedPaths).filter(p => !p.startsWith('!')), Array.from(selectedPaths).filter(p => p.startsWith('!')).map(p => p.substring(1)), result);
       onOpenChange(false);
     }
   };

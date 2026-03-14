@@ -1,9 +1,9 @@
 import { File, Github, X } from "lucide-react";
 
 interface FileAttachmentsProps {
-  uploadedFiles: string[];
+  uploadedFiles: import('../lib/api').FileResource[];
   githubFiles: { repo: string; paths: string[]; excludePaths: string[] };
-  onRemoveFile: (filename: string) => void;
+  onRemoveFile: (fileId: string) => void;
   onRemoveGitHubFiles: () => void;
   onEditGitHubFiles: () => void;
 }
@@ -15,24 +15,24 @@ export function FileAttachments({
   onRemoveGitHubFiles,
   onEditGitHubFiles,
 }: FileAttachmentsProps) {
-  if (uploadedFiles.length === 0 && githubFiles.paths.length === 0) {
+  if ((!uploadedFiles || uploadedFiles.length === 0) && (!githubFiles || !githubFiles.paths || githubFiles.paths.length === 0)) {
     return null;
   }
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
       {/* Uploaded files */}
-      {uploadedFiles.map((filename, index) => (
+      {(uploadedFiles || []).map((f, index) => (
         <div
-          key={`${filename}-${index}`}
+          key={`${f.id}-${index}`}
           className="flex items-center gap-1.5 rounded-md border border-border bg-primary/10 px-2 py-1 text-xs"
         >
           <File className="h-3.5 w-3.5 text-primary" />
-          <span className="text-primary font-medium">{filename}</span>
+          <span className="text-primary font-medium">{f.filename}</span>
           <button
-            onClick={() => onRemoveFile(filename)}
+            onClick={() => onRemoveFile(f.id)}
             className="ml-1 hover:text-destructive transition-colors"
-            aria-label={`Remove ${filename}`}
+            aria-label={`Remove ${f.filename}`}
           >
             <X className="h-3.5 w-3.5" />
           </button>

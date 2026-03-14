@@ -2,7 +2,7 @@ import json
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from agentkit.services.chat_service import ChatConfig, ModelParams
@@ -23,13 +23,8 @@ class UpdateChatRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     message: str
+    file_ids: List[str] = []
     stream: Optional[bool] = False
-
-
-class AddGitHubFilesRequest(BaseModel):
-    repo: str
-    paths: List[str]
-    exclude_paths: Optional[List[str]] = []
 
 
 class BranchChatRequest(BaseModel):
@@ -141,11 +136,12 @@ async def get_chat(request: Request, chat_id: str):
                 "created_at": msg.created_at.isoformat(),
                 "files": [
                     {
-                        "id": file.id,
-                        "filename": file.filename,
-                        "content_type": file.content_type,
+                        "id": database.get_file(fid).id,
+                        "filename": database.get_file(fid).filename,
+                        "content_type": database.get_file(fid).content_type,
                     }
-                    for file in database.get_message_attachments(msg.id)
+                    for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
+                    if database.get_file(fid)
                 ]
             }
             for msg in messages
@@ -299,11 +295,12 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                 "created_at": msg.created_at.isoformat(),
                 "files": [
                     {
-                        "id": file.id,
-                        "filename": file.filename,
-                        "content_type": file.content_type,
+                        "id": database.get_file(fid).id,
+                        "filename": database.get_file(fid).filename,
+                        "content_type": database.get_file(fid).content_type,
                     }
-                    for file in database.get_message_attachments(msg.id)
+                    for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
+                    if database.get_file(fid)
                 ]
             }
             for msg in messages
@@ -336,78 +333,12 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
     else:
         # Non-streaming response
         try:
-            result = await chat_service.send_message(message=body.message)
+            result = await chat_service.send_message(message=body.message, file_ids=body.file_ids)
             return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.post("/chats/{chat_id}/files")
-async def upload_files(request: Request, files: List[UploadFile], chat_id: str):
-    """
-    Upload a file to be used in the chat session.
-    """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-
-    try:
-        chat_service = chat_service_manager.get_service(chat_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-    file_locations = []
-    content_types = []
-
-    uploads_dir = f"{request.app.state.app_config.uploads_dir}/{chat_id}"
-    os.makedirs(uploads_dir, exist_ok=True)
-
-    for file in files:
-        file_location = f"{uploads_dir}/{file.filename}"
-        with open(file_location, "wb") as file_object:
-            file_object.write(await file.read())
-        file_locations.append(file_location)
-        content_types.append(file.content_type)
-
-    # Handle file in chat service
-    try:
-        for file_location, content_type in zip(file_locations, content_types):
-            await chat_service.handle_file_upload(file_location, content_type)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to handle file upload: {str(e)}")
-
-    return {
-        "filenames": [file.filename for file in files]
-    }
-
-
-@router.delete("/chats/{chat_id}/files/{filename}")
-async def remove_uploaded_file(request: Request, chat_id: str, filename: str):
-    """
-    Remove a specific uploaded file from the chat context (pending upload state).
-    """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
-    try:
-        chat_service = chat_service_manager.get_service(chat_id)
-        
-        # Construct the file path (same as upload path)
-        uploads_dir = f"{request.app.state.app_config.uploads_dir}/{chat_id}"
-        file_path = f"{uploads_dir}/{filename}"
-        
-        # Remove from chat service context
-        chat_service.remove_uploaded_file(file_path)
-        
-        return {
-            "success": True,
-            "message": f"File {filename} removed from context"
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to remove file: {str(e)}"
-        )
 
 @router.post("/chats/{chat_id}/retry")
 async def retry_message(request: Request, chat_id: str):
@@ -453,73 +384,6 @@ async def edit_last_user_message(request: Request, chat_id: str, body: EditLastM
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.post("/chats/{chat_id}/github/files")
-async def add_github_files_to_chat(request: Request, chat_id: str, body: AddGitHubFilesRequest):
-    """
-    Fetch files from GitHub and add them to the chat context.
-    Supports both individual files and directories (which are expanded recursively).
-    Optionally exclude specific paths.
-    """
-    github_client = request.app.state.github_client
-    
-    if not github_client:
-        raise HTTPException(
-            status_code=503,
-            detail="GitHub integration is not configured. Please set GITHUB_TOKEN environment variable."
-        )
-    
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
-    try:
-        # Get or create chat service
-        chat_service = chat_service_manager.get_service(chat_id)
-        
-        # Add files from GitHub
-        added_paths = await chat_service.add_files_from_github(
-            body.repo, 
-            body.paths,
-            body.exclude_paths
-        )
-        
-        return {
-            "success": True,
-            "files_added": added_paths,
-            "count": len(added_paths)
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to add files from GitHub: {str(e)}"
-        )
-
-
-@router.delete("/chats/{chat_id}/github/files")
-async def remove_github_files_from_chat(request: Request, chat_id: str):
-    """
-    Remove all GitHub files from the chat context (pending upload state).
-    Uploaded files are not affected.
-    """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
-    
-    try:
-        chat_service = chat_service_manager.get_service(chat_id)
-        chat_service.remove_github_files()
-        
-        return {
-            "success": True,
-            "message": "GitHub files removed from context"
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to remove GitHub files: {str(e)}"
-        )
-
 
 # Tool Approval Endpoints
 

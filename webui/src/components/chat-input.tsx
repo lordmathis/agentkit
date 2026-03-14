@@ -25,9 +25,9 @@ interface ChatInputProps {
   currentConversationId: string | undefined;
   chatSettings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
-  uploadedFiles: string[];
+  uploadedFiles: import('../lib/api').FileResource[];
   githubFiles: { repo: string; paths: string[]; excludePaths: string[] };
-  onRemoveFile: (filename: string) => void;
+  onRemoveFile: (fileId: string) => void;
   onRemoveGitHubFiles: () => void;
   onFileUploadClick: () => void;
   onGitHubDialogOpen: () => void;

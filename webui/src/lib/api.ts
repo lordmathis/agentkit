@@ -21,6 +21,13 @@ export interface Chat {
   model_params?: ModelParams | null;
 }
 
+
+export interface FileResource {
+  id: string;
+  filename: string;
+  content_type: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -65,6 +72,7 @@ export interface CreateChatRequest {
 
 export interface SendMessageRequest {
   message: string;
+  file_ids?: string[];
   stream?: boolean;
 }
 
@@ -285,13 +293,13 @@ class ApiClient {
     return this.request('/skills');
   }
 
-  async uploadFiles(chatId: string, files: File[]): Promise<{ filenames: string[] }> {
+  async uploadFiles(files: File[]): Promise<FileResource[]> {
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
     });
 
-    const url = `${this.baseURL}/chats/${chatId}/files`;
+    const url = `${this.baseURL}/files`;
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -306,8 +314,8 @@ class ApiClient {
     return response.json();
   }
 
-  async removeUploadedFile(chatId: string, filename: string): Promise<{ success: boolean; message: string }> {
-    return this.request(`/chats/${chatId}/files/${encodeURIComponent(filename)}`, {
+  async deleteFile(fileId: string): Promise<{ status: string }> {
+    return this.request(`/files/${fileId}`, {
       method: 'DELETE',
     });
   }
@@ -328,18 +336,14 @@ class ApiClient {
     });
   }
 
-  async addGitHubFilesToChat(chatId: string, repo: string, paths: string[], excludePaths?: string[]): Promise<{ success: boolean; files_added: string[]; count: number }> {
-    return this.request(`/chats/${chatId}/github/files`, {
+  async uploadGitHubFiles(repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
+    return this.request(`/files/github`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
-  async removeGitHubFilesFromChat(chatId: string): Promise<{ success: boolean; message: string }> {
-    return this.request(`/chats/${chatId}/github/files`, {
-      method: 'DELETE',
-    });
-  }
+
 
   // Media endpoints
   async transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {

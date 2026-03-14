@@ -1,4 +1,7 @@
 import logging
+import asyncio
+import os
+from datetime import datetime, UTC, timedelta
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -18,6 +21,51 @@ from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
+
+
+async def _orphan_file_cleanup_task(app: FastAPI):
+    """Background task to clean up orphan files"""
+    logger.info("Starting orphan file cleanup task")
+    try:
+        while True:
+            try:
+                db: Database = app.state.database
+                app_config: AppConfig = app.state.app_config
+                
+                retention_hours = getattr(app_config, 'file_retention_hours', 24)
+                cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)
+                
+                # We need a query to get pending files older than cutoff
+                from sqlalchemy import select
+                from agentkit.db.models import File
+                
+                with db.SessionLocal() as session:
+                    stmt = select(File).where(
+                        File.status == "pending",
+                        File.created_at < cutoff_time
+                    )
+                    orphans = session.execute(stmt).scalars().all()
+                    
+                    if orphans:
+                        logger.info(f"Cleaning up {len(orphans)} orphan files")
+                        for orphan in orphans:
+                            try:
+                                import shutil
+                                upload_dir = os.path.join("uploads", orphan.id)
+                                if os.path.exists(upload_dir):
+                                    shutil.rmtree(upload_dir, ignore_errors=True)
+                                session.delete(orphan)
+                            except Exception as e:
+                                logger.error(f"Error cleaning up file {orphan.id}: {e}")
+                        
+                        session.commit()
+            except Exception as e:
+                logger.error(f"Error in orphan cleanup task: {e}")
+            
+            # Sleep for an hour before checking again
+            await asyncio.sleep(3600)
+    except asyncio.CancelledError:
+        logger.info("Orphan cleanup task cancelled")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -102,7 +150,17 @@ async def lifespan(app: FastAPI):
 
     logger.info("Server started successfully")
 
+    # Start orphan file cleanup task
+    cleanup_task = asyncio.create_task(_orphan_file_cleanup_task(app))
+
     yield
+
+    # Cancel background tasks
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
 
     # Shutdown: Clean up resources
     logger.info("Shutting down server...")
