@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 import json
@@ -133,11 +134,7 @@ class ChatService:
 
         # Auto-name chat after first assistant response
         if chat and chat.title in (None, "", "Untitled Chat"):
-            # Reload history to include the assistant's response we just saved
-            updated_history = self.db.get_chat_history(self.chat_id)
-            new_title = await self.chat_naming.auto_name_chat(updated_history)
-            if new_title:
-                self.db.update_chat(self.chat_id, title=new_title)
+            asyncio.create_task(self._background_name_chat())
 
         return response
 
@@ -277,3 +274,12 @@ class ChatService:
         response = self.response_handler.handle_llm_response(self.chat_id, response)
 
         return response
+
+    async def _background_name_chat(self):
+        try:
+            history = self.db.get_chat_history(self.chat_id)
+            new_title = await self.chat_naming.auto_name_chat(history)
+            if new_title:
+                self.db.update_chat(self.chat_id, title=new_title)
+        except Exception as e:
+            logger.warning(f"Background chat naming failed for {self.chat_id}: {e}")
