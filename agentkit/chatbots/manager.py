@@ -55,60 +55,28 @@ class AgentManager:
             provider = self.provider_registry.get_provider(provider_name)
             if not provider:
                 raise ValueError(f"Provider '{provider_name}' not found")
-
-            agent = ReActAgent(
-                chat_id=chat_id,
-                db=self.db,
-                provider=provider,
-                tool_manager=self.tool_manager,
-                model_id=model_id,
-                system_prompt=system_prompt or "",
-                tool_servers=tool_servers or [],
-                skill_registry=self.skill_registry,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                max_iterations=max_iterations,
-            )
         else:
             chatbot_class = self.chatbot_registry.get_chatbot_class(model)
             if not chatbot_class:
                 raise ValueError(f"Chatbot '{model}' not found in registry")
-
             provider = self.provider_registry.get_provider(chatbot_class.provider_id)
             if not provider:
                 raise ValueError(f"Provider '{chatbot_class.provider_id}' not found")
+            model_id = chatbot_class.model_id
 
-            agent = ReActAgent(
-                chat_id=chat_id,
-                db=self.db,
-                provider=provider,
-                tool_manager=self.tool_manager,
-                model_id=chatbot_class.model_id,
-                system_prompt=(
-                    system_prompt
-                    if system_prompt is not None
-                    else chatbot_class.system_prompt
-                ),
-                tool_servers=(
-                    list(tool_servers)
-                    if tool_servers is not None
-                    else list(chatbot_class.tool_servers)
-                ),
-                skill_registry=self.skill_registry,
-                temperature=(
-                    temperature
-                    if temperature is not None
-                    else chatbot_class.temperature
-                ),
-                max_tokens=(
-                    max_tokens if max_tokens is not None else chatbot_class.max_tokens
-                ),
-                max_iterations=(
-                    max_iterations
-                    if max_iterations is not None
-                    else chatbot_class.max_iterations
-                ),
-            )
+        agent = ReActAgent(
+            chat_id=chat_id,
+            db=self.db,
+            provider=provider,
+            tool_manager=self.tool_manager,
+            model_id=model_id,
+            system_prompt=system_prompt or "",
+            tool_servers=tool_servers or [],
+            skill_registry=self.skill_registry,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_iterations=max_iterations,
+        )
 
         self._agents[chat_id] = agent
 
