@@ -90,11 +90,6 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
   const [showReasoning, setShowReasoning] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Debug logging
-  if (!isUser && message.tool_calls) {
-    console.log("Tool calls for message:", message.id, message.tool_calls);
-  }
-
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(message.content);

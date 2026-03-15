@@ -438,9 +438,24 @@ export function useChatManager() {
         setUploadedFiles([]);
         setGithubFiles({ repo: "", paths: [], excludePaths: [] });
 
-        await api.editLastMessage(currentConversationId, trimmedMessage);
-        
-        // Reload messages from backend
+        const response = await api.editLastMessage(currentConversationId, trimmedMessage);
+        const assistantContent = response.choices?.[0]?.message?.content || "No response";
+
+        // Add the assistant response
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant" as const,
+            content: assistantContent,
+            sequence: prev.length,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+        setIsSending(false);
+
+        // Reload messages from backend to get proper message IDs
         try {
           const chatData = await api.getChat(currentConversationId);
           const formattedMessages: Message[] = chatData.messages.map((msg) => ({
@@ -511,6 +526,8 @@ export function useChatManager() {
           ];
         });
 
+        setIsSending(false);
+
         // Reload messages from backend to get proper message IDs
         try {
           const chatData = await api.getChat(currentConversationId);
@@ -530,7 +547,7 @@ export function useChatManager() {
         }
       }
 
-      await refreshConversations();
+      refreshConversations();
     } catch (error) {
       console.error("Failed to send message:", error);
         setShouldPollForApprovals(false); // Stop polling on error
@@ -564,9 +581,23 @@ export function useChatManager() {
         return prev.slice(0, actualLastAssistantIndex);
       });
 
-      await api.retryLastMessage(currentConversationId);
+      const response = await api.retryLastMessage(currentConversationId);
+      const assistantContent = response.choices?.[0]?.message?.content || "No response";
 
-      // Reload messages from backend to get the updated message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant" as const,
+          content: assistantContent,
+          sequence: prev.length,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      setIsSending(false);
+
+      // Reload messages from backend to get proper message IDs
       try {
         const chatData = await api.getChat(currentConversationId);
         const formattedMessages: Message[] = chatData.messages.map((msg) => ({
@@ -584,7 +615,7 @@ export function useChatManager() {
         console.error("Failed to reload messages:", error);
       }
 
-      await refreshConversations();
+      refreshConversations();
     } catch (error) {
       console.error("Failed to retry message:", error);
       alert(`Failed to retry message: ${error instanceof Error ? error.message : "Unknown error"}`);
