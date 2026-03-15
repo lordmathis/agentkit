@@ -87,20 +87,18 @@ async def list_chatbots(request: Request):
     chatbot_names = chatbot_registry.list_chatbot_names()
 
     for model_name in chatbot_names:
-        chatbot = chatbot_registry.create_chatbot(model_name)
-        if chatbot:
+        chatbot_cls = chatbot_registry.get_chatbot_class(model_name)
+        if chatbot_cls:
             chatbots.append(
                 {
                     "name": model_name,
-                    "system_prompt": chatbot.system_prompt,
-                    "provider": chatbot.provider_cfg.name
-                    if hasattr(chatbot.provider_cfg, "name")
-                    else "unknown",
-                    "model_id": chatbot.model_id,
-                    "tool_servers": chatbot.tool_servers,
-                    "temperature": chatbot.temperature,
-                    "max_tokens": chatbot.max_tokens,
-                    "max_iterations": chatbot.max_iterations,
+                    "system_prompt": chatbot_cls.system_prompt,
+                    "provider": chatbot_cls.provider_id,
+                    "model_id": chatbot_cls.model_id,
+                    "tool_servers": list(chatbot_cls.tool_servers),
+                    "temperature": chatbot_cls.temperature,
+                    "max_tokens": chatbot_cls.max_tokens,
+                    "max_iterations": chatbot_cls.max_iterations,
                 }
             )
 
@@ -118,18 +116,15 @@ async def get_default_chat_config(request: Request):
         return {"model": None}
 
     chatbot_cls = chatbot_registry.get_chatbot_class(default_name)
-    chatbot = chatbot_cls(
-        chatbot_registry.provider_registry, chatbot_registry.tool_manager
-    )
 
     return {
         "model": default_name,
-        "system_prompt": chatbot.system_prompt,
-        "tool_servers": chatbot.tool_servers,
+        "system_prompt": chatbot_cls.system_prompt,
+        "tool_servers": list(chatbot_cls.tool_servers),
         "model_params": {
-            "max_iterations": chatbot.max_iterations,
-            "temperature": chatbot.temperature,
-            "max_tokens": chatbot.max_tokens,
+            "max_iterations": chatbot_cls.max_iterations,
+            "temperature": chatbot_cls.temperature,
+            "max_tokens": chatbot_cls.max_tokens,
         },
     }
 

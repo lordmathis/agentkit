@@ -3,10 +3,10 @@ import logging
 from abc import ABC
 from typing import Any, Dict, List, Optional
 
-from openai.types.chat import ChatCompletionMessageParam
-
 from agentkit.chatbots.base import BaseAgent
-from agentkit.providers.registry import ProviderRegistry
+from agentkit.db.db import Database
+from agentkit.providers.provider import Provider
+from agentkit.skills.registry import SkillRegistry
 from agentkit.tools.approval import ToolDeniedError
 from agentkit.tools.manager import ToolManager
 
@@ -14,54 +14,49 @@ logger = logging.getLogger(__name__)
 
 
 class ReActAgent(BaseAgent):
-    """ReAct agent: iterative think → act → observe loop."""
+    """ReAct agent: iterative think -> act -> observe loop."""
 
-    async def chat(
+    def __init__(
         self,
-        messages: List[ChatCompletionMessageParam],
-        *,
-        chat_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        if self.system_prompt:
-            if not messages or messages[0].get("role") != "system":
-                messages = [
-                    {"role": "system", "content": self.system_prompt}
-                ] + messages
+        chat_id: str,
+        db: Database,
+        provider: Provider,
+        tool_manager: ToolManager,
+        model_id: str,
+        system_prompt: str = "",
+        tool_servers: List[str] = [],
+        skill_registry: Optional[SkillRegistry] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        max_iterations: int = 5,
+    ):
+        super().__init__(
+            chat_id=chat_id,
+            db=db,
+            provider=provider,
+            tool_manager=tool_manager,
+            model_id=model_id,
+            system_prompt=system_prompt,
+            tool_servers=tool_servers,
+            skill_registry=skill_registry,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        self.max_iterations = max_iterations
 
-        api_tools = []
-        for tool_server in self.tool_servers:
-            tools = await self.tool_manager.list_tools(tool_server)
-            for tool in tools:
-                if hasattr(tool, "parameters"):
-                    parameters = tool.parameters
-                else:
-                    parameters = {}
-
-                api_tools.append(
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": f"{tool_server}__{tool.name}",
-                            "description": tool.description,
-                            "parameters": parameters,
-                        },
-                    }
-                )
-
+    async def _run(self, message: str) -> Dict[str, Any]:
+        messages = await self._build_context(message)
+        tools = await self._get_tools(self.tool_servers)
         all_tool_calls = []
 
         for _ in range(self.max_iterations):
-            response = await self.llm_client.chat_completion(
-                model=self.model_id,
-                messages=messages,
-                tools=api_tools if api_tools else None,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+            response = await self._llm(messages, tools if tools else None)
+            message_data = response["choices"][0]["message"]
 
-            message = response["choices"][0]["message"]
-
-            if not message.get("tool_calls") or len(message.get("tool_calls", [])) == 0:
+            if (
+                not message_data.get("tool_calls")
+                or len(message_data.get("tool_calls", [])) == 0
+            ):
                 if all_tool_calls:
                     response["tool_calls_used"] = all_tool_calls
                     logger.info(f"Tool calls tracked (success): {all_tool_calls}")
@@ -70,12 +65,12 @@ class ReActAgent(BaseAgent):
             messages.append(
                 {
                     "role": "assistant",
-                    "content": message.get("content"),
-                    "tool_calls": message["tool_calls"],
+                    "content": message_data.get("content"),
+                    "tool_calls": message_data["tool_calls"],
                 }
             )
 
-            for tool_call in message["tool_calls"]:
+            for tool_call in message_data["tool_calls"]:
                 tool_name = tool_call["function"]["name"]
                 tool_args_str = tool_call["function"]["arguments"]
 
@@ -95,7 +90,7 @@ class ReActAgent(BaseAgent):
 
                 try:
                     result = await self.tool_manager.call_tool(
-                        tool_name, tool_args, self.provider, self.model_id, chat_id
+                        tool_name, tool_args, self.provider, self.model_id, self.chat_id
                     )
                 except ToolDeniedError as e:
                     result = f"Tool '{e.tool_name}' was denied by the user."
@@ -141,16 +136,4 @@ class ReActAgentPlugin(ReActAgent, ABC):
     tool_servers: List[str] = []
     max_iterations: int = 5
     temperature: Optional[float] = None
-    max_tokens: Optional[float] = None
-
-    def __init__(self, provider_registry: ProviderRegistry, tool_manager: ToolManager):
-        super().__init__(
-            provider=provider_registry.get_provider(self.provider_id),
-            tool_manager=tool_manager,
-            model_id=self.model_id,
-            system_prompt=self.system_prompt,
-            tool_servers=self.tool_servers,
-            max_iterations=self.max_iterations,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+    max_tokens: Optional[int] = None

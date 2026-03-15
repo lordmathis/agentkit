@@ -4,8 +4,8 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from agentkit.services.chat_service import ChatConfig
-from agentkit.services.manager import ChatServiceManager
+from agentkit.chatbots.config import ChatConfig
+from agentkit.chatbots.manager import AgentManager
 
 router = APIRouter()
 
@@ -38,29 +38,25 @@ class EditLastMessageRequest(BaseModel):
 @router.post("/chats")
 async def create_chat(request: Request, body: CreateChatRequest):
     """
-    Create a new chat session with a ChatService.
+    Create a new chat session with an agent.
     """
     database = request.app.state.database
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
-    # Create chat in database
     chat = database.create_chat(title=body.title)
 
-    # Create chat service with chatbot
     try:
-        chat_service_manager.create_service(chat_id=chat.id, config=body.config)
+        agent_manager.create(
+            chat_id=chat.id,
+            config=body.config.model_dump(),
+        )
     except ValueError as e:
-        # If chat service creation fails, clean up the chat
         database.delete_chat(chat.id)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # If chat service creation fails, clean up the chat
         database.delete_chat(chat.id)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create chat service: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
 
-    # Retrieve updated chat with config
     updated_chat = database.get_chat(chat.id)
 
     return {
@@ -158,19 +154,17 @@ async def get_chat(request: Request, chat_id: str):
 @router.delete("/chats/{chat_id}")
 async def delete_chat(request: Request, chat_id: str):
     """
-    Delete a chat and all its messages, and remove its chat service.
+    Delete a chat and all its messages, and remove its agent.
     """
     database = request.app.state.database
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
     chat = database.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
-    # Remove chat service
-    chat_service_manager.remove_service(chat_id)
+    agent_manager.remove(chat_id)
 
-    # Delete from database
     database.delete_chat(chat_id)
 
     return {"success": True}
@@ -182,19 +176,17 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
     Update chat metadata (e.g., title) and/or configuration.
     """
     database = request.app.state.database
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
     chat = database.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
-    # Prepare update kwargs
     update_kwargs = {}
 
     if body.title is not None:
         update_kwargs["title"] = body.title
 
-    # Update configuration if provided
     if body.config:
         update_kwargs["model"] = body.config.model
         update_kwargs["system_prompt"] = body.config.system_prompt
@@ -207,18 +199,16 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
             else None
         )
 
-        # Recreate chat service with new config
         try:
-            chat_service_manager.remove_service(chat_id)
-            chat_service_manager.create_service(chat_id=chat_id, config=body.config)
+            agent_manager.remove(chat_id)
+            agent_manager.create(chat_id=chat_id, config=body.config.model_dump())
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(
-                status_code=500, detail=f"Failed to update chat service: {str(e)}"
+                status_code=500, detail=f"Failed to update agent: {str(e)}"
             )
 
-    # Update database
     updated_chat = database.update_chat(chat_id, **update_kwargs)
     if not updated_chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
@@ -247,14 +237,12 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
     This allows exploring different conversation paths without losing the original.
     """
     database = request.app.state.database
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
-    # Verify source chat exists
     source_chat = database.get_chat(chat_id)
     if not source_chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
-    # Create branched chat in database
     branched_chat = database.branch_chat(
         source_chat_id=chat_id, up_to_message_id=body.message_id, new_title=body.title
     )
@@ -265,30 +253,26 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
             detail=f"Failed to branch chat. Message '{body.message_id}' may not exist in chat '{chat_id}'.",
         )
 
-    # Create chat service for the new branched chat
     try:
-        # Get config from the branched chat
-        config = ChatConfig(
-            model=branched_chat.model,
-            system_prompt=branched_chat.system_prompt,
-            tool_servers=json.loads(branched_chat.tool_servers)
+        config = {
+            "model": branched_chat.model,
+            "system_prompt": branched_chat.system_prompt,
+            "tool_servers": json.loads(branched_chat.tool_servers)
             if branched_chat.tool_servers
             else None,
-            model_params=json.loads(branched_chat.model_params)
+            "model_params": json.loads(branched_chat.model_params)
             if branched_chat.model_params
             else None,
-        )
+        }
 
-        chat_service_manager.create_service(chat_id=branched_chat.id, config=config)
+        agent_manager.create(chat_id=branched_chat.id, config=config)
     except Exception as e:
-        # If chat service creation fails, clean up the branched chat
         database.delete_chat(branched_chat.id)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create chat service for branch: {str(e)}",
+            detail=f"Failed to create agent for branch: {str(e)}",
         )
 
-    # Get messages for the response
     messages = database.get_chat_history(branched_chat.id, limit=1000)
 
     return {
@@ -335,32 +319,25 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
     Supports both streaming and non-streaming responses.
     For streaming, set stream=true in request body and use Server-Sent Events (SSE).
     """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
     try:
-        chat_service = chat_service_manager.get_service(chat_id)
+        agent = agent_manager.get(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     if body.stream:
-        # TODO: Implement streaming support
-        # For now, return error
         raise HTTPException(
             status_code=501, detail="Streaming support not yet implemented"
         )
-    else:
-        # Non-streaming response
-        try:
-            result = await chat_service.send_message(
-                message=body.message, file_ids=body.file_ids
-            )
-            return result
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Internal server error: {str(e)}"
-            )
+
+    try:
+        result = await agent.chat(message=body.message, file_ids=body.file_ids)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/chats/{chat_id}/retry")
@@ -371,15 +348,15 @@ async def retry_message(request: Request, chat_id: str):
     This is useful when the LLM fails or returns an error. It resends all messages
     up to but not including the last assistant response.
     """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
     try:
-        chat_service = chat_service_manager.get_service(chat_id)
+        agent = agent_manager.get(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     try:
-        result = await chat_service.retry_last_message()
+        result = await agent.retry()
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -396,15 +373,15 @@ async def edit_last_user_message(
 
     This allows users to modify their last message and get a new response from the LLM.
     """
-    chat_service_manager: ChatServiceManager = request.app.state.chat_service_manager
+    agent_manager: AgentManager = request.app.state.agent_manager
 
     try:
-        chat_service = chat_service_manager.get_service(chat_id)
+        agent = agent_manager.get(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     try:
-        result = await chat_service.edit_last_user_message(body.message)
+        result = await agent.edit(body.message)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

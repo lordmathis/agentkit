@@ -15,7 +15,7 @@ from agentkit.db import Database
 from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.routes import register_routes
-from agentkit.services.manager import ChatServiceManager
+from agentkit.chatbots.manager import AgentManager
 from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
@@ -137,17 +137,16 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("GitHub token not configured - GitHub features will be unavailable")
 
-    # Initialize chat service manager
-    logger.info("Initializing chat service manager...")
-    chat_service_manager = ChatServiceManager(
+    # Initialize agent manager
+    logger.info("Initializing agent manager...")
+    agent_manager = AgentManager(
         db=database,
         provider_registry=provider_registry,
         chatbot_registry=model_registry,
         tool_manager=tool_manager,
-        github_client=github_client,
         skill_registry=skill_registry,
     )
-    app.state.chat_service_manager = chat_service_manager
+    app.state.agent_manager = agent_manager
 
     logger.info("Server started successfully")
 
