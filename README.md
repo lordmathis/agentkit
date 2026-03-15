@@ -218,7 +218,7 @@ AgentKit has a flexible plugin architecture supporting three types of plugins:
 
 ### 1. Chatbot Plugins
 
-Chatbot plugins allow you to create custom chat interfaces with specific configurations. They inherit from `ChatbotPlugin` and provide a consistent initialization pattern.
+Chatbot plugins allow you to create custom chat interfaces with specific configurations. They inherit from `ReActAgentPlugin` and provide a declarative configuration pattern.
 
 **Creating a Chatbot Plugin:**
 
@@ -240,11 +240,31 @@ class MyCustomBot(ReActAgentPlugin):
     max_tokens = 2000
 ```
 
+**For custom behavior, override `post_init()` and/or `_run()`:**
+
+```python
+from agentkit.agents import ReActAgentPlugin
+
+class StructuredBot(ReActAgentPlugin):
+    name = "structured-bot"
+    provider_id = "anthropic"
+    model_id = "claude-sonnet-4-6"
+
+    def post_init(self) -> None:
+        # Called after dependencies are injected
+        self._parser = MyOutputParser()
+
+    async def _run(self, message: str) -> dict:
+        response = await super()._run(message)
+        return self._parser.parse(response)
+```
+
 **Key Features:**
 - Automatic discovery: Agents are automatically loaded from the `agents_dir`
 - Provider integration: Access to all configured providers
 - Tool access: Can specify which MCP/agent tools to use
-- Configurable parameters: temperature, max_tokens, max_iterations
+- `post_init()` hook: Custom setup after dependency injection
+- `_run()` override: Custom agent logic with full access to injected deps
 
 ### 2. Tool Plugins
 
@@ -253,14 +273,16 @@ Tool plugins extend AgentKit with custom capabilities. They inherit from `ToolSe
 **Creating a Tool Plugin:**
 
 1. Create a Python file in the `plugins/tools/` directory (e.g., `plugins/tools/my_tools.py`)
-2. Inherit from `ToolSetHandler` and define tools using the `@tool` decorator:
+2. Inherit from `ToolSetHandler`, set `server_name` as a class attribute, and define tools using the `@tool` decorator:
 
 ```python
 from agentkit.tools.toolset_handler import ToolSetHandler, tool
 
 class MyTools(ToolSetHandler):
-    def __init__(self, tool_manager, server_name: str):
-        super().__init__(tool_manager, server_name)
+    server_name = "my_tools"  # Required: identifies this tool server
+
+    def __init__(self):
+        super().__init__()
         # Initialize any resources here
 
     @tool(
@@ -288,7 +310,7 @@ class MyTools(ToolSetHandler):
 - Automatic discovery: Tools are loaded from `tools_dir` at startup
 - JSON Schema parameters: Use standard JSON Schema for input validation
 - Async support: Tools can be async or sync
-- Cross-tool communication: Use `self.call_other_tool()` to invoke other tools
+- Cross-tool communication: Use `self.call_other_tool("{server}__{tool}", args)` to invoke other tools
 - Persistent storage: Each tool server gets its own data directory
 - Tool naming: Tools are exposed as `{server_name}__{tool_name}`
 
@@ -298,6 +320,8 @@ class MyTools(ToolSetHandler):
 from agentkit.tools.toolset_handler import ToolSetHandler, tool
 
 class AdvancedTools(ToolSetHandler):
+    server_name = "advanced"
+
     @tool(
         description="Fetch and process data from an API",
         parameters={
@@ -310,13 +334,12 @@ class AdvancedTools(ToolSetHandler):
         }
     )
     async def fetch_and_process(self, url: str, process: bool = False) -> dict:
-        # Use built-in web tools
+        # Use built-in web tools - note the full tool name format
         result = await self.call_other_tool("web_tools__fetch_page", {"url": url})
 
         if process and result.get("success"):
-            # Process the fetched content
             content = result.get("content", "")
-            processed = content.upper()  # Example processing
+            processed = content.upper()
 
             return {
                 "success": True,

@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
+from agentkit.db.migrations import run_migrations
 from agentkit.db.models import Base, Chat, File, Message, PendingToolApproval
 
 
@@ -26,6 +27,9 @@ class Database:
 
         # Create tables
         Base.metadata.create_all(self.engine)
+
+        # Run migrations
+        run_migrations(self.engine)
 
     def create_chat(self, title: Optional[str] = None) -> Chat:
         with self.SessionLocal() as session:
