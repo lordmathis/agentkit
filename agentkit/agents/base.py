@@ -6,13 +6,8 @@ from typing import Any, Dict, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from agentkit.chatbots.messages import format_history
-from agentkit.chatbots.naming import generate_title
-from agentkit.chatbots.skills import (
-    apply_skill_context,
-    build_skill_context,
-    parse_mentions,
-)
+from agentkit.agents.context import format_history, generate_title, parse_mentions
+from agentkit.agents.context.skills import apply_skill_context, build_skill_context
 from agentkit.db.db import Database
 from agentkit.providers.provider import Provider
 from agentkit.skills.registry import SkillRegistry
@@ -95,13 +90,13 @@ class BaseAgent(ABC):
                         content = ""
                         reasoning_content = None
                         tool_calls_json = None
-                self.db.save_message(
-                    self.chat_id,
-                    "assistant",
-                    content,
-                    reasoning_content=reasoning_content,
-                    tool_calls=tool_calls_json,
-                )
+                    self.db.save_message(
+                        self.chat_id,
+                        "assistant",
+                        content,
+                        reasoning_content=reasoning_content,
+                        tool_calls=tool_calls_json,
+                    )
             else:
                 self.db.save_message(self.chat_id, "assistant", content_or_response)
         else:

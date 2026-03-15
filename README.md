@@ -166,7 +166,7 @@ mcp_timeout: 60  # Timeout for MCP operations in seconds
 
 ```yaml
 plugins:
-  chatbots_dir: "chatbots"  # Directory for chatbot plugins
+  agents_dir: "agents"  # Directory for agent plugins
   tools_dir: "tools"  # Directory for tool plugins
   skills_dir: "skills"  # Directory for skill plugins
 ```
@@ -222,29 +222,26 @@ Chatbot plugins allow you to create custom chat interfaces with specific configu
 
 **Creating a Chatbot Plugin:**
 
-1. Create a Python file in the `chatbots/` directory (e.g., `chatbots/my_bot.py`)
-2. Inherit from `ChatbotPlugin` and implement the `configure()` method:
+1. Create a Python file in the `agents/` directory (e.g., `agents/my_bot.py`)
+2. Inherit from `ReActAgentPlugin` and configure via class attributes:
 
 ```python
-from agentkit.chatbots.plugin import ChatbotPlugin, ChatbotConfig
+from agentkit.agents import ReActAgentPlugin
 
-class MyCustomBot(ChatbotPlugin):
-    def configure(self) -> ChatbotConfig:
-        provider = self.provider_registry.get_provider("openrouter")
-
-        return ChatbotConfig(
-            provider=provider,
-            model_id="openai/gpt-4",
-            system_prompt="You are a helpful assistant.",
-            tool_servers=["web_tools", "time"],  # Tool servers to use
-            max_iterations=5,
-            temperature=0.7,
-            max_tokens=2000
-        )
+class MyCustomBot(ReActAgentPlugin):
+    default = True
+    name = "my-bot"
+    provider_id = "openrouter"
+    model_id = "openai/gpt-4"
+    system_prompt = "You are a helpful assistant."
+    tool_servers = ["web_tools", "time"]
+    max_iterations = 5
+    temperature = 0.7
+    max_tokens = 2000
 ```
 
 **Key Features:**
-- Automatic discovery: Chatbots are automatically loaded from the `chatbots_dir`
+- Automatic discovery: Agents are automatically loaded from the `agents_dir`
 - Provider integration: Access to all configured providers
 - Tool access: Can specify which MCP/agent tools to use
 - Configurable parameters: temperature, max_tokens, max_iterations

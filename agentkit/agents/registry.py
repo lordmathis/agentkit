@@ -1,11 +1,10 @@
-# agentkit/models/registry.py
 import importlib.util
 import inspect
 import logging
 from pathlib import Path
 from typing import Dict, Optional, Type
 
-from agentkit.chatbots.react import ReActAgentPlugin
+from agentkit.agents.react import ReActAgentPlugin
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.tools.manager import ToolManager
 
@@ -37,16 +36,13 @@ class ChatbotRegistry:
             logger.warning(f"Chatbots path is not a directory: {self.chatbots_dir}")
             return
 
-        # Find all Python files in the chatbots directory
         python_files = list(chatbots_path.glob("*.py"))
 
         for file_path in python_files:
-            # Skip __init__.py and private modules
             if file_path.name.startswith("_"):
                 continue
 
             try:
-                # Load the module dynamically from external plugin directory
                 spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
 
                 if spec is None or spec.loader is None:
@@ -56,12 +52,10 @@ class ChatbotRegistry:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
 
-                # Find all ReActAgentPlugin subclasses in the module
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     if not issubclass(obj, ReActAgentPlugin) or obj is ReActAgentPlugin:
                         continue
 
-                    # Register the class itself, not an instance
                     chatbot_name = obj.name if obj.name else name.lower()
                     self._chatbot_classes[chatbot_name] = obj
                     logger.info(

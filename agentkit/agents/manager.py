@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, Optional
 
-from agentkit.chatbots.base import BaseAgent
-from agentkit.chatbots.react import ReActAgent
-from agentkit.chatbots.registry import ChatbotRegistry
+from agentkit.agents.base import BaseAgent
+from agentkit.agents.react import ReActAgent
+from agentkit.agents.registry import ChatbotRegistry
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.skills.registry import SkillRegistry

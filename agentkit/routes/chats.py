@@ -4,10 +4,22 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from agentkit.chatbots.config import ChatConfig
-from agentkit.chatbots.manager import AgentManager
+from agentkit.agents.manager import AgentManager
 
 router = APIRouter()
+
+
+class ModelParams(BaseModel):
+    max_iterations: Optional[int] = 5
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+
+
+class ChatConfig(BaseModel):
+    model: str
+    system_prompt: Optional[str] = None
+    tool_servers: Optional[List[str]] = None
+    model_params: Optional[ModelParams] = None
 
 
 class CreateChatRequest(BaseModel):

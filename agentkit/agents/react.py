@@ -3,7 +3,7 @@ import logging
 from abc import ABC
 from typing import Any, Dict, List, Optional
 
-from agentkit.chatbots.base import BaseAgent
+from agentkit.agents.base import BaseAgent
 from agentkit.db.db import Database
 from agentkit.providers.provider import Provider
 from agentkit.skills.registry import SkillRegistry
