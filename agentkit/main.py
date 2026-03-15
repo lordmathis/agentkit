@@ -40,6 +40,7 @@ def configure_logging(cfg: LoggingConfig):
         uvicorn_logger.handlers = [handler]
         uvicorn_logger.propagate = False
 
+
 def start_file_watcher(paths: list[str]) -> None:
     """Watch paths for changes; send SIGTERM on detection to trigger a clean exit."""
     logger = logging.getLogger(__name__)
@@ -60,10 +61,14 @@ if __name__ == "__main__":
     load_dotenv(override=True)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--watch", action="store_true", help="Exit on plugin/config changes (for use with Docker restart policy)")
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Exit on plugin/config changes (for use with Docker restart policy)",
+    )
     args = parser.parse_args()
 
-    app_config: AppConfig = load_config('config.yaml')
+    app_config: AppConfig = load_config("config.yaml")
     configure_logging(app_config.logging)
     app.state.app_config = app_config
 
@@ -78,8 +83,5 @@ if __name__ == "__main__":
 
     # Run the FastAPI app with uvicorn; SIGTERM triggers graceful shutdown + lifespan teardown
     uvicorn.run(
-        app,
-        host=app_config.server.host,
-        port=app_config.server.port,
-        log_config=None
+        app, host=app_config.server.host, port=app_config.server.port, log_config=None
     )

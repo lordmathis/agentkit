@@ -1,4 +1,5 @@
 """Skills API endpoints."""
+
 import logging
 from typing import Dict, List
 
@@ -13,7 +14,7 @@ router = APIRouter()
 async def list_skills(request: Request) -> Dict[str, List[Dict]]:
     """
     List all available skills.
-    
+
     Returns:
         Dictionary with 'skills' key containing list of skill metadata
     """
@@ -30,27 +31,29 @@ async def list_skills(request: Request) -> Dict[str, List[Dict]]:
 async def get_skill(skill_name: str, request: Request) -> Dict:
     """
     Get details of a specific skill including its content.
-    
+
     Args:
         skill_name: Name of the skill to retrieve
-        
+
     Returns:
         Dictionary with skill metadata and content
     """
     try:
         skill_registry = request.app.state.skill_registry
         skill = skill_registry.get_skill(skill_name)
-        
+
         if skill is None:
-            raise HTTPException(status_code=404, detail=f"Skill not found: {skill_name}")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Skill not found: {skill_name}"
+            )
+
         content = skill_registry.get_skill_content(skill_name)
-        
+
         return {
             "name": skill.name,
             "path": str(skill.path),
             "exists": skill.exists,
-            "content": content
+            "content": content,
         }
     except HTTPException:
         raise

@@ -1,4 +1,5 @@
 """Handle automatic chat naming based on conversation history."""
+
 import json
 import logging
 from typing import List, Optional
@@ -49,7 +50,11 @@ class ChatNaming:
                     content = json.loads(msg.content)
                     if isinstance(content, list):
                         # Extract text from structured content
-                        text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
+                        text_parts = [
+                            part.get("text", "")
+                            for part in content
+                            if part.get("type") == "text"
+                        ]
                         content_str = " ".join(text_parts)
                     else:
                         content_str = str(content)
@@ -66,15 +71,17 @@ class ChatNaming:
             },
             {
                 "role": "user",
-                "content": CHAT_NAMING_USER_PROMPT.format(conversation=conversation_text),
-            }
+                "content": CHAT_NAMING_USER_PROMPT.format(
+                    conversation=conversation_text
+                ),
+            },
         ]
 
         response = await self.chatbot.llm_client.chat_completion(
             model=self.chatbot.model_id,
             messages=naming_messages,
             tools=None,
-            temperature=0.2
+            temperature=0.2,
         )
 
         if "error" in response:

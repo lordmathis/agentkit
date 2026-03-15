@@ -30,108 +30,106 @@ class WebTools(ToolSetHandler):
         self._last_request_time = 0.0
         self._ddgs = None
         self._ddgs_kwargs = kwargs
-    
+
     async def initialize(self):
         """Set up HTTP client and DDGS client"""
         await super().initialize()
         self._client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; AgentKit/1.0)"
-            }
+            headers={"User-Agent": "Mozilla/5.0 (compatible; AgentKit/1.0)"},
         )
         self._ddgs = DDGS(**self._ddgs_kwargs)
-    
+
     async def cleanup(self):
         """Clean up HTTP client"""
         if self._client:
             await self._client.aclose()
-    
+
     @tool(
         description="Fetch a web page and convert it to markdown format",
         parameters={
             "type": "object",
             "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to fetch"
-                },
+                "url": {"type": "string", "description": "The URL to fetch"},
                 "include_links": {
                     "type": "boolean",
                     "description": "Whether to include links in the markdown output",
-                    "default": True
+                    "default": True,
                 },
                 "include_images": {
                     "type": "boolean",
                     "description": "Whether to include image references in the markdown output",
-                    "default": False
-                }
+                    "default": False,
+                },
             },
-            "required": ["url"]
-        }
+            "required": ["url"],
+        },
     )
     async def fetch_page(
-        self, 
-        url: str, 
-        include_links: bool = True,
-        include_images: bool = False
+        self, url: str, include_links: bool = True, include_images: bool = False
     ) -> str:
         """Fetch a web page and convert HTML to clean markdown"""
         try:
             logger.info(f"Fetching URL: {url}")
             response = await self._client.get(url)
             response.raise_for_status()
-            
+
             # Parse HTML with BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
+            soup = BeautifulSoup(response.text, "html.parser")
+
             # Remove script and style elements
-            for element in soup(['script', 'style', 'nav', 'footer', 'header']):
+            for element in soup(["script", "style", "nav", "footer", "header"]):
                 element.decompose()
-            
+
             # Remove comments
-            for comment in soup.find_all(string=lambda text: isinstance(text, str) and text.strip().startswith('<!--')):
+            for comment in soup.find_all(
+                string=lambda text: (
+                    isinstance(text, str) and text.strip().startswith("<!--")
+                )
+            ):
                 comment.extract()
-            
+
             # Get the main content (try to find article/main tags first)
             main_content = (
-                soup.find('article') or 
-                soup.find('main') or 
-                soup.find('div', class_=lambda c: c and 'content' in c.lower()) or
-                soup.body or 
-                soup
+                soup.find("article")
+                or soup.find("main")
+                or soup.find("div", class_=lambda c: c and "content" in c.lower())
+                or soup.body
+                or soup
             )
-            
+
             # Convert to markdown
             markdown_text = md(
                 str(main_content),
                 heading_style="ATX",
                 bullets="-",
-                strip=['a'] if not include_links else [],
+                strip=["a"] if not include_links else [],
                 escape_asterisks=False,
                 escape_underscores=False,
             )
-            
+
             # Clean up the markdown
             markdown_text = self._clean_markdown(markdown_text)
-            
+
             # Optionally remove images
             if not include_images:
-                markdown_text = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_text)
-            
+                markdown_text = re.sub(r"!\[.*?\]\(.*?\)", "", markdown_text)
+
             result = f"# Content from {url}\n\n{markdown_text}"
-            
-            logger.info(f"Successfully fetched and converted {url} ({len(markdown_text)} characters)")
+
+            logger.info(
+                f"Successfully fetched and converted {url} ({len(markdown_text)} characters)"
+            )
             return result
-            
+
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching {url}: {e}")
             return f"Error fetching URL: {str(e)}"
         except Exception as e:
             logger.error(f"Error processing {url}: {e}", exc_info=True)
             return f"Error processing page: {str(e)}"
-    
+
     @tool(
         description="Fetch multiple web pages and return their content as markdown",
         parameters={
@@ -140,28 +138,28 @@ class WebTools(ToolSetHandler):
                 "urls": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of URLs to fetch"
+                    "description": "List of URLs to fetch",
                 }
             },
-            "required": ["urls"]
-        }
+            "required": ["urls"],
+        },
     )
     async def fetch_multiple_pages(self, urls: list[str]) -> dict:
         """Fetch multiple pages concurrently"""
         results = {}
         tasks = [self.fetch_page(url) for url in urls]
-        
+
         # Fetch all pages concurrently
         contents = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         for url, content in zip(urls, contents):
             if isinstance(content, Exception):
                 results[url] = f"Error: {str(content)}"
             else:
                 results[url] = content
-        
+
         return results
-    
+
     @tool(
         description="Performs a DuckDuckGo web search based on your query (think a Google search) then returns the top search results.",
         parameters={
@@ -169,11 +167,11 @@ class WebTools(ToolSetHandler):
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The search query to perform."
+                    "description": "The search query to perform.",
                 }
             },
-            "required": ["query"]
-        }
+            "required": ["query"],
+        },
     )
     async def web_search(self, query: str) -> str:
         """Perform a DuckDuckGo web search and return formatted results"""
@@ -186,8 +184,7 @@ class WebTools(ToolSetHandler):
             # Run synchronous DDGS call in executor to avoid blocking
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(
-                None,
-                lambda: self._ddgs.text(query, max_results=self.max_results)
+                None, lambda: self._ddgs.text(query, max_results=self.max_results)
             )
 
             if not results or len(results) == 0:
@@ -223,13 +220,13 @@ class WebTools(ToolSetHandler):
     def _clean_markdown(self, text: str) -> str:
         """Clean up markdown text"""
         # Remove excessive newlines (more than 2)
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         # Remove leading/trailing whitespace from each line
-        lines = [line.rstrip() for line in text.split('\n')]
-        text = '\n'.join(lines)
+        lines = [line.rstrip() for line in text.split("\n")]
+        text = "\n".join(lines)
 
         # Remove empty list items
-        text = re.sub(r'\n[-*+]\s*\n', '\n', text)
+        text = re.sub(r"\n[-*+]\s*\n", "\n", text)
 
         return text.strip()

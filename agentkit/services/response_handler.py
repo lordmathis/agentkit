@@ -1,4 +1,5 @@
 """Handle LLM responses and message saving."""
+
 import json
 import logging
 from typing import Any, Dict
@@ -18,11 +19,11 @@ class ResponseHandler:
         self, chat_id: str, response: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Process LLM response and save assistant message to database.
-        
+
         Args:
             chat_id: The chat ID
             response: The response from the LLM
-            
+
         Returns:
             The original response (for returning to caller)
         """
@@ -53,7 +54,7 @@ class ResponseHandler:
                 # Extract tool calls if present
                 tool_calls = response.get("tool_calls_used")
                 tool_calls_json = json.dumps(tool_calls) if tool_calls else None
-                
+
                 logger.info(f"Tool calls from response: {tool_calls}")
                 logger.info(f"Tool calls JSON: {tool_calls_json}")
 

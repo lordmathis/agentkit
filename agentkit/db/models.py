@@ -72,11 +72,12 @@ class File(Base):
     file_path: Mapped[str] = mapped_column(String)  # Path on disk
     content_type: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="pending")  # pending, attached
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-    
-    __table_args__ = (
-        Index('idx_file_status', 'status'),
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
     )
+
+    __table_args__ = (Index("idx_file_status", "status"),)
+
 
 class PendingToolApproval(Base):
     __tablename__ = "pending_tool_approvals"

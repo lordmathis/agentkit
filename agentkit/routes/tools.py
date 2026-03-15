@@ -20,28 +20,23 @@ async def list_tools(request: Request):
             # Convert tools to dict format
             tool_list = []
             for tool in tools:
-                if hasattr(tool, 'parameters'):
+                if hasattr(tool, "parameters"):
                     tool_dict = {
                         "name": tool.name,
                         "description": tool.description,
-                        "parameters": tool.parameters
+                        "parameters": tool.parameters,
                     }
                 else:
                     tool_dict = {
-                        "name": getattr(tool, 'name', 'unknown'),
-                        "description": getattr(tool, 'description', ''),
-                        "parameters": {}
+                        "name": getattr(tool, "name", "unknown"),
+                        "description": getattr(tool, "description", ""),
+                        "parameters": {},
                     }
                 tool_list.append(tool_dict)
 
-            tool_servers.append({
-                "name": server_name,
-                "tools": tool_list
-            })
+            tool_servers.append({"name": server_name, "tools": tool_list})
         except Exception as e:
             print(f"Warning: Could not list tools from server {server_name}: {e}")
             continue
 
-    return {
-        "tool_servers": tool_servers
-    }
+    return {"tool_servers": tool_servers}

@@ -13,6 +13,7 @@ class ProviderType(str, Enum):
 
 class FilterCondition(BaseModel):
     """A single filter condition"""
+
     field: str  # JSONPath expression to the field (e.g., "id", "architecture", "pricing.prompt")
     contains: Optional[str] = None
     excludes: Optional[str] = None
@@ -22,6 +23,7 @@ class FilterCondition(BaseModel):
 
 class ModelFilter(BaseModel):
     """Filter configuration for dynamically fetching model IDs"""
+
     conditions: List[FilterCondition] = []
     endpoint: str = "/models"  # Endpoint to append to api_base
 
@@ -35,13 +37,16 @@ class ProviderConfig(BaseModel):
     basic_auth_token: Optional[str] = None
     verify_ssl: bool = True
 
+
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
 
+
 class MCPType(Enum):
     STDIO = "stdio"
     SSE = "sse"
+
 
 class MCPConfig(BaseModel):
     command: str
@@ -49,21 +54,25 @@ class MCPConfig(BaseModel):
     type: MCPType
     env: Dict[str, str] = {}
 
+
 class PluginConfig(BaseModel):
     chatbots_dir: str = "chatbots"
     tools_dir: str = "tools"
     skills_dir: str = "skills"
+
 
 class TranscriptionConfig(BaseModel):
     model: str = "whisper-1"
     base_url: Optional[str] = None
     api_key: Optional[str] = None
 
+
 class LoggingConfig(BaseModel):
     target: str = "agentkit.log"  # file path, or "stdout"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     date_format: str = "%Y-%m-%d %H:%M:%S"
     level: str = "INFO"
+
 
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
@@ -79,8 +88,9 @@ class AppConfig(BaseModel):
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24
 
+
 def load_config(path: str) -> AppConfig:
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         content = os.path.expandvars(f.read())
         data = yaml.safe_load(content)
 

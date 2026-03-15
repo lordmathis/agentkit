@@ -12,8 +12,8 @@ from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
-class ChatServiceManager:
 
+class ChatServiceManager:
     def __init__(
         self,
         db: Database,
@@ -67,7 +67,9 @@ class ChatServiceManager:
             model=config.model,
             system_prompt=config.system_prompt,
             tool_servers=config.tool_servers,
-            model_params=config.model_params.model_dump() if config.model_params else {},
+            model_params=config.model_params.model_dump()
+            if config.model_params
+            else {},
         )
 
         return chat_service

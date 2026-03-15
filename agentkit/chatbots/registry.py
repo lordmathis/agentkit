@@ -28,49 +28,50 @@ class ChatbotRegistry:
     def _register_chatbots(self):
         """Discover and register chatbot plugins from the configured directory."""
         chatbots_path = Path(self.chatbots_dir)
-        
+
         if not chatbots_path.exists():
             logger.warning(f"Chatbots directory does not exist: {self.chatbots_dir}")
             return
-        
+
         if not chatbots_path.is_dir():
             logger.warning(f"Chatbots path is not a directory: {self.chatbots_dir}")
             return
-        
+
         # Find all Python files in the chatbots directory
         python_files = list(chatbots_path.glob("*.py"))
-        
+
         for file_path in python_files:
             # Skip __init__.py and private modules
             if file_path.name.startswith("_"):
                 continue
-            
+
             try:
                 # Load the module dynamically from external plugin directory
                 spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
-                
+
                 if spec is None or spec.loader is None:
                     logger.warning(f"Could not load spec for module: {file_path}")
                     continue
-                
+
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                
+
                 # Find all ReActAgentPlugin subclasses in the module
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     if not issubclass(obj, ReActAgentPlugin) or obj is ReActAgentPlugin:
                         continue
-                    
+
                     # Register the class itself, not an instance
                     chatbot_name = obj.name if obj.name else name.lower()
                     self._chatbot_classes[chatbot_name] = obj
-                    logger.info(f"Registered chatbot class: {chatbot_name} from {file_path.name}")
+                    logger.info(
+                        f"Registered chatbot class: {chatbot_name} from {file_path.name}"
+                    )
             except Exception as e:
                 logger.error(
-                    f"Failed to load module from {file_path}: {e}",
-                    exc_info=True
+                    f"Failed to load module from {file_path}: {e}", exc_info=True
                 )
-        
+
         logger.info(f"Registered {len(self._chatbot_classes)} chatbot(s)")
 
     def get_chatbot_class(self, name: str) -> Optional[Type[ReActAgentPlugin]]:
@@ -84,6 +85,6 @@ class ChatbotRegistry:
     def get_default_chatbot_name(self) -> Optional[str]:
         """Return the name of the first registered chatbot class with default=True."""
         for name, cls in self._chatbot_classes.items():
-            if getattr(cls, 'default', False):
+            if getattr(cls, "default", False):
                 return name
         return None
