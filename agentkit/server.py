@@ -9,13 +9,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from agentkit.agents.registry import ChatbotRegistry
+from agentkit.agents import AgentManager, AgentRegistry
 from agentkit.config import AppConfig
 from agentkit.db import Database
 from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.routes import register_routes
-from agentkit.agents.manager import AgentManager
 from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
@@ -103,7 +102,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize model registry
     logger.info("Initializing chatbot registry...")
-    model_registry = ChatbotRegistry(
+    model_registry = AgentRegistry(
         provider_registry, tool_manager, app_config.plugins.chatbots_dir
     )
     app.state.model_registry = model_registry
@@ -142,11 +141,15 @@ async def lifespan(app: FastAPI):
     agent_manager = AgentManager(
         db=database,
         provider_registry=provider_registry,
-        chatbot_registry=model_registry,
+        agent_registry=model_registry,
         tool_manager=tool_manager,
         skill_registry=skill_registry,
     )
     app.state.agent_manager = agent_manager
+
+    # Initialize model cache
+    app.state.models_cache = None
+    app.state.models_cache_time = 0.0
 
     logger.info("Server started successfully")
 

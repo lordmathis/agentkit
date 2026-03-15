@@ -29,11 +29,11 @@ class ToolDefinition(BaseModel):
 class ToolSetHandler(ABC):
     """Base class for function-based tool handlers"""
 
-    def __init__(self, name: str, tool_manager: Optional["ToolManager"] = None):
-        self.server_name = name
-        self._tools: Dict[str, ToolDefinition] = {}
-        self._tool_manager: Optional["ToolManager"] = tool_manager
+    server_name: str = ""
 
+    def __init__(self):
+        self._tools: Dict[str, ToolDefinition] = {}
+        self._tool_manager: Optional["ToolManager"] = None
         self._provider: Optional[Provider] = None
         self._model_id: Optional[str] = None
 
@@ -111,14 +111,11 @@ class ToolSetHandler(ABC):
         """Default cleanup does nothing"""
         pass
 
-    async def call_other_tool(
-        self, server_name: str, tool_name: str, arguments: dict
-    ) -> Any:
-        """Helper to call tools from other servers (including MCP)"""
+    async def call_other_tool(self, call_name: str, arguments: dict) -> Any:
+        """Call a tool by its full name (e.g. 'web_tools__fetch_page')."""
         if not self._tool_manager:
             raise RuntimeError("ToolManager not set")
 
-        call_name = f"{server_name}__{tool_name}"
         logger.debug(f"[{self.server_name}] Calling {call_name}")
 
         result = await self._tool_manager.call_tool(

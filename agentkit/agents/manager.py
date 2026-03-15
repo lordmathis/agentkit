@@ -1,9 +1,11 @@
+import importlib.util
+import inspect
 import logging
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional, Type
 
 from agentkit.agents.base import BaseAgent
-from agentkit.agents.react import ReActAgent
-from agentkit.agents.registry import ChatbotRegistry
+from agentkit.agents.react import ReActAgent, ReActAgentPlugin
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.skills.registry import SkillRegistry
@@ -12,33 +14,101 @@ from agentkit.tools.manager import ToolManager
 logger = logging.getLogger(__name__)
 
 
+class AgentRegistry:
+    """Discovers and registers agent plugin classes from a directory."""
+
+    def __init__(
+        self,
+        provider_registry: ProviderRegistry,
+        tool_manager: ToolManager,
+        agents_dir: str,
+    ):
+        self.provider_registry = provider_registry
+        self.tool_manager = tool_manager
+        self.agents_dir = agents_dir
+        self._agent_classes: Dict[str, Type[ReActAgentPlugin]] = {}
+        self._register_agents()
+
+    def _register_agents(self):
+        """Discover and register agent plugins from the configured directory."""
+        agents_path = Path(self.agents_dir)
+
+        if not agents_path.exists():
+            logger.warning(f"Agents directory does not exist: {self.agents_dir}")
+            return
+
+        if not agents_path.is_dir():
+            logger.warning(f"Agents path is not a directory: {self.agents_dir}")
+            return
+
+        python_files = list(agents_path.glob("*.py"))
+
+        for file_path in python_files:
+            if file_path.name.startswith("_"):
+                continue
+
+            try:
+                spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+
+                if spec is None or spec.loader is None:
+                    logger.warning(f"Could not load spec for module: {file_path}")
+                    continue
+
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    if not issubclass(obj, ReActAgentPlugin) or obj is ReActAgentPlugin:
+                        continue
+
+                    agent_name = obj.name if obj.name else name.lower()
+                    self._agent_classes[agent_name] = obj
+                    logger.info(
+                        f"Registered agent class: {agent_name} from {file_path.name}"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Failed to load module from {file_path}: {e}", exc_info=True
+                )
+
+        logger.info(f"Registered {len(self._agent_classes)} agent(s)")
+
+    def get_agent_class(self, name: str) -> Optional[Type[ReActAgentPlugin]]:
+        """Retrieve an agent class by name."""
+        return self._agent_classes.get(name)
+
+    def list_agent_names(self) -> list[str]:
+        """List all registered agent names."""
+        return list(self._agent_classes.keys())
+
+    def get_default_agent_name(self) -> Optional[str]:
+        """Return the name of the first registered agent class with default=True."""
+        for name, cls in self._agent_classes.items():
+            if getattr(cls, "default", False):
+                return name
+        return None
+
+
 class AgentManager:
-    """Thin registry mapping chat_id -> agent. No business logic."""
+    """Manages agent instances per chat. Handles instantiation and lifecycle."""
 
     def __init__(
         self,
         db: Database,
         provider_registry: ProviderRegistry,
-        chatbot_registry: ChatbotRegistry,
+        agent_registry: AgentRegistry,
         tool_manager: ToolManager,
         skill_registry: Optional[SkillRegistry] = None,
     ):
         self.db = db
         self.provider_registry = provider_registry
-        self.chatbot_registry = chatbot_registry
+        self.agent_registry = agent_registry
         self.tool_manager = tool_manager
         self.skill_registry = skill_registry
         self._agents: Dict[str, BaseAgent] = {}
 
-    def create(self, chat_id: str, config: dict) -> BaseAgent:
-        """Create an agent for a chat and persist config to DB."""
-        if chat_id in self._agents:
-            raise ValueError(f"Agent for chat '{chat_id}' already exists")
-
-        chat = self.db.get_chat(chat_id)
-        if not chat:
-            raise ValueError(f"Chat '{chat_id}' not found")
-
+    def _hydrate(self, chat_id: str, config: dict) -> BaseAgent:
+        """Instantiate agent from config dict without persisting."""
         model = config.get("model")
         if not model:
             raise ValueError("Model is required")
@@ -56,13 +126,13 @@ class AgentManager:
             if not provider:
                 raise ValueError(f"Provider '{provider_name}' not found")
         else:
-            chatbot_class = self.chatbot_registry.get_chatbot_class(model)
-            if not chatbot_class:
-                raise ValueError(f"Chatbot '{model}' not found in registry")
-            provider = self.provider_registry.get_provider(chatbot_class.provider_id)
+            agent_class = self.agent_registry.get_agent_class(model)
+            if not agent_class:
+                raise ValueError(f"Agent '{model}' not found in registry")
+            provider = self.provider_registry.get_provider(agent_class.provider_id)
             if not provider:
-                raise ValueError(f"Provider '{chatbot_class.provider_id}' not found")
-            model_id = chatbot_class.model_id
+                raise ValueError(f"Provider '{agent_class.provider_id}' not found")
+            model_id = agent_class.model_id
 
         agent = ReActAgent(
             chat_id=chat_id,
@@ -77,9 +147,24 @@ class AgentManager:
             max_tokens=max_tokens,
             max_iterations=max_iterations,
         )
+        return agent
 
+    def create(self, chat_id: str, config: dict) -> BaseAgent:
+        """Create an agent for a chat and persist config to DB."""
+        if chat_id in self._agents:
+            raise ValueError(f"Agent for chat '{chat_id}' already exists")
+
+        chat = self.db.get_chat(chat_id)
+        if not chat:
+            raise ValueError(f"Chat '{chat_id}' not found")
+
+        agent = self._hydrate(chat_id, config)
         self._agents[chat_id] = agent
 
+        model = config.get("model")
+        system_prompt = config.get("system_prompt")
+        tool_servers = config.get("tool_servers")
+        model_params = config.get("model_params") or {}
         self.db.save_chat_config(
             chat_id=chat_id,
             model=model,
@@ -100,7 +185,9 @@ class AgentManager:
         if not config_dict:
             raise ValueError(f"Chat '{chat_id}' not found")
 
-        return self.create(chat_id, config_dict)
+        agent = self._hydrate(chat_id, config_dict)
+        self._agents[chat_id] = agent
+        return agent
 
     def remove(self, chat_id: str) -> None:
         """Remove agent from memory."""

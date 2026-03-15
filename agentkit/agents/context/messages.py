@@ -19,6 +19,35 @@ def parse_content(msg_content: str):
         return msg_content
 
 
+def extract_text_content(raw_content: str) -> str:
+    """Decode message content to plain text regardless of storage format."""
+    content = parse_content(raw_content)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(p.get("text", "") for p in content if p.get("type") == "text")
+    return str(content)
+
+
+def extract_assistant_content(
+    response: Dict[str, Any],
+) -> tuple[str, str | None, str | None]:
+    """Extract content, reasoning_content, and tool_calls from assistant response."""
+    choices = response.get("choices", [])
+    if not choices:
+        return "", None, None
+    msg_data = choices[0].get("message", {})
+    if isinstance(msg_data, dict):
+        content = msg_data.get("content", "") or ""
+        reasoning_content = msg_data.get("reasoning_content")
+    else:
+        content = getattr(msg_data, "content", "") or ""
+        reasoning_content = getattr(msg_data, "reasoning_content", None)
+    tool_calls = response.get("tool_calls_used")
+    tool_calls_json = json.dumps(tool_calls) if tool_calls else None
+    return content, reasoning_content, tool_calls_json
+
+
 def process_user_message(db: Database, msg) -> ChatCompletionMessageParam:
     """Process user message and reconstruct content with attachments.
 

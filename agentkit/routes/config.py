@@ -4,9 +4,6 @@ from fastapi import APIRouter, Request
 
 router = APIRouter()
 
-# Cache for models list (TTL: 5 minutes)
-_models_cache = None
-_models_cache_time = 0
 MODELS_CACHE_TTL = 300  # 5 minutes
 
 
@@ -18,24 +15,21 @@ async def list_models(request: Request):
     Returns both predefined chatbots from the registry and provider models.
     Format: {chatbot_name} for predefined chatbots, {provider}:{model_id} for provider models.
     """
-    global _models_cache, _models_cache_time
-
-    # Return cached models if still valid
     current_time = time.time()
-    if (
-        _models_cache is not None
-        and (current_time - _models_cache_time) < MODELS_CACHE_TTL
-    ):
-        return _models_cache
+    cache = getattr(request.app.state, "models_cache", None)
+    cache_time = getattr(request.app.state, "models_cache_time", 0.0)
 
-    chatbot_registry = request.app.state.model_registry
+    if cache is not None and (current_time - cache_time) < MODELS_CACHE_TTL:
+        return cache
+
+    agent_registry = request.app.state.model_registry
     provider_registry = request.app.state.provider_registry
 
     models = []
 
-    # Add predefined chatbots from registry
-    chatbot_names = chatbot_registry.list_chatbots()
-    for model_name in chatbot_names:
+    # Add predefined agents from registry
+    agent_names = agent_registry.list_agent_names()
+    for model_name in agent_names:
         models.append(
             {
                 "id": model_name,
@@ -69,9 +63,8 @@ async def list_models(request: Request):
 
     result = {"object": "list", "data": models}
 
-    # Cache the result
-    _models_cache = result
-    _models_cache_time = current_time
+    request.app.state.models_cache = result
+    request.app.state.models_cache_time = current_time
 
     return result
 
@@ -79,52 +72,52 @@ async def list_models(request: Request):
 @router.get("/config/chatbots")
 async def list_chatbots(request: Request):
     """
-    List all predefined chatbots from the registry with their configurations.
+    List all predefined agents from the registry with their configurations.
     """
-    chatbot_registry = request.app.state.model_registry
+    agent_registry = request.app.state.model_registry
 
-    chatbots = []
-    chatbot_names = chatbot_registry.list_chatbot_names()
+    agents = []
+    agent_names = agent_registry.list_agent_names()
 
-    for model_name in chatbot_names:
-        chatbot_cls = chatbot_registry.get_chatbot_class(model_name)
-        if chatbot_cls:
-            chatbots.append(
+    for model_name in agent_names:
+        agent_cls = agent_registry.get_agent_class(model_name)
+        if agent_cls:
+            agents.append(
                 {
                     "name": model_name,
-                    "system_prompt": chatbot_cls.system_prompt,
-                    "provider": chatbot_cls.provider_id,
-                    "model_id": chatbot_cls.model_id,
-                    "tool_servers": list(chatbot_cls.tool_servers),
-                    "temperature": chatbot_cls.temperature,
-                    "max_tokens": chatbot_cls.max_tokens,
-                    "max_iterations": chatbot_cls.max_iterations,
+                    "system_prompt": agent_cls.system_prompt,
+                    "provider": agent_cls.provider_id,
+                    "model_id": agent_cls.model_id,
+                    "tool_servers": list(agent_cls.tool_servers),
+                    "temperature": agent_cls.temperature,
+                    "max_tokens": agent_cls.max_tokens,
+                    "max_iterations": agent_cls.max_iterations,
                 }
             )
 
-    return {"chatbots": chatbots}
+    return {"chatbots": agents}
 
 
 @router.get("/config/default-chat")
 async def get_default_chat_config(request: Request):
     """
-    Get the default chatbot plugin (the one with default=True).
+    Get the default agent plugin (the one with default=True).
     """
-    chatbot_registry = request.app.state.model_registry
-    default_name = chatbot_registry.get_default_chatbot_name()
+    agent_registry = request.app.state.model_registry
+    default_name = agent_registry.get_default_agent_name()
     if default_name is None:
         return {"model": None}
 
-    chatbot_cls = chatbot_registry.get_chatbot_class(default_name)
+    agent_cls = agent_registry.get_agent_class(default_name)
 
     return {
         "model": default_name,
-        "system_prompt": chatbot_cls.system_prompt,
-        "tool_servers": list(chatbot_cls.tool_servers),
+        "system_prompt": agent_cls.system_prompt,
+        "tool_servers": list(agent_cls.tool_servers),
         "model_params": {
-            "max_iterations": chatbot_cls.max_iterations,
-            "temperature": chatbot_cls.temperature,
-            "max_tokens": chatbot_cls.max_tokens,
+            "max_iterations": agent_cls.max_iterations,
+            "temperature": agent_cls.temperature,
+            "max_tokens": agent_cls.max_tokens,
         },
     }
 

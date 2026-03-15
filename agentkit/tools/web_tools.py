@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class WebTools(ToolSetHandler):
+    server_name = "web_tools"
+
     def __init__(self, max_results: int = 10, rate_limit: float | None = 1.0, **kwargs):
         """Initialize WebTools with HTTP client and DuckDuckGo search capabilities.
 
@@ -22,7 +24,7 @@ class WebTools(ToolSetHandler):
             rate_limit: Maximum queries per second for web search. Set to None to disable (default: 1.0)
             **kwargs: Additional keyword arguments passed to the DDGS client
         """
-        super().__init__(name="web_tools")
+        super().__init__()
         self._client = None
         self.max_results = max_results
         self.rate_limit = rate_limit

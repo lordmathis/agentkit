@@ -1,12 +1,11 @@
 from .base import BaseAgent
-from .manager import AgentManager
+from .manager import AgentManager, AgentRegistry
 from .react import ReActAgent, ReActAgentPlugin
-from .registry import ChatbotRegistry
 
 __all__ = [
-    "BaseAgent",
     "AgentManager",
+    "AgentRegistry",
+    "BaseAgent",
     "ReActAgent",
     "ReActAgentPlugin",
-    "ChatbotRegistry",
 ]

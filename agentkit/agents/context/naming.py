@@ -1,9 +1,9 @@
-import json
 import logging
 from typing import List
 
 from openai.types.chat import ChatCompletionMessageParam
 
+from agentkit.agents.context.messages import extract_text_content
 from agentkit.db.db import Database
 from agentkit.providers.client_base import LLMClient
 
@@ -44,19 +44,7 @@ async def generate_title(
         conversation_text = ""
         for msg in history[:6]:
             if msg.role in ["user", "assistant"]:
-                try:
-                    content = json.loads(msg.content)
-                    if isinstance(content, list):
-                        text_parts = [
-                            part.get("text", "")
-                            for part in content
-                            if part.get("type") == "text"
-                        ]
-                        content_str = " ".join(text_parts)
-                    else:
-                        content_str = str(content)
-                except (json.JSONDecodeError, TypeError):
-                    content_str = msg.content
+                content_str = extract_text_content(msg.content)
                 conversation_text += f"{msg.role.capitalize()}: {content_str}\n"
 
         messages: List[ChatCompletionMessageParam] = [

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from openai.types.chat import ChatCompletionMessageParam
 
 from agentkit.agents.context import format_history, generate_title, parse_mentions
+from agentkit.agents.context.messages import extract_assistant_content
 from agentkit.agents.context.skills import apply_skill_context, build_skill_context
 from agentkit.db.db import Database
 from agentkit.providers.provider import Provider
@@ -69,33 +70,21 @@ class BaseAgent(ABC):
         if role == "assistant":
             if isinstance(content_or_response, dict):
                 if "error" in content_or_response:
-                    content = f"Error: {content_or_response['error']}"
-                    reasoning_content = None
-                    tool_calls_json = None
+                    self.db.save_message(
+                        self.chat_id,
+                        "assistant",
+                        f"Error: {content_or_response['error']}",
+                    )
                 else:
-                    choices = content_or_response.get("choices", [])
-                    if choices:
-                        msg_data = choices[0].get("message", {})
-                        if isinstance(msg_data, dict):
-                            content = msg_data.get("content", "") or ""
-                            reasoning_content = msg_data.get("reasoning_content")
-                        else:
-                            content = getattr(msg_data, "content", "") or ""
-                            reasoning_content = getattr(
-                                msg_data, "reasoning_content", None
-                            )
-                        tool_calls = content_or_response.get("tool_calls_used")
-                        tool_calls_json = json.dumps(tool_calls) if tool_calls else None
-                    else:
-                        content = ""
-                        reasoning_content = None
-                        tool_calls_json = None
+                    content, reasoning, tool_calls = extract_assistant_content(
+                        content_or_response
+                    )
                     self.db.save_message(
                         self.chat_id,
                         "assistant",
                         content,
-                        reasoning_content=reasoning_content,
-                        tool_calls=tool_calls_json,
+                        reasoning_content=reasoning,
+                        tool_calls=tool_calls,
                     )
             else:
                 self.db.save_message(self.chat_id, "assistant", content_or_response)
