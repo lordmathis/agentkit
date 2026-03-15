@@ -141,18 +141,6 @@ export interface Skill {
   exists: boolean;
 }
 
-export interface PendingToolApproval {
-  id: string;
-  tool_name: string;
-  arguments: Record<string, any>;
-  created_at: string;
-}
-
-export interface ApprovalResponse {
-  status: string;
-  pending_count?: number;
-}
-
 class ApiClient {
   private baseURL: string;
 
@@ -343,8 +331,6 @@ class ApiClient {
     });
   }
 
-
-
   // Media endpoints
   async transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {
     const formData = new FormData();
@@ -363,23 +349,6 @@ class ApiClient {
     }
 
     return response.json();
-  }
-
-  // Tool Approval endpoints
-  async getPendingApprovals(chatId: string): Promise<{ approvals: PendingToolApproval[] }> {
-    return this.request(`/approvals?chat_id=${chatId}`);
-  }
-
-  async approveTool(approvalId: string): Promise<ApprovalResponse> {
-    return this.request(`/approvals/${approvalId}/approve`, {
-      method: 'POST',
-    });
-  }
-
-  async denyTool(approvalId: string): Promise<ApprovalResponse> {
-    return this.request(`/approvals/${approvalId}/deny`, {
-      method: 'POST',
-    });
   }
 }
 

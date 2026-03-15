@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { AddGitHubDialog } from "./add-github-dialog";
-import { ToolApprovalModal } from "./tool-approval-modal";
 import { ChatHeader } from "./chat-header";
 import { MessagesList } from "./messages-list";
 import { ChatInput } from "./chat-input";
@@ -25,8 +24,6 @@ export function ChatView() {
     isUploadingFiles,
     uploadedFiles,
     githubFiles,
-    pendingApproval,
-    isProcessingApproval,
     textareaRef,
     messagesEndRef,
     fileInputRef,
@@ -45,8 +42,6 @@ export function ChatView() {
     handleEditMessage,
     handleKeyDown,
     refreshConversations,
-    handleApproveTool,
-    handleDenyTool,
   } = useChatManager();
 
   // Handle file upload button click
@@ -144,17 +139,6 @@ export function ChatView() {
         initialPaths={githubFiles.paths}
         initialExcludePaths={githubFiles.excludePaths}
       />
-
-      {/* Tool Approval Modal */}
-      {pendingApproval && (
-        <ToolApprovalModal
-          approval={pendingApproval}
-          onApprove={handleApproveTool}
-          onDeny={handleDenyTool}
-          isProcessing={isProcessingApproval}
-        />
-      )}
     </div>
   );
 }
-

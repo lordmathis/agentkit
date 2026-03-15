@@ -2,7 +2,6 @@ import asyncio
 import importlib.util
 import inspect
 import logging
-import uuid
 from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -178,32 +177,8 @@ class ToolManager:
 
         tool_def = self.get_tool_definition(call_name)
         if tool_def and tool_def.require_approval:
-            if chat_id is None:
-                raise ValueError("chat_id is required for tools that need approval")
-            if self._db is None:
-                raise ValueError("Database is required for tools that need approval")
-
-            approval_id = str(uuid.uuid4())
-            loop = asyncio.get_running_loop()
-            future = loop.create_future()
-            approval = PendingApproval(
-                approval_id, chat_id, call_name, arguments, future, provider, model_id
-            )
-            self._pending_approvals[approval_id] = approval
-
-            import json
-
-            self._db.create_pending_approval(
-                chat_id, None, call_name, json.dumps(arguments), approval_id
-            )
-
-            result = await future
-            del self._pending_approvals[approval_id]
-
-            if result == "denied":
-                raise ToolDeniedError(call_name)
-
-            return result
+            logger.warning(f"Tool '{call_name}' requires approval - auto-denying")
+            raise ToolDeniedError(call_name)
 
         result = await handler.call_tool(tool_name, arguments, provider, model_id)
         return result

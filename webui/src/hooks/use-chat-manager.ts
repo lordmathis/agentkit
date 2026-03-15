@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { type Message, type PendingToolApproval } from "../lib/api";
+import { type Message } from "../lib/api";
 import { type Conversation } from "../components/sidebar";
 import { type ChatSettings } from "../components/chat-settings-dialog";
 import { api } from "../lib/api";
@@ -31,9 +31,6 @@ export function useChatManager() {
     paths: string[];
     excludePaths: string[];
   }>({ repo: "", paths: [], excludePaths: [] });
-  const [pendingApproval, setPendingApproval] = useState<PendingToolApproval | null>(null);
-  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
-  const [shouldPollForApprovals, setShouldPollForApprovals] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -167,33 +164,6 @@ export function useChatManager() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
-
-  // Poll for pending approvals while chat is active
-  useEffect(() => {
-    if (!currentConversationId || !shouldPollForApprovals || pendingApproval) {
-      // Don't poll if no chat, not waiting for response, or already showing approval
-      return;
-    }
-
-    const checkApprovals = async () => {
-      try {
-        const { approvals } = await api.getPendingApprovals(currentConversationId);
-        if (approvals.length > 0) {
-          setPendingApproval(approvals[0]); // Show first pending
-          // Don't stop polling - send_message is still pending and may have more approvals
-        }
-      } catch (error) {
-        console.error("Failed to check approvals:", error);
-      }
-    };
-
-    // Check immediately
-    checkApprovals();
-
-    // Then poll every second while waiting
-    const interval = setInterval(checkApprovals, 1000);
-    return () => clearInterval(interval);
-  }, [currentConversationId, shouldPollForApprovals, pendingApproval]);
 
   // Handle file upload
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -488,18 +458,12 @@ export function useChatManager() {
         };
         setMessages((prev) => [...prev, tempUserMessage]);
 
-        // Start polling for approvals
-        setShouldPollForApprovals(true);
-
         const fileIdsToAttach = (uploadedFiles || []).map(f => f.id);
         const response = await api.sendMessage(currentConversationId, {
           message: trimmedMessage,
           file_ids: fileIdsToAttach,
           stream: false,
         });
-
-        // Stop polling - we got a response (message completed without approval)
-        setShouldPollForApprovals(false);
 
         const assistantContent = response.choices?.[0]?.message?.content || "No response";
 
@@ -550,7 +514,6 @@ export function useChatManager() {
       refreshConversations();
     } catch (error) {
       console.error("Failed to send message:", error);
-        setShouldPollForApprovals(false); // Stop polling on error
       alert(`Failed to send message: ${error instanceof Error ? error.message : "Unknown error"}`);
 
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-user-")));
@@ -597,7 +560,7 @@ export function useChatManager() {
 
       setIsSending(false);
 
-      // Reload messages from backend to get proper message IDs
+      // Reload messages from backend to get the updated message
       try {
         const chatData = await api.getChat(currentConversationId);
         const formattedMessages: Message[] = chatData.messages.map((msg) => ({
@@ -675,45 +638,6 @@ export function useChatManager() {
     }
   };
 
-  // Handle tool approval
-  const handleApproveTool = async () => {
-    if (!pendingApproval || !currentConversationId) return;
-
-    try {
-      setIsProcessingApproval(true);
-      await api.approveTool(pendingApproval.id);
-
-      // Clear the pending approval modal
-      // The send_message call is still pending and will resume when the tool executes
-      // Polling will continue to check for any new approvals
-      setPendingApproval(null);
-    } catch (error) {
-      console.error("Failed to approve tool:", error);
-      alert(`Failed to approve: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsProcessingApproval(false);
-    }
-  };
-
-  // Handle tool denial
-  const handleDenyTool = async () => {
-    if (!pendingApproval || !currentConversationId) return;
-
-    try {
-      setIsProcessingApproval(true);
-      await api.denyTool(pendingApproval.id);
-
-      // Clear the pending approval modal
-      // The send_message call is still pending and will receive the denial result
-      setPendingApproval(null);
-    } catch (error) {
-      console.error("Failed to deny tool:", error);
-      alert(`Failed to deny: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsProcessingApproval(false);
-    }
-  };
-
   return {
     // State
     inputValue,
@@ -728,8 +652,6 @@ export function useChatManager() {
     isUploadingFiles,
     uploadedFiles,
     githubFiles,
-    pendingApproval,
-    isProcessingApproval,
 
     // Refs
     textareaRef,
@@ -754,7 +676,5 @@ export function useChatManager() {
     handleEditMessage,
     handleKeyDown,
     refreshConversations,
-    handleApproveTool,
-    handleDenyTool,
   };
 }
