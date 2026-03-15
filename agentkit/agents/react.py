@@ -1,6 +1,5 @@
 import json
 import logging
-from abc import ABC
 from typing import Any, Dict, List, Optional
 
 from agentkit.agents.base import BaseAgent
@@ -113,7 +112,7 @@ class ReActAgent(BaseAgent):
         return result
 
 
-class ReActAgentPlugin(ReActAgent, ABC):
+class ReActAgentPlugin(ReActAgent):
     """
     Base class for ReAct agent plugins.
 
@@ -125,11 +124,23 @@ class ReActAgentPlugin(ReActAgent, ABC):
             model_id = "my-model"
             system_prompt = "You are a helpful assistant."
             tool_servers = ["time"]
+
+    For custom behavior, override post_init() and/or _run():
+
+        class StructuredBot(ReActAgentPlugin):
+            provider_id = "anthropic"
+            model_id = "claude-sonnet-4-6"
+
+            def post_init(self) -> None:
+                self._parser = MyOutputParser()
+
+            async def _run(self, message: str) -> Dict[str, Any]:
+                response = await super()._run(message)
+                return self._parser.parse(response)
     """
 
     default: bool = False
     name: str = ""
-
     provider_id: str = ""
     model_id: str = ""
     system_prompt: str = ""
@@ -137,3 +148,7 @@ class ReActAgentPlugin(ReActAgent, ABC):
     max_iterations: int = 5
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
+
+    def post_init(self) -> None:
+        """Called after all dependencies are injected. Override for custom setup."""
+        pass

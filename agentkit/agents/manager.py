@@ -61,6 +61,20 @@ class AgentRegistry:
                     if not issubclass(obj, ReActAgentPlugin) or obj is ReActAgentPlugin:
                         continue
 
+                    required_attrs = ["provider_id", "model_id"]
+                    missing_attrs = []
+                    for attr in required_attrs:
+                        val = getattr(obj, attr, "")
+                        if not val:
+                            missing_attrs.append(attr)
+
+                    if missing_attrs:
+                        agent_name = obj.name if obj.name else name.lower()
+                        logger.warning(
+                            f"Plugin '{agent_name}' missing required attributes: {', '.join(missing_attrs)}, skipping"
+                        )
+                        continue
+
                     agent_name = obj.name if obj.name else name.lower()
                     self._agent_classes[agent_name] = obj
                     logger.info(
@@ -118,13 +132,26 @@ class AgentManager:
         model_params = config.get("model_params") or {}
         temperature = model_params.get("temperature")
         max_tokens = model_params.get("max_tokens")
-        max_iterations = model_params.get("max_iterations", 5)
+        max_iterations = model_params.get("max_iterations")
 
         if ":" in model:
             provider_name, model_id = model.split(":", 1)
             provider = self.provider_registry.get_provider(provider_name)
             if not provider:
                 raise ValueError(f"Provider '{provider_name}' not found")
+            agent = ReActAgent(
+                chat_id=chat_id,
+                db=self.db,
+                provider=provider,
+                tool_manager=self.tool_manager,
+                model_id=model_id,
+                system_prompt=system_prompt or "",
+                tool_servers=tool_servers or [],
+                skill_registry=self.skill_registry,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                max_iterations=max_iterations or 5,
+            )
         else:
             agent_class = self.agent_registry.get_agent_class(model)
             if not agent_class:
@@ -132,21 +159,31 @@ class AgentManager:
             provider = self.provider_registry.get_provider(agent_class.provider_id)
             if not provider:
                 raise ValueError(f"Provider '{agent_class.provider_id}' not found")
-            model_id = agent_class.model_id
+            agent = agent_class(
+                chat_id=chat_id,
+                db=self.db,
+                provider=provider,
+                tool_manager=self.tool_manager,
+                model_id=agent_class.model_id,
+                system_prompt=system_prompt
+                if system_prompt is not None
+                else agent_class.system_prompt,
+                tool_servers=tool_servers
+                if tool_servers is not None
+                else agent_class.tool_servers,
+                skill_registry=self.skill_registry,
+                temperature=temperature
+                if temperature is not None
+                else agent_class.temperature,
+                max_tokens=max_tokens
+                if max_tokens is not None
+                else agent_class.max_tokens,
+                max_iterations=max_iterations
+                if max_iterations is not None
+                else agent_class.max_iterations,
+            )
+            agent.post_init()
 
-        agent = ReActAgent(
-            chat_id=chat_id,
-            db=self.db,
-            provider=provider,
-            tool_manager=self.tool_manager,
-            model_id=model_id,
-            system_prompt=system_prompt or "",
-            tool_servers=tool_servers or [],
-            skill_registry=self.skill_registry,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            max_iterations=max_iterations,
-        )
         return agent
 
     def create(self, chat_id: str, config: dict) -> BaseAgent:
