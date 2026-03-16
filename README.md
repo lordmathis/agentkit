@@ -138,7 +138,7 @@ providers:
 
 ### MCP (Model Context Protocol) Configuration
 
-MCP servers provide tools and capabilities to chatbots:
+MCP servers provide tools and capabilities to agents:
 
 ```yaml
 mcps:
@@ -188,12 +188,14 @@ transcription:
 history_db_path: "agentkit.db"  # SQLite database for conversation history
 uploads_dir: "uploads"  # Directory for uploaded files
 data_dir: "data"  # Directory for tool data storage
-github_token: "${GITHUB_TOKEN}"  # Optional GitHub API token
+repo_browser:  # Optional repository browser configuration
+  type: "github"
+  token: "${GITHUB_TOKEN}"
 ```
 
 ## Available Tools
 
-AgentKit provides tools from multiple sources that chatbots can use:
+AgentKit provides tools from multiple sources that agents can use:
 
 ### Built-in Tools
 

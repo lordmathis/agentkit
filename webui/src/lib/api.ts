@@ -3,7 +3,7 @@
 //
 // API Structure:
 // - /api/chats/* - Chat management and messaging
-// - /api/config/* - Configuration (models, chatbots, providers, default settings)
+// - /api/config/* - Configuration (models, agents, providers, default settings)
 // - /api/github/* - GitHub integration
 // - /api/media/* - Media processing (transcription, etc.)
 // - /api/skills/* - Skills management
@@ -250,7 +250,7 @@ class ApiClient {
     return this.request('/config/default-chat');
   }
 
-  async listChatbots(): Promise<{ chatbots: Array<{
+  async listAgents(): Promise<{ agents: Array<{
     name: string;
     system_prompt: string;
     provider: string;
@@ -260,7 +260,7 @@ class ApiClient {
     max_tokens?: number;
     max_iterations: number;
   }> }> {
-    return this.request('/config/chatbots');
+    return this.request('/config/agents');
   }
 
   async listProviders(): Promise<{ providers: Array<{
@@ -308,23 +308,23 @@ class ApiClient {
     });
   }
 
-  // GitHub endpoints
-  async listGitHubRepositories(): Promise<{ repositories: GitHubRepository[] }> {
-    return this.request('/github/repositories');
+  // Repository browser endpoints
+  async listRepositories(): Promise<{ repositories: GitHubRepository[] }> {
+    return this.request('/repo/repositories');
   }
 
-  async browseGitHubTree(repo: string, path: string = ""): Promise<FileNode> {
-    return this.request(`/github/tree?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  async browseRepoTree(repo: string, path: string = ""): Promise<FileNode> {
+    return this.request(`/repo/tree?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
   }
 
-  async estimateGitHubTokens(repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
-    return this.request('/github/estimate', {
+  async estimateRepoTokens(repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
+    return this.request('/repo/estimate', {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
-  async uploadGitHubFiles(repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
+  async uploadRepoFiles(repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
     return this.request(`/files/github`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),

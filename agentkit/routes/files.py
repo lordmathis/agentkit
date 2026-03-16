@@ -70,37 +70,33 @@ async def upload_files(request: Request, files: List[UploadFile] = File(...)):
 
 @router.post("/files/github", response_model=List[FileResponse])
 async def upload_github_files(request: Request, github_req: GitHubFilesRequest):
-    """Fetch files from GitHub server-side, store to disk, and return their metadata."""
+    """Fetch files from repository server-side, store to disk, and return their metadata."""
     db: Database = request.app.state.database
-    from agentkit.routes.github import _expand_paths_to_files
+    from agentkit.routes.repo_browser import _expand_paths_to_files
 
-    # Check if GitHub client is available
-    github_client = getattr(request.app.state, "github_client", None)
-    if not github_client:
+    repo_browser = getattr(request.app.state, "repo_browser", None)
+    if not repo_browser:
         raise HTTPException(
-            status_code=503, detail="GitHub integration is not configured."
+            status_code=503, detail="Repository browser is not configured."
         )
 
-    # Expand paths
     try:
         file_paths = await _expand_paths_to_files(
-            github_client, github_req.repo, github_req.paths, github_req.exclude_paths
+            repo_browser, github_req.repo, github_req.paths, github_req.exclude_paths
         )
     except Exception as e:
-        logger.error(f"Failed to expand GitHub paths: {e}")
+        logger.error(f"Failed to expand repository paths: {e}")
         raise HTTPException(
-            status_code=400, detail=f"Failed to expand GitHub paths: {e}"
+            status_code=400, detail=f"Failed to expand repository paths: {e}"
         )
 
     db: Database = request.app.state.database
     result = []
     for path in file_paths:
         try:
-            # Download file from GitHub
-            content = await github_client.get_file_content(github_req.repo, path)
+            content = await repo_browser.get_file_content(github_req.repo, path)
             filename = os.path.basename(path)
 
-            # infer content_type
             import mimetypes
 
             content_type, _ = mimetypes.guess_type(filename)
@@ -113,7 +109,6 @@ async def upload_github_files(request: Request, github_req: GitHubFilesRequest):
 
             file_path = os.path.join(upload_dir, filename)
 
-            # Save file
             with open(file_path, "wb") as f:
                 if isinstance(content, str):
                     f.write(content.encode("utf-8"))
@@ -136,11 +131,10 @@ async def upload_github_files(request: Request, github_req: GitHubFilesRequest):
             )
 
         except Exception as e:
-            logger.error(f"Failed to download and save GitHub file {path}: {e}")
-            # we skip the file and continue or raise an exception? The requirements say "return same shape".
-            # For robustness, we probably should raise or skip. Let's raise.
+            logger.error(f"Failed to download and save repository file {path}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to download GitHub file {path}: {e}"
+                status_code=500,
+                detail=f"Failed to download repository file {path}: {e}",
             )
 
     return result

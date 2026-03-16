@@ -31,8 +31,11 @@ def extract_text_content(raw_content: str) -> str:
 
 def extract_assistant_content(
     response: Dict[str, Any],
-) -> tuple[str, str | None, str | None]:
-    """Extract content, reasoning_content, and tool_calls from assistant response."""
+) -> tuple[str, str | None, List[Dict] | None]:
+    """Extract content, reasoning_content, and tool_calls from assistant response.
+
+    Returns tool_calls as a list of dicts with preserved IDs for persistence.
+    """
     choices = response.get("choices", [])
     if not choices:
         return "", None, None
@@ -40,12 +43,26 @@ def extract_assistant_content(
     if isinstance(msg_data, dict):
         content = msg_data.get("content", "") or ""
         reasoning_content = msg_data.get("reasoning_content")
+        raw_tool_calls = msg_data.get("tool_calls")
     else:
         content = getattr(msg_data, "content", "") or ""
         reasoning_content = getattr(msg_data, "reasoning_content", None)
-    tool_calls = response.get("tool_calls_used")
-    tool_calls_json = json.dumps(tool_calls) if tool_calls else None
-    return content, reasoning_content, tool_calls_json
+        raw_tool_calls = getattr(msg_data, "tool_calls", None)
+
+    if raw_tool_calls:
+        tool_calls = [
+            {
+                "id": tc.get("id", f"call_{i}"),
+                "name": tc["function"]["name"],
+                "arguments": json.loads(tc["function"]["arguments"])
+                if isinstance(tc["function"]["arguments"], str)
+                else tc["function"]["arguments"],
+            }
+            for i, tc in enumerate(raw_tool_calls)
+        ]
+        return content, reasoning_content, tool_calls
+
+    return content, reasoning_content, None
 
 
 def process_user_message(db: Database, msg) -> ChatCompletionMessageParam:
@@ -133,7 +150,8 @@ def process_user_message(db: Database, msg) -> ChatCompletionMessageParam:
 def format_history(db: Database, chat_id: str) -> List[ChatCompletionMessageParam]:
     """Format chat history from DB into OpenAI message format.
 
-    Handles user messages with attachments, assistant and system messages.
+    Handles user messages with attachments, assistant and system messages,
+    and tool result messages.
     """
     history = db.get_chat_history(chat_id)
     messages: List[ChatCompletionMessageParam] = []
@@ -143,7 +161,31 @@ def format_history(db: Database, chat_id: str) -> List[ChatCompletionMessagePara
             messages.append(process_user_message(db, msg))
         elif msg.role == "assistant":
             content = parse_content(msg.content)
-            messages.append({"role": "assistant", "content": content})
+            msg_dict: Dict[str, Any] = {"role": "assistant", "content": content}
+            if msg.tool_calls:
+                tool_calls_data = json.loads(msg.tool_calls)
+                msg_dict["tool_calls"] = [
+                    {
+                        "id": tc.get("id", f"call_{i}"),
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": json.dumps(tc["arguments"])
+                            if isinstance(tc["arguments"], dict)
+                            else tc["arguments"],
+                        },
+                    }
+                    for i, tc in enumerate(tool_calls_data)
+                ]
+            messages.append(msg_dict)
+        elif msg.role == "tool":
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": msg.tool_call_id or "unknown",
+                    "content": parse_content(msg.content),
+                }
+            )
         elif msg.role == "system":
             content = parse_content(msg.content)
             messages.append({"role": "system", "content": content})

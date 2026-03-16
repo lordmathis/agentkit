@@ -121,69 +121,83 @@ class AgentManager:
         self.skill_registry = skill_registry
         self._agents: Dict[str, BaseAgent] = {}
 
+    def _resolve_agent_params(
+        self,
+        config: dict,
+        defaults: Optional[Dict] = None,
+    ) -> Dict:
+        """Extract and resolve agent constructor params from config dict.
+
+        Args:
+            config: Configuration dictionary with model, system_prompt, tool_servers, model_params
+            defaults: Optional defaults from agent class attributes
+
+        Returns:
+            Dict with resolved constructor params
+        """
+        model_params = config.get("model_params") or {}
+        d = defaults or {}
+
+        return {
+            "system_prompt": config.get("system_prompt", d.get("system_prompt", "")),
+            "tool_servers": config.get("tool_servers", d.get("tool_servers", [])),
+            "temperature": model_params.get("temperature", d.get("temperature")),
+            "max_tokens": model_params.get("max_tokens", d.get("max_tokens")),
+            "max_iterations": model_params.get(
+                "max_iterations", d.get("max_iterations", 5)
+            ),
+        }
+
     def _hydrate(self, chat_id: str, config: dict) -> BaseAgent:
         """Instantiate agent from config dict without persisting."""
         model = config.get("model")
         if not model:
             raise ValueError("Model is required")
 
-        system_prompt = config.get("system_prompt")
-        tool_servers = config.get("tool_servers")
-        model_params = config.get("model_params") or {}
-        temperature = model_params.get("temperature")
-        max_tokens = model_params.get("max_tokens")
-        max_iterations = model_params.get("max_iterations")
-
         if ":" in model:
             provider_name, model_id = model.split(":", 1)
             provider = self.provider_registry.get_provider(provider_name)
             if not provider:
                 raise ValueError(f"Provider '{provider_name}' not found")
-            agent = ReActAgent(
+
+            params = self._resolve_agent_params(config)
+            return ReActAgent(
                 chat_id=chat_id,
                 db=self.db,
                 provider=provider,
                 tool_manager=self.tool_manager,
                 model_id=model_id,
-                system_prompt=system_prompt or "",
-                tool_servers=tool_servers or [],
                 skill_registry=self.skill_registry,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                max_iterations=max_iterations or 5,
+                **params,
             )
-        else:
-            agent_class = self.agent_registry.get_agent_class(model)
-            if not agent_class:
-                raise ValueError(f"Agent '{model}' not found in registry")
-            provider = self.provider_registry.get_provider(agent_class.provider_id)
-            if not provider:
-                raise ValueError(f"Provider '{agent_class.provider_id}' not found")
-            agent = agent_class(
-                chat_id=chat_id,
-                db=self.db,
-                provider=provider,
-                tool_manager=self.tool_manager,
-                model_id=agent_class.model_id,
-                system_prompt=system_prompt
-                if system_prompt is not None
-                else agent_class.system_prompt,
-                tool_servers=tool_servers
-                if tool_servers is not None
-                else agent_class.tool_servers,
-                skill_registry=self.skill_registry,
-                temperature=temperature
-                if temperature is not None
-                else agent_class.temperature,
-                max_tokens=max_tokens
-                if max_tokens is not None
-                else agent_class.max_tokens,
-                max_iterations=max_iterations
-                if max_iterations is not None
-                else agent_class.max_iterations,
-            )
-            agent.post_init()
 
+        agent_class = self.agent_registry.get_agent_class(model)
+        if not agent_class:
+            raise ValueError(f"Agent '{model}' not found in registry")
+
+        provider = self.provider_registry.get_provider(agent_class.provider_id)
+        if not provider:
+            raise ValueError(f"Provider '{agent_class.provider_id}' not found")
+
+        defaults = {
+            "system_prompt": agent_class.system_prompt,
+            "tool_servers": agent_class.tool_servers,
+            "temperature": agent_class.temperature,
+            "max_tokens": agent_class.max_tokens,
+            "max_iterations": agent_class.max_iterations,
+        }
+        params = self._resolve_agent_params(config, defaults)
+
+        agent = agent_class(
+            chat_id=chat_id,
+            db=self.db,
+            provider=provider,
+            tool_manager=self.tool_manager,
+            model_id=agent_class.model_id,
+            skill_registry=self.skill_registry,
+            **params,
+        )
+        agent.post_init()
         return agent
 
     def create(self, chat_id: str, config: dict) -> BaseAgent:

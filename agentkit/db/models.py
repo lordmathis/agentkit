@@ -49,6 +49,7 @@ class Message(Base):
     tool_calls: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
     )  # JSON array as string
+    tool_call_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     file_ids: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
     )  # JSON array as string
@@ -58,9 +59,7 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
 
     __table_args__ = (
-        # Ensure unique sequence per chat
         UniqueConstraint("chat_id", "sequence", name="uq_chat_sequence"),
-        # Index for efficient ordering
         Index("idx_chat_sequence", "chat_id", "sequence"),
     )
 

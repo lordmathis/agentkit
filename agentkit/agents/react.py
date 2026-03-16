@@ -46,7 +46,6 @@ class ReActAgent(BaseAgent):
     async def _run(self, message: str) -> Dict[str, Any]:
         messages = await self._build_context(message)
         tools = await self._get_tools(self.tool_servers)
-        all_tool_calls = []
 
         for _ in range(self.max_iterations):
             response = await self._llm(messages, tools if tools else None)
@@ -56,20 +55,21 @@ class ReActAgent(BaseAgent):
                 not message_data.get("tool_calls")
                 or len(message_data.get("tool_calls", [])) == 0
             ):
-                if all_tool_calls:
-                    response["tool_calls_used"] = all_tool_calls
-                    logger.info(f"Tool calls tracked (success): {all_tool_calls}")
+                await self._save_message("assistant", response)
                 return response
 
+            await self._save_message("assistant", response)
+
+            tool_calls_raw = message_data["tool_calls"]
             messages.append(
                 {
                     "role": "assistant",
                     "content": message_data.get("content"),
-                    "tool_calls": message_data["tool_calls"],
+                    "tool_calls": tool_calls_raw,
                 }
             )
 
-            for tool_call in message_data["tool_calls"]:
+            for tool_call in tool_calls_raw:
                 tool_name = tool_call["function"]["name"]
                 tool_args_str = tool_call["function"]["arguments"]
 
@@ -80,19 +80,16 @@ class ReActAgent(BaseAgent):
 
                 logger.debug(f"Calling tool: {tool_name}")
 
-                all_tool_calls.append(
-                    {
-                        "name": tool_name,
-                        "arguments": tool_args,
-                    }
-                )
-
                 try:
                     result = await self.tool_manager.call_tool(
                         tool_name, tool_args, self.provider, self.model_id, self.chat_id
                     )
                 except ToolDeniedError as e:
                     result = f"Tool '{e.tool_name}' was denied by the user."
+
+                await self._save_message(
+                    "tool", str(result), tool_call_id=tool_call["id"]
+                )
 
                 messages.append(
                     {
@@ -102,14 +99,10 @@ class ReActAgent(BaseAgent):
                     }
                 )
 
-        result = {
-            "error": "Max iterations reached without final response",
-            "messages": messages,
-        }
-        if all_tool_calls:
-            result["tool_calls_used"] = all_tool_calls
-            logger.info(f"Tool calls tracked: {all_tool_calls}")
-        return result
+        await self._save_message(
+            "assistant", {"error": "Max iterations reached without final response"}
+        )
+        return {"error": "Max iterations reached without final response"}
 
 
 class ReActAgentPlugin(ReActAgent):

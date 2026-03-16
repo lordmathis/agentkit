@@ -75,7 +75,7 @@ if __name__ == "__main__":
     if args.watch:
         watch_paths = [
             "config.yaml",
-            app_config.plugins.chatbots_dir,
+            app_config.plugins.agents_dir,
             app_config.plugins.tools_dir,
             app_config.plugins.skills_dir,
         ]

@@ -12,8 +12,8 @@ async def list_models(request: Request):
     """
     List all available models in OpenAI-compatible format.
 
-    Returns both predefined chatbots from the registry and provider models.
-    Format: {chatbot_name} for predefined chatbots, {provider}:{model_id} for provider models.
+    Returns both predefined agents from the registry and provider models.
+    Format: {agent_name} for predefined agents, {provider}:{model_id} for provider models.
     """
     current_time = time.time()
     cache = getattr(request.app.state, "models_cache", None)
@@ -69,8 +69,8 @@ async def list_models(request: Request):
     return result
 
 
-@router.get("/config/chatbots")
-async def list_chatbots(request: Request):
+@router.get("/config/agents")
+async def list_agents(request: Request):
     """
     List all predefined agents from the registry with their configurations.
     """
@@ -95,7 +95,7 @@ async def list_chatbots(request: Request):
                 }
             )
 
-    return {"chatbots": agents}
+    return {"agents": agents}
 
 
 @router.get("/config/default-chat")

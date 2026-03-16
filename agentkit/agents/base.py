@@ -54,7 +54,6 @@ class BaseAgent(ABC):
         """Main entry point. Handles persistence and naming automatically."""
         await self._save_message("user", message, file_ids=file_ids)
         response = await self._run(message)
-        await self._save_message("assistant", response)
         asyncio.create_task(
             generate_title(self.chat_id, self.db, self._llm_client, self.model_id)
         )
@@ -65,6 +64,7 @@ class BaseAgent(ABC):
         role: str,
         content_or_response: str | Dict[str, Any],
         file_ids: List[str] = [],
+        tool_call_id: Optional[str] = None,
     ) -> None:
         """Save a message to the database."""
         if role == "assistant":
@@ -79,15 +79,23 @@ class BaseAgent(ABC):
                     content, reasoning, tool_calls = extract_assistant_content(
                         content_or_response
                     )
+                    tool_calls_json = json.dumps(tool_calls) if tool_calls else None
                     self.db.save_message(
                         self.chat_id,
                         "assistant",
                         content,
                         reasoning_content=reasoning,
-                        tool_calls=tool_calls,
+                        tool_calls=tool_calls_json,
                     )
             else:
                 self.db.save_message(self.chat_id, "assistant", content_or_response)
+        elif role == "tool":
+            self.db.save_message(
+                self.chat_id,
+                "tool",
+                str(content_or_response),
+                tool_call_id=tool_call_id,
+            )
         else:
             file_ids_json = json.dumps(file_ids) if file_ids else None
             self.db.save_message(
@@ -183,9 +191,11 @@ class BaseAgent(ABC):
 
         if last_assistant:
             self.db.delete_message(last_assistant.id)
+            for msg in history:
+                if msg.role == "tool":
+                    self.db.delete_message(msg.id)
 
         response = await self._run(last_user.content)
-        await self._save_message("assistant", response)
         return response
 
     async def edit(self, new_message: str) -> Dict[str, Any]:
@@ -209,9 +219,11 @@ class BaseAgent(ABC):
 
         if last_assistant:
             self.db.delete_message(last_assistant.id)
+            for msg in history:
+                if msg.role == "tool":
+                    self.db.delete_message(msg.id)
 
         self.db.save_message(self.chat_id, "user", new_message, file_ids=file_ids_str)
 
         response = await self._run(new_message)
-        await self._save_message("assistant", response)
         return response

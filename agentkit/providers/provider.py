@@ -41,11 +41,12 @@ class Provider:
 
     def get_client_kwargs(self) -> dict:
         """Get client kwargs including authorization headers and SSL verification."""
-        return {
-            "api_key": self.config.api_key or "",
-            "base_url": self.config.api_base or "",
-            "http_client": self._get_http_client(),
-        }
+        kwargs: dict = {"api_key": self.config.api_key or ""}
+        if self.config.api_base:
+            kwargs["base_url"] = self.config.api_base
+        if self.config.basic_auth_token:
+            kwargs["http_client"] = self._get_http_client()
+        return kwargs
 
     def get_llm_client(self) -> LLMClient:
         """Get or create the appropriate LLM client based on provider type."""
@@ -72,21 +73,20 @@ class Provider:
         Returns:
             List of model IDs if successful, None if an error occurs
         """
-        # If static model_ids are configured and no filter, return them
         if self.config.model_ids and not self.config.model_filter:
             return self.config.model_ids
 
-        # Fetch models from API using LLM client
         try:
             llm_client = self.get_llm_client()
+            if not hasattr(llm_client, "get_models"):
+                return self.config.model_ids
+
             model_ids = llm_client.get_models()
 
-            # Apply filters if configured
             if self.config.model_filter and self.config.model_filter.conditions:
                 filtered_ids = []
 
                 for model_id in model_ids:
-                    # For simple ID-based filtering, create a dict with just the id
                     model_dict = {"id": model_id}
                     if self._matches_filter(
                         model_dict, self.config.model_filter.conditions
@@ -95,12 +95,11 @@ class Provider:
 
                 return filtered_ids
 
-            # No filter, return all model IDs
             return model_ids
 
         except Exception as e:
             print(f"Error fetching models from {self._name}: {e}")
-            return self.config.model_ids  # Fallback to static list if available
+            return self.config.model_ids
 
     def _matches_filter(self, model_dict: dict, conditions: list) -> bool:
         """Check if a model matches all filter conditions.

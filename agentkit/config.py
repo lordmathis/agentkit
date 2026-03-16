@@ -32,7 +32,7 @@ class ProviderConfig(BaseModel):
     model_ids: Optional[List[str]] = None
     model_filter: Optional[ModelFilter] = None
     api_key: Optional[str] = None
-    api_base: str
+    api_base: Optional[str] = None
     type: ProviderType = ProviderType.OPENAI
     basic_auth_token: Optional[str] = None
     verify_ssl: bool = True
@@ -56,9 +56,19 @@ class MCPConfig(BaseModel):
 
 
 class PluginConfig(BaseModel):
-    chatbots_dir: str = "chatbots"
+    agents_dir: str = "agents"
     tools_dir: str = "tools"
     skills_dir: str = "skills"
+
+
+class RepoBrowserType(str, Enum):
+    GITHUB = "github"
+    FORGEJO = "forgejo"
+
+
+class RepoBrowserConfig(BaseModel):
+    type: RepoBrowserType = RepoBrowserType.GITHUB
+    token: str
 
 
 class TranscriptionConfig(BaseModel):
@@ -83,7 +93,7 @@ class AppConfig(BaseModel):
     uploads_dir: str = "uploads"
     data_dir: str = "data"
     mcp_timeout: int = 60
-    github_token: Optional[str] = None
+    repo_browser: Optional[RepoBrowserConfig] = None
     transcription: TranscriptionConfig = TranscriptionConfig()
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24

@@ -8,6 +8,7 @@ def run_migrations(engine):
     with engine.connect() as conn:
         _migrate_file_ids_column(conn)
         _migrate_drop_file_attachments_table(conn)
+        _migrate_tool_call_id_column(conn)
         conn.commit()
 
 
@@ -33,3 +34,15 @@ def _migrate_drop_file_attachments_table(conn):
         logger.info("Table file_attachments dropped.")
     else:
         logger.debug("Table file_attachments does not exist.")
+
+
+def _migrate_tool_call_id_column(conn):
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("messages")]
+
+    if "tool_call_id" not in columns:
+        logger.info("Adding tool_call_id column to messages table...")
+        conn.execute(text("ALTER TABLE messages ADD COLUMN tool_call_id TEXT"))
+        logger.info("Column tool_call_id added to messages table.")
+    else:
+        logger.debug("Column tool_call_id already exists in messages table.")

@@ -1,32 +1,15 @@
 import base64
-import hashlib
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import httpx
-from pydantic import BaseModel
+
+from agentkit.repo_browser.client_base import FileNode, RepoBrowserClient, TokenEstimate
 
 logger = logging.getLogger(__name__)
 
 
-class FileNode(BaseModel):
-    """Represents a file or directory in a GitHub repository tree"""
-
-    path: str
-    name: str
-    type: str  # "file" or "dir"
-    size: Optional[int] = None
-    children: Optional[List["FileNode"]] = None
-
-
-class TokenEstimate(BaseModel):
-    """Represents token count estimates for files"""
-
-    total_tokens: int
-    files: Dict[str, int]  # path -> token count
-
-
-class GitHubClient:
+class GitHubClient(RepoBrowserClient):
     """Client for interacting with GitHub REST API"""
 
     def __init__(self, token: str):
@@ -44,7 +27,6 @@ class GitHubClient:
             },
             timeout=30.0,
         )
-        # Cache for token estimation: (repo, commit_hash, path) -> token_count
         self._token_cache: Dict[tuple, int] = {}
 
     async def authenticate(self) -> bool:
@@ -89,7 +71,6 @@ class GitHubClient:
 
                 repos.extend(page_repos)
 
-                # Check if we've received all repos
                 if len(page_repos) < per_page:
                     break
 
@@ -111,13 +92,11 @@ class GitHubClient:
             FileNode representing the directory with its children
         """
         try:
-            # Get contents at the specified path
             url = f"{self.base_url}/repos/{repo}/contents/{path}"
             response = await self.client.get(url)
             response.raise_for_status()
             contents = response.json()
 
-            # If it's a single file, return it as a FileNode
             if isinstance(contents, dict):
                 return FileNode(
                     path=contents["path"],
@@ -126,7 +105,6 @@ class GitHubClient:
                     size=contents.get("size"),
                 )
 
-            # If it's a directory, create FileNodes for all children
             children = []
             for item in contents:
                 child = FileNode(
@@ -137,7 +115,6 @@ class GitHubClient:
                 )
                 children.append(child)
 
-            # Return the directory node with children
             return FileNode(
                 path=path,
                 name=path.split("/")[-1] if path else repo.split("/")[-1],
@@ -166,7 +143,6 @@ class GitHubClient:
 
             if "content" in content_data:
                 encoded_content = content_data["content"]
-                # Remove newlines from base64 string
                 encoded_content = encoded_content.replace("\n", "")
                 return base64.b64decode(encoded_content)
             else:
@@ -194,10 +170,8 @@ class GitHubClient:
                 response.raise_for_status()
                 content_data = response.json()
 
-                # Decode base64 content
                 if "content" in content_data:
                     encoded_content = content_data["content"]
-                    # Remove newlines from base64 string
                     encoded_content = encoded_content.replace("\n", "")
                     decoded_content = base64.b64decode(encoded_content).decode("utf-8")
                     file_contents[path] = decoded_content
@@ -223,14 +197,12 @@ class GitHubClient:
             TokenEstimate with total and per-file token counts
         """
         try:
-            # Get the current commit hash for the ref
             commits_url = f"{self.base_url}/repos/{repo}/commits/{ref}"
             commits_response = await self.client.get(commits_url)
             commits_response.raise_for_status()
             commit_data = commits_response.json()
             commit_hash = commit_data["sha"]
 
-            # Check cache for all files with this commit hash
             file_tokens = {}
             total_tokens = 0
             paths_to_fetch = []
@@ -239,25 +211,20 @@ class GitHubClient:
                 cache_key = (repo, commit_hash, path)
 
                 if cache_key in self._token_cache:
-                    # File is cached for this exact commit
                     tokens = self._token_cache[cache_key]
                     file_tokens[path] = tokens
                     total_tokens += tokens
                 else:
-                    # Need to fetch this file
                     paths_to_fetch.append(path)
 
-            # Fetch and process files that weren't in cache
             if paths_to_fetch:
                 file_contents = await self.fetch_files(repo, paths_to_fetch)
 
                 for path, content in file_contents.items():
-                    # Simple estimation: divide character count by 4
                     tokens = len(content) // 4
                     file_tokens[path] = tokens
                     total_tokens += tokens
 
-                    # Cache the result with commit hash
                     cache_key = (repo, commit_hash, path)
                     self._token_cache[cache_key] = tokens
 
@@ -266,6 +233,6 @@ class GitHubClient:
             logger.error(f"Failed to estimate tokens for {repo}: {e}")
             raise
 
-    async def close(self):
+    async def close(self) -> None:
         """Clean up resources"""
         await self.client.aclose()

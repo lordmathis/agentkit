@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import os
-from datetime import datetime, UTC, timedelta
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -10,15 +10,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from agentkit.agents import AgentManager, AgentRegistry
-from agentkit.config import AppConfig
+from agentkit.config import AppConfig, RepoBrowserType
 from agentkit.db import Database
-from agentkit.github.client import GitHubClient
 from agentkit.providers.registry import ProviderRegistry
+from agentkit.repo_browser import GitHubClient
 from agentkit.routes import register_routes
 from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
+
+
+def _create_repo_browser(cfg):
+    """Factory function to create the appropriate repo browser client."""
+    if cfg.type == RepoBrowserType.GITHUB:
+        return GitHubClient(cfg.token)
+    raise ValueError(f"Unsupported repo browser type: {cfg.type}")
 
 
 async def _orphan_file_cleanup_task(app: FastAPI):
@@ -30,37 +37,19 @@ async def _orphan_file_cleanup_task(app: FastAPI):
                 db: Database = app.state.database
                 app_config: AppConfig = app.state.app_config
 
-                retention_hours = getattr(app_config, "file_retention_hours", 24)
-                cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)
+                retention_hours = app_config.file_retention_hours
+                deleted_ids = db.delete_orphan_files(retention_hours)
 
-                # We need a query to get pending files older than cutoff
-                from sqlalchemy import select
-                from agentkit.db.models import File
+                for file_id in deleted_ids:
+                    upload_dir = os.path.join("uploads", file_id)
+                    if os.path.exists(upload_dir):
+                        shutil.rmtree(upload_dir, ignore_errors=True)
 
-                with db.SessionLocal() as session:
-                    stmt = select(File).where(
-                        File.status == "pending", File.created_at < cutoff_time
-                    )
-                    orphans = session.execute(stmt).scalars().all()
-
-                    if orphans:
-                        logger.info(f"Cleaning up {len(orphans)} orphan files")
-                        for orphan in orphans:
-                            try:
-                                import shutil
-
-                                upload_dir = os.path.join("uploads", orphan.id)
-                                if os.path.exists(upload_dir):
-                                    shutil.rmtree(upload_dir, ignore_errors=True)
-                                session.delete(orphan)
-                            except Exception as e:
-                                logger.error(f"Error cleaning up file {orphan.id}: {e}")
-
-                        session.commit()
+                if deleted_ids:
+                    logger.info(f"Cleaned up {len(deleted_ids)} orphan files")
             except Exception as e:
-                logger.error(f"Error in orphan cleanup task: {e}")
+                logger.error(f"Orphan cleanup error: {e}")
 
-            # Sleep for an hour before checking again
             await asyncio.sleep(3600)
     except asyncio.CancelledError:
         logger.info("Orphan cleanup task cancelled")
@@ -100,10 +89,10 @@ async def lifespan(app: FastAPI):
         database.close()
         raise
 
-    # Initialize model registry
-    logger.info("Initializing chatbot registry...")
+    # Initialize agent registry
+    logger.info("Initializing agent registry...")
     model_registry = AgentRegistry(
-        provider_registry, tool_manager, app_config.plugins.chatbots_dir
+        provider_registry, tool_manager, app_config.plugins.agents_dir
     )
     app.state.model_registry = model_registry
 
@@ -112,29 +101,28 @@ async def lifespan(app: FastAPI):
     skill_registry = SkillRegistry(app_config.plugins.skills_dir)
     app.state.skill_registry = skill_registry
 
-    # Initialize GitHub client if token is configured
-    github_client = None
-    if app_config.github_token:
-        logger.info("Initializing GitHub client...")
+    # Initialize repo browser if configured
+    repo_browser = None
+    if app_config.repo_browser:
+        logger.info("Initializing repo browser...")
         try:
-            github_client = GitHubClient(app_config.github_token)
-            # Verify authentication
-            if await github_client.authenticate():
-                logger.info("GitHub client authenticated successfully")
-                app.state.github_client = github_client
+            repo_browser = _create_repo_browser(app_config.repo_browser)
+            if await repo_browser.authenticate():
+                logger.info("Repo browser authenticated successfully")
+                app.state.repo_browser = repo_browser
             else:
                 logger.warning(
-                    "GitHub authentication failed - GitHub features will be unavailable"
+                    "Repo browser authentication failed - repo features will be unavailable"
                 )
-                await github_client.close()
-                github_client = None
+                await repo_browser.close()
+                repo_browser = None
         except Exception as e:
-            logger.error(f"Failed to initialize GitHub client: {e}", exc_info=True)
-            if github_client:
-                await github_client.close()
-            github_client = None
+            logger.error(f"Failed to initialize repo browser: {e}", exc_info=True)
+            if repo_browser:
+                await repo_browser.close()
+            repo_browser = None
     else:
-        logger.info("GitHub token not configured - GitHub features will be unavailable")
+        logger.info("Repo browser not configured - repo features will be unavailable")
 
     # Initialize agent manager
     logger.info("Initializing agent manager...")
@@ -168,11 +156,11 @@ async def lifespan(app: FastAPI):
     # Shutdown: Clean up resources
     logger.info("Shutting down server...")
 
-    if github_client:
+    if repo_browser:
         try:
-            await github_client.close()
+            await repo_browser.close()
         except Exception as e:
-            logger.error(f"Error during GitHub client shutdown: {e}", exc_info=True)
+            logger.error(f"Error during repo browser shutdown: {e}", exc_info=True)
 
     try:
         await tool_manager.stop()

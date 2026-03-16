@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Dict, List, Optional
 
 from sqlalchemy import create_engine, func, select, text
@@ -46,6 +46,7 @@ class Database:
         content: str,
         reasoning_content: Optional[str] = None,
         tool_calls: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
         file_ids: Optional[str] = None,
     ) -> Message:
         with self.SessionLocal() as session:
@@ -63,6 +64,7 @@ class Database:
                 content=content,
                 reasoning_content=reasoning_content,
                 tool_calls=tool_calls,
+                tool_call_id=tool_call_id,
                 file_ids=file_ids,
             )
             session.add(message)
@@ -407,3 +409,20 @@ class Database:
             if message:
                 message.content = content
                 session.commit()
+
+    def delete_orphan_files(self, retention_hours: int = 24) -> List[str]:
+        """Delete pending files older than retention_hours.
+
+        Returns list of deleted file IDs. Caller is responsible for removing from disk.
+        """
+        cutoff = datetime.now(UTC) - timedelta(hours=retention_hours)
+        with self.SessionLocal() as session:
+            stmt = select(File).where(
+                File.status == "pending", File.created_at < cutoff
+            )
+            orphans = session.execute(stmt).scalars().all()
+            ids = [f.id for f in orphans]
+            for f in orphans:
+                session.delete(f)
+            session.commit()
+        return ids
