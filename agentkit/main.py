@@ -1,14 +1,10 @@
 import argparse
 import logging
 import logging.handlers
-import os
-import signal
 import sys
-import threading
 
 import uvicorn
 from dotenv import load_dotenv
-from watchfiles import watch
 
 from agentkit.config import AppConfig, LoggingConfig, load_config
 from agentkit.server import app
@@ -40,23 +36,6 @@ def configure_logging(cfg: LoggingConfig):
         uvicorn_logger.handlers = [handler]
         uvicorn_logger.propagate = False
 
-
-def start_file_watcher(paths: list[str]) -> None:
-    """Watch paths for changes; send SIGTERM on detection to trigger a clean exit."""
-    logger = logging.getLogger(__name__)
-
-    def _watch() -> None:
-        logger.info(f"Watching for changes: {paths}")
-        for changes in watch(*paths, raise_interrupt=False):
-            changed = [path for _, path in changes]
-            logger.info(f"Change detected in {changed}, shutting down for restart...")
-            os.kill(os.getpid(), signal.SIGTERM)
-            return  # one signal is enough
-
-    thread = threading.Thread(target=_watch, daemon=True, name="file-watcher")
-    thread.start()
-
-
 if __name__ == "__main__":
     load_dotenv(override=True)
 
@@ -71,15 +50,6 @@ if __name__ == "__main__":
     app_config: AppConfig = load_config("config.yaml")
     configure_logging(app_config.logging)
     app.state.app_config = app_config
-
-    if args.watch:
-        watch_paths = [
-            "config.yaml",
-            app_config.plugins.agents_dir,
-            app_config.plugins.tools_dir,
-            app_config.plugins.skills_dir,
-        ]
-        start_file_watcher([p for p in watch_paths if os.path.exists(p)])
 
     # Run the FastAPI app with uvicorn; SIGTERM triggers graceful shutdown + lifespan teardown
     uvicorn.run(
