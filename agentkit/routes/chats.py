@@ -1,10 +1,22 @@
 import json
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from agentkit.agents.manager import AgentManager
+
+
+def format_timestamp(dt: datetime) -> str:
+    """Format datetime as ISO string with UTC timezone indicator."""
+    iso = dt.isoformat()
+    if iso.endswith("+00:00"):
+        return iso[:-6] + "Z"
+    if not iso.endswith("Z") and "+" not in iso and "-" not in iso[10:]:
+        return iso + "Z"
+    return iso
+
 
 router = APIRouter()
 
@@ -74,8 +86,8 @@ async def create_chat(request: Request, body: CreateChatRequest):
     return {
         "id": updated_chat.id,
         "title": updated_chat.title,
-        "created_at": updated_chat.created_at.isoformat(),
-        "updated_at": updated_chat.updated_at.isoformat(),
+        "created_at": format_timestamp(updated_chat.created_at),
+        "updated_at": format_timestamp(updated_chat.updated_at),
         "model": updated_chat.model,
         "system_prompt": updated_chat.system_prompt,
         "tool_servers": json.loads(updated_chat.tool_servers)
@@ -101,8 +113,8 @@ async def list_chats(request: Request, limit: int = 20):
             {
                 "id": chat.id,
                 "title": chat.title,
-                "created_at": chat.created_at.isoformat(),
-                "updated_at": chat.updated_at.isoformat(),
+                "created_at": format_timestamp(chat.created_at),
+                "updated_at": format_timestamp(chat.updated_at),
                 "model": chat.model,
                 "system_prompt": chat.system_prompt,
                 "tool_servers": json.loads(chat.tool_servers)
@@ -133,8 +145,8 @@ async def get_chat(request: Request, chat_id: str):
     return {
         "id": chat.id,
         "title": chat.title,
-        "created_at": chat.created_at.isoformat(),
-        "updated_at": chat.updated_at.isoformat(),
+        "created_at": format_timestamp(chat.created_at),
+        "updated_at": format_timestamp(chat.updated_at),
         "model": chat.model,
         "system_prompt": chat.system_prompt,
         "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
@@ -148,7 +160,7 @@ async def get_chat(request: Request, chat_id: str):
                 "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
                 "tool_call_id": msg.tool_call_id,
                 "sequence": msg.sequence,
-                "created_at": msg.created_at.isoformat(),
+                "created_at": format_timestamp(msg.created_at),
                 "files": [
                     {
                         "id": database.get_file(fid).id,
@@ -229,8 +241,8 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
     return {
         "id": updated_chat.id,
         "title": updated_chat.title,
-        "created_at": updated_chat.created_at.isoformat(),
-        "updated_at": updated_chat.updated_at.isoformat(),
+        "created_at": format_timestamp(updated_chat.created_at),
+        "updated_at": format_timestamp(updated_chat.updated_at),
         "model": updated_chat.model,
         "system_prompt": updated_chat.system_prompt,
         "tool_servers": json.loads(updated_chat.tool_servers)
@@ -291,8 +303,8 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
     return {
         "id": branched_chat.id,
         "title": branched_chat.title,
-        "created_at": branched_chat.created_at.isoformat(),
-        "updated_at": branched_chat.updated_at.isoformat(),
+        "created_at": format_timestamp(branched_chat.created_at),
+        "updated_at": format_timestamp(branched_chat.updated_at),
         "model": branched_chat.model,
         "system_prompt": branched_chat.system_prompt,
         "tool_servers": json.loads(branched_chat.tool_servers)
@@ -310,7 +322,7 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                 "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
                 "tool_call_id": msg.tool_call_id,
                 "sequence": msg.sequence,
-                "created_at": msg.created_at.isoformat(),
+                "created_at": format_timestamp(msg.created_at),
                 "files": [
                     {
                         "id": database.get_file(fid).id,
