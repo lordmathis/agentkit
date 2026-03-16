@@ -42,7 +42,7 @@ async def list_models(request: Request):
     # Add provider models
     for provider_name, provider in provider_registry.list_providers().items():
         try:
-            model_ids = provider.get_model_ids()
+            model_ids = await provider.get_model_ids()
             if model_ids:
                 for model_id in model_ids:
                     models.append(
@@ -132,7 +132,7 @@ async def list_providers(request: Request):
     providers = []
     for provider_name, provider in provider_registry.list_providers().items():
         try:
-            model_ids = provider.get_model_ids()
+            model_ids = await provider.get_model_ids()
             if model_ids is None:
                 model_ids = []
         except Exception:

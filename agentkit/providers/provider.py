@@ -1,8 +1,8 @@
 from typing import Any, Optional
 
 import httpx
-from openai import OpenAI
-from anthropic import Anthropic
+from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 
 from agentkit.config import ProviderConfig, ProviderType
 from agentkit.providers.client_base import AnthropicClient, LLMClient, OpenAIClient
@@ -54,16 +54,16 @@ class Provider:
             client_kwargs = self.get_client_kwargs()
 
             if self.config.type == ProviderType.ANTHROPIC:
-                native_client = Anthropic(**client_kwargs)
+                native_client = AsyncAnthropic(**client_kwargs)
                 self._llm_client = AnthropicClient(native_client)
 
             else:
-                native_client = OpenAI(**client_kwargs)
+                native_client = AsyncOpenAI(**client_kwargs)
                 self._llm_client = OpenAIClient(native_client)
 
         return self._llm_client
 
-    def get_model_ids(self) -> list[str] | None:
+    async def get_model_ids(self) -> list[str] | None:
         """Query the /models endpoint to get available model IDs.
 
         If model_filter is configured, fetches and filters models from the API.
@@ -78,10 +78,10 @@ class Provider:
 
         try:
             llm_client = self.get_llm_client()
-            if not hasattr(llm_client, "get_models"):
-                return self.config.model_ids
+            model_ids = await llm_client.get_models()
 
-            model_ids = llm_client.get_models()
+            if not model_ids:
+                return self.config.model_ids
 
             if self.config.model_filter and self.config.model_filter.conditions:
                 filtered_ids = []

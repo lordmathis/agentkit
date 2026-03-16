@@ -31,6 +31,14 @@ class LLMClient(ABC):
         """
         pass
 
+    async def get_models(self) -> List[str]:
+        """Fetch available model IDs.
+
+        Returns:
+            List of model ID strings, or empty list if not supported.
+        """
+        return []
+
 
 class OpenAIClient(LLMClient):
     """Client for OpenAI-compatible APIs."""
@@ -43,39 +51,14 @@ class OpenAIClient(LLMClient):
         """
         self.client = client
 
-    def get_models(self) -> List[str]:
-        """Fetch available model IDs using direct HTTP request.
-
-        Uses the OpenAI-compatible /v1/models endpoint format.
+    async def get_models(self) -> List[str]:
+        """Fetch available model IDs using the async client.
 
         Returns:
             List of model ID strings
         """
-        base_url = str(self.client.base_url).rstrip("/")
-        if not base_url.endswith("/v1"):
-            base_url = f"{base_url}/v1"
-        models_url = f"{base_url}/models"
-
-        headers = {}
-        if self.client.api_key:
-            headers["Authorization"] = f"Bearer {self.client.api_key}"
-
-        response = self.client._client.get(models_url, headers=headers)
-        response.raise_for_status()
-
-        if not response.content:
-            raise Exception(
-                f"Empty response from {models_url}. Status: {response.status_code}"
-            )
-
-        try:
-            data = response.json()
-        except json.JSONDecodeError as e:
-            raise Exception(
-                f"Invalid JSON from {models_url}. Error: {e}. Response: {response.text[:200]}"
-            )
-
-        return [model["id"] for model in data.get("data", [])]
+        response = await self.client.models.list()
+        return [model.id for model in response.data]
 
     async def chat_completion(
         self,
@@ -100,7 +83,7 @@ class OpenAIClient(LLMClient):
         if tools:
             api_params["tools"] = tools
 
-        response = self.client.chat.completions.create(**api_params)
+        response = await self.client.chat.completions.create(**api_params)
         return response.model_dump()
 
 
@@ -230,10 +213,7 @@ class AnthropicClient(LLMClient):
         if anthropic_tools:
             api_params["tools"] = anthropic_tools
 
-        # Call Anthropic API
-        response = self.client.messages.create(**api_params)
-
-        # Convert response to OpenAI format
+        response = await self.client.messages.create(**api_params)
         return self._convert_response_to_openai(response)
 
     def _convert_response_to_openai(self, response: Any) -> Dict[str, Any]:
