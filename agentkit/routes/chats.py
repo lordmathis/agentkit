@@ -146,6 +146,7 @@ async def get_chat(request: Request, chat_id: str):
                 "content": msg.content,
                 "reasoning_content": msg.reasoning_content,
                 "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
+                "tool_call_id": msg.tool_call_id,
                 "sequence": msg.sequence,
                 "created_at": msg.created_at.isoformat(),
                 "files": [
@@ -306,6 +307,8 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                 "role": msg.role,
                 "content": msg.content,
                 "reasoning_content": msg.reasoning_content,
+                "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
+                "tool_call_id": msg.tool_call_id,
                 "sequence": msg.sequence,
                 "created_at": msg.created_at.isoformat(),
                 "files": [

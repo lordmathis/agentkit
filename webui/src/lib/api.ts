@@ -30,13 +30,14 @@ export interface FileResource {
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   reasoning_content?: string | null;
   tool_calls?: Array<{
     name: string;
     arguments: Record<string, any>;
   }> | null;
+  tool_call_id?: string | null;
   sequence: number;
   created_at: string;
   files?: Array<{
