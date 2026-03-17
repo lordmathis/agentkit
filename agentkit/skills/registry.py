@@ -36,24 +36,24 @@ class Skill:
         try:
             raw_content = self.skill_file.read_text(encoding="utf-8")
 
-            # Check for YAML frontmatter (between --- markers)
             frontmatter_pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
             match = re.match(frontmatter_pattern, raw_content, re.DOTALL)
 
-            if match:
-                frontmatter_text = match.group(1)
-                self._content = match.group(2)
-                try:
-                    self._frontmatter = yaml.safe_load(frontmatter_text) or {}
-                except yaml.YAMLError as e:
-                    logger.warning(
-                        f"Failed to parse frontmatter for skill {self.name}: {e}"
-                    )
-                    self._frontmatter = {}
-            else:
-                # No frontmatter, entire file is content
+            if not match:
                 self._frontmatter = {}
                 self._content = raw_content
+                return
+
+            frontmatter_text = match.group(1)
+            self._content = match.group(2)
+            try:
+                self._frontmatter = yaml.safe_load(frontmatter_text) or {}
+            except yaml.YAMLError as e:
+                logger.warning(
+                    f"Failed to parse frontmatter for skill {self.name}: {e}"
+                )
+                self._frontmatter = {}
+
         except Exception as e:
             logger.error(f"Error reading skill file {self.skill_file}: {e}")
             self._frontmatter = {}
@@ -106,7 +106,6 @@ class SkillRegistry:
             logger.warning(f"Skills path is not a directory: {self.skills_dir}")
             return
 
-        # Find all subdirectories that contain a SKILL.md file
         for skill_dir in self.skills_dir.iterdir():
             if not skill_dir.is_dir():
                 continue
