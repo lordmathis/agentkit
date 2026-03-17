@@ -310,23 +310,23 @@ class ApiClient {
   }
 
   // Repository browser endpoints
-  async listRepositories(): Promise<{ repositories: GitHubRepository[] }> {
-    return this.request('/repo/repositories');
+  async listRepositories(connector: string): Promise<{ repositories: GitHubRepository[] }> {
+    return this.request(`/connectors/repositories?connector=${encodeURIComponent(connector)}`);
   }
 
-  async browseRepoTree(repo: string, path: string = ""): Promise<FileNode> {
-    return this.request(`/repo/tree?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  async browseRepoTree(connector: string, repo: string, path: string = ""): Promise<FileNode> {
+    return this.request(`/connectors/tree?connector=${encodeURIComponent(connector)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
   }
 
-  async estimateRepoTokens(repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
-    return this.request('/repo/estimate', {
+  async estimateRepoTokens(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
+    return this.request(`/connectors/estimate?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
-  async uploadRepoFiles(repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
-    return this.request(`/files/github`, {
+  async uploadRepoFiles(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
+    return this.request(`/connectors/files?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
     });

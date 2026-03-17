@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { api, type GitHubRepository, type FileNode } from "../lib/api";
 
 export function useGitHubDialog(
+  connector: string,
   initialRepo: string,
   initialPaths: string[],
   initialExcludePaths: string[]
@@ -53,7 +54,7 @@ export function useGitHubDialog(
     try {
       setIsLoadingRepos(true);
       setError("");
-      const response = await api.listGitHubRepositories();
+      const response = await api.listRepositories(connector);
       setRepositories(response.repositories);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load repositories");
@@ -72,7 +73,7 @@ export function useGitHubDialog(
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseGitHubTree(repo, "");
+      const tree = await api.browseRepoTree(connector, repo, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
@@ -89,7 +90,7 @@ export function useGitHubDialog(
 
     try {
       setLoadingPaths((prev) => new Set(prev).add(path));
-      const subtree = await api.browseGitHubTree(repo, path);
+      const subtree = await api.browseRepoTree(connector, repo, path);
 
       const updateNode = (node: FileNode): FileNode => {
         if (node.path === path) {
@@ -262,7 +263,7 @@ export function useGitHubDialog(
       setIsAdding(true);
       setError("");
 
-      const fileResources = await api.uploadGitHubFiles(repo, paths, excludePaths);
+      const fileResources = await api.uploadRepoFiles(connector, repo, paths, excludePaths);
 
       // the onSuccess now doesn't strictly know "count" except from array length, but wait
       // The original onSuccess took: (repo, paths, excludePaths, count). We can pass fileResources length.
@@ -308,7 +309,7 @@ export function useGitHubDialog(
           return;
         }
 
-        const estimate = await api.estimateGitHubTokens(repo, paths, excludePaths);
+        const estimate = await api.estimateRepoTokens(connector, repo, paths, excludePaths);
         setTokenEstimate(estimate.total_tokens);
       } catch (err) {
         console.error("Token estimation error:", err);
@@ -325,11 +326,10 @@ export function useGitHubDialog(
     setSelectedRepo(repo);
     setInputMode("select");
     
-    // Auto-load tree when repo is selected
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseGitHubTree(repo, "");
+      const tree = await api.browseRepoTree(connector, repo, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
@@ -349,11 +349,10 @@ export function useGitHubDialog(
     
     setRepoLink(link);
     
-    // Auto-load tree when link is pasted
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseGitHubTree(parsed, "");
+      const tree = await api.browseRepoTree(connector, parsed, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {

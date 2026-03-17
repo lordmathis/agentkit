@@ -4,7 +4,7 @@ from typing import Dict, List
 
 import httpx
 
-from agentkit.repo_browser.client_base import FileNode, RepoBrowserClient, TokenEstimate
+from agentkit.connectors.client_base import FileNode, RepoBrowserClient, TokenEstimate
 
 logger = logging.getLogger(__name__)
 

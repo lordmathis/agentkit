@@ -25,6 +25,7 @@ interface AddGitHubDialogProps {
   initialRepo?: string;
   initialPaths?: string[];
   initialExcludePaths?: string[];
+  connector?: string;
 }
 
 export function AddGitHubDialog({
@@ -35,6 +36,7 @@ export function AddGitHubDialog({
   initialRepo = "",
   initialPaths = [],
   initialExcludePaths = [],
+  connector = "github",
 }: AddGitHubDialogProps) {
   const {
     inputMode,
@@ -66,7 +68,7 @@ export function AddGitHubDialog({
     handleAddFiles,
     handleRepoSelect,
     handleLinkPaste,
-  } = useGitHubDialog(initialRepo, initialPaths, initialExcludePaths);
+  } = useGitHubDialog(connector, initialRepo, initialPaths, initialExcludePaths);
 
   const [filterPattern, setFilterPattern] = useState("");
   const [isApplyingFilter, setIsApplyingFilter] = useState(false);
@@ -111,7 +113,7 @@ export function AddGitHubDialog({
     const paths: string[] = [];
     
     try {
-      const node = await api.browseGitHubTree(repo, path);
+      const node = await api.browseRepoTree(connector, repo, path);
       
       if (node.type === 'file') {
         paths.push(node.path);

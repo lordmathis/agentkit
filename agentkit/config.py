@@ -61,13 +61,13 @@ class PluginConfig(BaseModel):
     skills_dir: str = "skills"
 
 
-class RepoBrowserType(str, Enum):
+class ConnectorType(str, Enum):
     GITHUB = "github"
     FORGEJO = "forgejo"
 
 
-class RepoBrowserConfig(BaseModel):
-    type: RepoBrowserType = RepoBrowserType.GITHUB
+class ConnectorsConfig(BaseModel):
+    type: ConnectorType = ConnectorType.GITHUB
     token: str
 
 
@@ -93,7 +93,7 @@ class AppConfig(BaseModel):
     uploads_dir: str = "uploads"
     data_dir: str = "data"
     mcp_timeout: int = 60
-    repo_browser: Optional[RepoBrowserConfig] = None
+    connectors: Dict[str, ConnectorsConfig] = None
     transcription: TranscriptionConfig = TranscriptionConfig()
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24

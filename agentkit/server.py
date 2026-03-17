@@ -10,22 +10,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from agentkit.agents import AgentManager, AgentRegistry
-from agentkit.config import AppConfig, RepoBrowserType
+from agentkit.config import AppConfig
+from agentkit.connectors.registry import ConnectorRegistry
 from agentkit.db import Database
 from agentkit.providers.registry import ProviderRegistry
-from agentkit.repo_browser import GitHubClient
 from agentkit.routes import register_routes
 from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
-
-
-def _create_repo_browser(cfg):
-    """Factory function to create the appropriate repo browser client."""
-    if cfg.type == RepoBrowserType.GITHUB:
-        return GitHubClient(cfg.token)
-    raise ValueError(f"Unsupported repo browser type: {cfg.type}")
 
 
 async def _orphan_file_cleanup_task(app: FastAPI):
@@ -101,28 +94,9 @@ async def lifespan(app: FastAPI):
     skill_registry = SkillRegistry(app_config.plugins.skills_dir)
     app.state.skill_registry = skill_registry
 
-    # Initialize repo browser if configured
-    repo_browser = None
-    if app_config.repo_browser:
-        logger.info("Initializing repo browser...")
-        try:
-            repo_browser = _create_repo_browser(app_config.repo_browser)
-            if await repo_browser.authenticate():
-                logger.info("Repo browser authenticated successfully")
-                app.state.repo_browser = repo_browser
-            else:
-                logger.warning(
-                    "Repo browser authentication failed - repo features will be unavailable"
-                )
-                await repo_browser.close()
-                repo_browser = None
-        except Exception as e:
-            logger.error(f"Failed to initialize repo browser: {e}", exc_info=True)
-            if repo_browser:
-                await repo_browser.close()
-            repo_browser = None
-    else:
-        logger.info("Repo browser not configured - repo features will be unavailable")
+    logger.info("Initializing connectors...")
+    connector_registry = ConnectorRegistry(app_config.connectors)
+    app.state.connector_registry = connector_registry
 
     # Initialize agent manager
     logger.info("Initializing agent manager...")
@@ -155,12 +129,6 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Clean up resources
     logger.info("Shutting down server...")
-
-    if repo_browser:
-        try:
-            await repo_browser.close()
-        except Exception as e:
-            logger.error(f"Error during repo browser shutdown: {e}", exc_info=True)
 
     try:
         await tool_manager.stop()
