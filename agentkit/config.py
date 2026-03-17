@@ -34,8 +34,6 @@ class ProviderConfig(BaseModel):
     api_key: Optional[str] = None
     api_base: Optional[str] = None
     type: ProviderType = ProviderType.OPENAI
-    basic_auth_token: Optional[str] = None
-    verify_ssl: bool = True
 
 
 class ServerConfig(BaseModel):

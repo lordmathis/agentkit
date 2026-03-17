@@ -98,7 +98,6 @@ providers:
     type: "openai"  # or "anthropic" defaults to "openai"
     api_base: "https://openrouter.ai/api/v1"
     api_key: "${OPENROUTER_API_KEY}"
-    verify_ssl: true
     model_filter:
       conditions:
         - field: "id"
@@ -110,7 +109,6 @@ providers:
     type: "openai"
     api_base: "https://your-api.example.com/v1"
     api_key: "${YOUR_API_KEY}"
-    basic_auth_token: "${BASIC_AUTH_TOKEN}"
     model_ids:  # Explicit model list (alternative to model_filter)
       - "gpt-4"
       - "gpt-3.5-turbo"
@@ -127,8 +125,6 @@ providers:
 - `type`: Provider type - `"openai"` (default) or `"anthropic"`
 - `api_base`: Base URL for the API endpoint (OpenAI-compatible providers only)
 - `api_key`: API authentication key (supports environment variables)
-- `basic_auth_token`: Optional basic auth token
-- `verify_ssl`: Enable/disable SSL verification (default: true)
 - `model_ids`: Explicit list of model IDs to use (alternative to dynamic discovery)
 - `model_filter`: Dynamic model filtering with conditions:
   - `field`: JSON path to field (e.g., "id", "architecture.modality")

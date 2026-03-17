@@ -1,6 +1,5 @@
 from typing import Any, Optional
 
-import httpx
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 
@@ -8,57 +7,28 @@ from agentkit.config import ProviderConfig, ProviderType
 from agentkit.providers.client_base import AnthropicClient, LLMClient, OpenAIClient
 
 
-class PreEncodedBasicAuth(httpx.Auth):
-    def __init__(self, encoded_token):
-        self.encoded_token = encoded_token
-
-    def auth_flow(self, request):
-        request.headers["Authorization"] = f"Basic {self.encoded_token}"
-        yield request
-
-
 class Provider:
     def __init__(self, config: ProviderConfig, name: str):
         self.config = config
         self._name = name
-        self._http_client = None
-        self._openai_client = None
         self._llm_client: Optional[LLMClient] = None
 
     def name(self) -> str:
         return self._name
 
-    def _get_http_client(self) -> httpx.Client:
-        """Get or create a persistent httpx client with proper auth and SSL settings."""
-        if self._http_client is None:
-            self._http_client = httpx.Client(
-                verify=self.config.verify_ssl,
-                auth=PreEncodedBasicAuth(self.config.basic_auth_token)
-                if self.config.basic_auth_token
-                else None,
-            )
-        return self._http_client
-
-    def get_client_kwargs(self) -> dict:
-        """Get client kwargs including authorization headers and SSL verification."""
-        kwargs: dict = {"api_key": self.config.api_key or ""}
-        if self.config.api_base:
-            kwargs["base_url"] = self.config.api_base
-        if self.config.basic_auth_token:
-            kwargs["http_client"] = self._get_http_client()
-        return kwargs
-
     def get_llm_client(self) -> LLMClient:
         """Get or create the appropriate LLM client based on provider type."""
         if self._llm_client is None:
-            client_kwargs = self.get_client_kwargs()
+            kwargs: dict = {"api_key": self.config.api_key or ""}
+            if self.config.api_base:
+                kwargs["base_url"] = self.config.api_base
 
             if self.config.type == ProviderType.ANTHROPIC:
-                native_client = AsyncAnthropic(**client_kwargs)
+                native_client = AsyncAnthropic(**kwargs)
                 self._llm_client = AnthropicClient(native_client)
 
             else:
-                native_client = AsyncOpenAI(**client_kwargs)
+                native_client = AsyncOpenAI(**kwargs)
                 self._llm_client = OpenAIClient(native_client)
 
         return self._llm_client
@@ -118,7 +88,6 @@ class Provider:
             if value is None:
                 return False
 
-            # Convert value to string for string operations
             value_str = str(value)
 
             # Check contains condition
