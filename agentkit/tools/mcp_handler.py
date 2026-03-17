@@ -29,7 +29,6 @@ def _extract_mcp_result(result: Any) -> Any:
         block = content[0]
 
         if hasattr(block, "text"):
-            # Try to parse as JSON first
             try:
                 parsed = json.loads(block.text)
 

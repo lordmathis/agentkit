@@ -14,7 +14,6 @@ from agentkit.tools.approval import PendingApproval, ToolDeniedError
 from agentkit.tools.handler_base import ToolHandler
 from agentkit.tools.mcp_handler import MCPToolHandler
 from agentkit.tools.toolset_handler import ToolSetHandler
-from agentkit.tools.web_tools import WebTools
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +61,9 @@ class ToolManager:
             )
             return plugins
 
-        # Find all Python files in the directory (non-recursive)
         python_files = list(tools_path.glob("*.py"))
 
         for py_file in python_files:
-            # Skip __init__.py and files starting with underscore
             if py_file.name.startswith("_"):
                 continue
 
@@ -114,19 +111,6 @@ class ToolManager:
                     f"Error initializing MCP handler for server '{mcp_handler.server_name}': {e}",
                     exc_info=True,
                 )
-
-        # Initialize built-in WebTools
-        web_tools_handler = WebTools()
-        try:
-            web_tools_handler.set_tool_manager(self)
-            await web_tools_handler.initialize()
-            self._server_map[web_tools_handler.server_name] = web_tools_handler
-            self._toolset_handlers[web_tools_handler.server_name] = web_tools_handler
-            logger.info(
-                f"Successfully initialized built-in WebTools as '{web_tools_handler.server_name}'"
-            )
-        except Exception as e:
-            logger.error(f"Error initializing WebTools handler: {e}", exc_info=True)
 
         # Discover and initialize toolset plugins
         plugin_classes = self._discover_toolset_plugins()
