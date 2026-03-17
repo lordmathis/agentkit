@@ -61,14 +61,11 @@ class ToolManager:
             )
             return plugins
 
-        python_files = list(tools_path.glob("*.py"))
-
-        for py_file in python_files:
+        for py_file in tools_path.glob("*.py"):
             if py_file.name.startswith("_"):
                 continue
 
             try:
-                # Load the module
                 module_name = py_file.stem
                 spec = importlib.util.spec_from_file_location(module_name, py_file)
                 if spec is None or spec.loader is None:
@@ -78,16 +75,16 @@ class ToolManager:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
 
-                # Find ToolSetHandler subclasses
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # Check if it's a subclass of ToolSetHandler (but not ToolSetHandler itself)
-                    if issubclass(obj, ToolSetHandler) and obj is not ToolSetHandler:
-                        # Only include classes defined in this module (not imported ones)
-                        if obj.__module__ == module_name:
-                            logger.info(
-                                f"Discovered toolset plugin: {name} from {py_file.name}"
-                            )
-                            plugins[name] = obj
+                    if not issubclass(obj, ToolSetHandler) or obj is ToolSetHandler:
+                        continue
+                    if obj.__module__ != module_name:
+                        continue
+
+                    logger.info(
+                        f"Discovered toolset plugin: {name} from {py_file.name}"
+                    )
+                    plugins[name] = obj
 
             except Exception as e:
                 logger.error(f"Error loading plugin from {py_file}: {e}", exc_info=True)
