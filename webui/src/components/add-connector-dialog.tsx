@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Github, Loader2, Filter, X, Link as LinkIcon } from "lucide-react";
+import { Loader2, Filter, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,6 @@ import { TreeNode } from "./connector/tree-node";
 import { ConnectorSelector } from "./connector/connector-selector";
 import { SelectionSummary } from "./connector/selection-summary";
 import { useConnectorDialog } from "../hooks/use-connector-dialog";
-import { api } from "../lib/api";
 
 interface AddConnectorDialogProps {
   open: boolean;
@@ -52,15 +51,65 @@ export function AddConnectorDialog({
     setResourceLink,
     isLoadingResources,
     isLoadingTree,
-...
+    loadingPaths,
+    treeRoot,
+    expandedPaths,
+    selectedPaths,
+    isAdding,
+    error,
+    tokenEstimate,
+isEstimatingTokens,
+    loadResources,
+    loadChildren,
+    toggleExpand,
+    isPathSelected,
+    isPathExcluded,
+    toggleSelect,
+    handleAddFiles,
+    handleResourceSelect,
+    handleLinkPaste,
+  } = useConnectorDialog(initialInstance, initialConnector, initialPaths, initialExcludePaths);
+
+  const [filterPattern, setFilterPattern] = useState("");
+  const [isApplyingFilter, setIsApplyingFilter] = useState(false);
+
+  const applyFilter = () => {
+    setIsApplyingFilter(true);
+    setTimeout(() => setIsApplyingFilter(false), 500);
+  };
+
   useEffect(() => {
     if (open && inputMode === "select" && resources.length === 0 && selectedConnector) {
       loadResources();
     }
   }, [open, inputMode, selectedConnector, resources.length]);
 
+  const includedCount = Array.from(selectedPaths).filter(p => !p.startsWith("!")).length;
+
   const handleAdd = async () => {
-...
+    const files = await handleAddFiles(chatId, (resource, paths, excludePaths, _count) => {
+      onFilesAdded?.(selectedConnector, resource, paths, excludePaths, []);
+    });
+    if (files) {
+      onOpenChange(false);
+    }
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Add Connector Files</DialogTitle>
+          <DialogDescription>
+            Select files from a repository to add to your conversation
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           <ConnectorSelector
             inputMode={inputMode}
             setInputMode={setInputMode}
@@ -77,7 +126,6 @@ export function AddConnectorDialog({
             isLoadingTree={isLoadingTree}
             onResourceSelect={handleResourceSelect}
             onLinkPaste={handleLinkPaste}
-            getResourceIdentifier={getResourceIdentifier}
           />
 
           {treeRoot && (

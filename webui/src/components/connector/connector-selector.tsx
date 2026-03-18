@@ -27,7 +27,6 @@ interface ConnectorSelectorProps {
   isLoadingTree: boolean;
   onResourceSelect: (resource: string) => void;
   onLinkPaste: (link: string) => void;
-  getResourceIdentifier: () => string;
 }
 
 export function ConnectorSelector({
@@ -46,7 +45,6 @@ export function ConnectorSelector({
   isLoadingTree,
   onResourceSelect,
   onLinkPaste,
-  getResourceIdentifier,
 }: ConnectorSelectorProps) {
   const handleResourceChange = (resource: string) => {
     setSelectedResource(resource);
@@ -58,8 +56,6 @@ export function ConnectorSelector({
       onLinkPaste(resourceLink);
     }
   };
-
-  const currentConnector = connectors.find(c => c.name === selectedConnector);
 
   return (
     <div className="space-y-4">

@@ -26,10 +26,36 @@ interface ChatInputProps {
   chatSettings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
   uploadedFiles: import('../lib/api').FileResource[];
-  connectorFiles: { connector: string; paths: string[]; excludePaths: string[] };
+  connectorFiles: { connectorId: string; resourceId: string; paths: string[]; excludePaths: string[] };
   onRemoveFile: (fileId: string) => void;
   onRemoveConnectorFiles: () => void;
-...
+  onFileUploadClick: () => void;
+  onConnectorDialogOpen: () => void;
+  onChatUpdated: () => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export function ChatInput({
+  inputValue,
+  isEditingMode,
+  onInputChange,
+  onSend,
+  onKeyDown,
+  isSending,
+  isUploadingFiles,
+  currentConversationId,
+  chatSettings,
+  onSettingsChange,
+  uploadedFiles,
+  connectorFiles,
+  onRemoveFile,
+  onRemoveConnectorFiles,
+  onFileUploadClick,
+  onConnectorDialogOpen,
+  onChatUpdated,
+  textareaRef,
   fileInputRef,
   onFileChange,
 }: ChatInputProps) {

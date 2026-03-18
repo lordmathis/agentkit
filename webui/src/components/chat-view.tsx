@@ -163,8 +163,8 @@ export function ChatView() {
         onFilesAdded={(connectorId, resourceId, paths, excludePaths, uploaded) => {
           files.setConnectorFiles(connectorId, resourceId, paths, excludePaths, uploaded);
         }}
-        initialConnector={files.connectorFiles.connectorId}
-        initialRepo={files.connectorFiles.resourceId}
+        initialInstance={files.connectorFiles.connectorId}
+        initialConnector={files.connectorFiles.resourceId}
         initialPaths={files.connectorFiles.paths}
         initialExcludePaths={files.connectorFiles.excludePaths}
       />
