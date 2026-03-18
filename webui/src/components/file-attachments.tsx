@@ -2,7 +2,7 @@ import { File, Link as LinkIcon, X } from "lucide-react";
 
 interface FileAttachmentsProps {
   uploadedFiles: import('../lib/api').FileResource[];
-  connectorFiles: { repo: string; paths: string[]; excludePaths: string[] };
+  connectorFiles: { connector: string; paths: string[]; excludePaths: string[] };
   onRemoveFile: (fileId: string) => void;
   onRemoveConnectorFiles: () => void;
   onEditConnectorFiles: () => void;
@@ -18,6 +18,10 @@ export function FileAttachments({
   if ((!uploadedFiles || uploadedFiles.length === 0) && (!connectorFiles || !connectorFiles.paths || connectorFiles.paths.length === 0)) {
     return null;
   }
+
+  const connectorLabel = connectorFiles.connector.includes('/') 
+    ? (connectorFiles.connector.split("/")[1] || connectorFiles.connector)
+    : connectorFiles.connector;
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -45,7 +49,7 @@ export function FileAttachments({
           <LinkIcon className="h-3.5 w-3.5 text-blue-600" />
           <span className="text-blue-600 font-medium">
             {connectorFiles.paths.length} item{connectorFiles.paths.length !== 1 ? "s" : ""} from{" "}
-            {connectorFiles.repo.split("/")[1] || connectorFiles.repo}
+            {connectorLabel}
             {connectorFiles.excludePaths.length > 0 && ` (${connectorFiles.excludePaths.length} excluded)`}
           </span>
           <button

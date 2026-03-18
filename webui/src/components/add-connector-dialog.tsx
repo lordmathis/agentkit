@@ -21,9 +21,9 @@ interface AddConnectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chatId?: string;
-  onFilesAdded?: (repo: string, paths: string[], excludePaths: string[], files: import('../lib/api').FileResource[]) => void;
+  onFilesAdded?: (connectorId: string, resourceId: string, paths: string[], excludePaths: string[], files: import('../lib/api').FileResource[]) => void;
+  initialInstance?: string;
   initialConnector?: string;
-  initialRepo?: string;
   initialPaths?: string[];
   initialExcludePaths?: string[];
 }
@@ -33,8 +33,8 @@ export function AddConnectorDialog({
   onOpenChange,
   chatId,
   onFilesAdded,
+  initialInstance = "",
   initialConnector = "",
-  initialRepo = "",
   initialPaths = [],
   initialExcludePaths = [],
 }: AddConnectorDialogProps) {
@@ -45,159 +45,22 @@ export function AddConnectorDialog({
     selectedConnector,
     setSelectedConnector,
     isLoadingConnectors,
-    repositories,
-    selectedRepo,
-    setSelectedRepo,
-    repoLink,
-    setRepoLink,
-    isLoadingRepos,
+    resources,
+    selectedResource,
+    setSelectedResource,
+    resourceLink,
+    setResourceLink,
+    isLoadingResources,
     isLoadingTree,
-    loadingPaths,
-    treeRoot,
-    expandedPaths,
-    selectedPaths,
-    isAdding,
-    error,
-    setError,
-    tokenEstimate,
-    isEstimatingTokens,
-    getRepoIdentifier,
-    loadRepositories,
-    loadTree,
-    loadChildren,
-    toggleExpand,
-    isPathSelected,
-    isPathExcluded,
-    toggleSelect,
-    handleAddFiles,
-    handleRepoSelect,
-    handleLinkPaste,
-  } = useConnectorDialog(initialConnector, initialRepo, initialPaths, initialExcludePaths);
-
-  const [filterPattern, setFilterPattern] = useState("");
-  const [isApplyingFilter, setIsApplyingFilter] = useState(false);
-
-  // Helper function to match a file path against a pattern
-  const matchesPattern = (filePath: string, pattern: string): boolean => {
-    if (!pattern.trim()) return false;
-    
-    const fileName = filePath.split('/').pop() || filePath;
-    const normalizedPattern = pattern.trim();
-    
-    // Exact match
-    if (fileName === normalizedPattern || filePath === normalizedPattern) {
-      return true;
-    }
-    
-    // Wildcard pattern matching
-    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const patternRegex = new RegExp(
-      '^' + normalizedPattern.split('*').map(escapeRegex).join('.*') + '$'
-    );
-    
-    return patternRegex.test(fileName) || patternRegex.test(filePath);
-  };
-
-  // Recursively fetch all file paths using the API directly
-  const fetchAllFilePaths = async (repo: string, path: string = ""): Promise<string[]> => {
-    const paths: string[] = [];
-    
-    try {
-      const node = await api.browseConnectorTree(selectedConnector, repo, path);
-      
-      if (node.type === 'file') {
-        paths.push(node.path);
-      } else if (node.children) {
-        for (const child of node.children) {
-          if (child.type === 'file') {
-            paths.push(child.path);
-          } else if (child.type === 'dir') {
-            // Recursively fetch paths from subdirectories
-            const subPaths = await fetchAllFilePaths(repo, child.path);
-            paths.push(...subPaths);
-          }
-        }
-      }
-    } catch (err) {
-      console.error(`Failed to fetch paths for ${path}:`, err);
-    }
-    
-    return paths;
-  };
-
-  // Apply the filter pattern
-  const applyFilter = async () => {
-    if (!filterPattern.trim() || !treeRoot) return;
-    
-    const repo = getRepoIdentifier();
-    if (!repo) return;
-    
-    setIsApplyingFilter(true);
-    setError(""); // Clear any previous errors
-    
-    try {
-      // Fetch all file paths recursively using the API
-      const allFilePaths = await fetchAllFilePaths(repo);
-      const matchingPaths = allFilePaths.filter(path => matchesPattern(path, filterPattern));
-      
-      // Uncheck all matching files
-      matchingPaths.forEach(path => {
-        const isCurrentlySelected = isPathSelected(path);
-        const isCurrentlyExcluded = isPathExcluded(path);
-        
-        // If file is selected and not already excluded, toggle it to uncheck
-        if (isCurrentlySelected && !isCurrentlyExcluded) {
-          toggleSelect(path, false);
-        }
-      });
-      
-      setFilterPattern(""); // Clear the filter input after applying
-    } catch (err) {
-      setError("Failed to fetch repository files. Please try again.");
-    } finally {
-      setIsApplyingFilter(false);
-    }
-  };
-
+...
   useEffect(() => {
-    if (open && inputMode === "select" && repositories.length === 0 && selectedConnector) {
-      loadRepositories();
+    if (open && inputMode === "select" && resources.length === 0 && selectedConnector) {
+      loadResources();
     }
-  }, [open, inputMode, selectedConnector]);
+  }, [open, inputMode, selectedConnector, resources.length]);
 
   const handleAdd = async () => {
-    const result = await handleAddFiles(chatId, () => {});
-
-    if (result) {
-      onFilesAdded?.(getRepoIdentifier() || "", Array.from(selectedPaths).filter(p => !p.startsWith('!')), Array.from(selectedPaths).filter(p => p.startsWith('!')).map(p => p.substring(1)), result);
-      onOpenChange(false);
-    }
-  };
-
-  const handleClose = () => {
-    setError("");
-    onOpenChange(false);
-  };
-
-  const includedCount = Array.from(selectedPaths).filter((p) => !p.startsWith("!")).length;
-
-  const currentConnector = connectors.find(c => c.name === selectedConnector);
-  const Icon = currentConnector?.type === 'github' ? Github : LinkIcon;
-
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Icon className="h-5 w-5" />
-            Add from {currentConnector ? `${currentConnector.name}` : 'Connector'}
-          </DialogTitle>
-          <DialogDescription>
-            Select files from a repository to add to your chat context
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-hidden flex flex-col gap-4 px-1 -mx-1">
+...
           <ConnectorSelector
             inputMode={inputMode}
             setInputMode={setInputMode}
@@ -205,16 +68,16 @@ export function AddConnectorDialog({
             selectedConnector={selectedConnector}
             setSelectedConnector={setSelectedConnector}
             isLoadingConnectors={isLoadingConnectors}
-            selectedRepo={selectedRepo}
-            setSelectedRepo={setSelectedRepo}
-            repoLink={repoLink}
-            setRepoLink={setRepoLink}
-            repositories={repositories}
-            isLoadingRepos={isLoadingRepos}
+            selectedResource={selectedResource}
+            setSelectedResource={setSelectedResource}
+            resourceLink={resourceLink}
+            setResourceLink={setResourceLink}
+            resources={resources}
+            isLoadingResources={isLoadingResources}
             isLoadingTree={isLoadingTree}
-            onRepoSelect={handleRepoSelect}
+            onResourceSelect={handleResourceSelect}
             onLinkPaste={handleLinkPaste}
-            getRepoIdentifier={getRepoIdentifier}
+            getResourceIdentifier={getResourceIdentifier}
           />
 
           {treeRoot && (

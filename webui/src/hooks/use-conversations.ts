@@ -1,0 +1,71 @@
+import { useState, useEffect, useCallback } from "react";
+import { api, type ChatConfig } from "../lib/api";
+import { type Conversation } from "../components/sidebar";
+import { formatTimestamp } from "../lib/formatters";
+
+export function useConversations() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.listChats(20);
+      const formattedChats: Conversation[] = response.chats.map((chat) => ({
+        id: chat.id,
+        title: chat.title,
+        timestamp: formatTimestamp(chat.updated_at),
+        preview: chat.model || undefined,
+      }));
+      setConversations(formattedChats);
+    } catch (error) {
+      console.error("Failed to refresh conversations:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const createConversation = async (overrideConfig?: Partial<ChatConfig>) => {
+    const defaults = await api.getDefaultChatConfig();
+    const config: ChatConfig = {
+      model: overrideConfig?.model || defaults.model || "",
+      system_prompt: overrideConfig?.system_prompt ?? defaults.system_prompt ?? (defaults.system_prompt || undefined),
+      tool_servers: overrideConfig?.tool_servers ?? defaults.tool_servers ?? [],
+      model_params: overrideConfig?.model_params ?? defaults.model_params ?? (defaults.model_params || undefined),
+    };
+
+    if (!config.model) {
+      throw new Error("No model selected and no default model available.");
+    }
+
+    const chat = await api.createChat({ title: "Untitled Chat", config });
+    await refresh();
+    return chat.id;
+  };
+
+  const deleteConversation = async (id: string) => {
+    await api.deleteChat(id);
+    await refresh();
+  };
+
+  const branchConversation = async (id: string, messageId: string) => {
+    const currentChat = conversations.find((c) => c.id === id);
+    const branchTitle = currentChat ? `${currentChat.title} (branch)` : undefined;
+    const branchedChat = await api.branchChat(id, messageId, branchTitle);
+    await refresh();
+    return branchedChat.id;
+  };
+
+  return {
+    conversations,
+    isLoading,
+    createConversation,
+    deleteConversation,
+    branchConversation,
+    refresh,
+  };
+}

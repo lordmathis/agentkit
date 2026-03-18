@@ -1,6 +1,7 @@
 import { Bot } from "lucide-react";
 import { ChatMessage } from "./chat-message";
 import { ScrollArea } from "./ui/scroll-area";
+import { useEffect } from "react";
 import type { Message } from "../lib/api";
 
 interface MessagesListProps {
@@ -24,6 +25,11 @@ export function MessagesList({
   onRetry,
   onEdit,
 }: MessagesListProps) {
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSending, messagesEndRef]);
+
   return (
     <ScrollArea className="flex-1 min-h-0">
       <div className="mx-auto max-w-3xl pb-6">

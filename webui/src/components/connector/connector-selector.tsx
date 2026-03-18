@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Input } from "../ui/input";
-import { type ConnectorRepo, type Connector } from "../../lib/api";
+import { type ConnectorResource, type Connector } from "../../lib/api";
 
 interface ConnectorSelectorProps {
   inputMode: "select" | "paste";
@@ -18,16 +18,16 @@ interface ConnectorSelectorProps {
   selectedConnector: string;
   setSelectedConnector: (connector: string) => void;
   isLoadingConnectors: boolean;
-  selectedRepo: string;
-  setSelectedRepo: (repo: string) => void;
-  repoLink: string;
-  setRepoLink: (link: string) => void;
-  repositories: ConnectorRepo[];
-  isLoadingRepos: boolean;
+  selectedResource: string;
+  setSelectedResource: (resource: string) => void;
+  resourceLink: string;
+  setResourceLink: (link: string) => void;
+  resources: ConnectorResource[];
+  isLoadingResources: boolean;
   isLoadingTree: boolean;
-  onRepoSelect: (repo: string) => void;
+  onResourceSelect: (resource: string) => void;
   onLinkPaste: (link: string) => void;
-  getRepoIdentifier: () => string;
+  getResourceIdentifier: () => string;
 }
 
 export function ConnectorSelector({
@@ -37,25 +37,25 @@ export function ConnectorSelector({
   selectedConnector,
   setSelectedConnector,
   isLoadingConnectors,
-  selectedRepo,
-  setSelectedRepo,
-  repoLink,
-  setRepoLink,
-  repositories,
-  isLoadingRepos,
+  selectedResource,
+  setSelectedResource,
+  resourceLink,
+  setResourceLink,
+  resources,
+  isLoadingResources,
   isLoadingTree,
-  onRepoSelect,
+  onResourceSelect,
   onLinkPaste,
-  getRepoIdentifier,
+  getResourceIdentifier,
 }: ConnectorSelectorProps) {
-  const handleRepoChange = (repo: string) => {
-    setSelectedRepo(repo);
-    onRepoSelect(repo);
+  const handleResourceChange = (resource: string) => {
+    setSelectedResource(resource);
+    onResourceSelect(resource);
   };
 
   const handleLinkKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && repoLink.trim()) {
-      onLinkPaste(repoLink);
+    if (e.key === "Enter" && resourceLink.trim()) {
+      onLinkPaste(resourceLink);
     }
   };
 
@@ -92,25 +92,25 @@ export function ConnectorSelector({
       <div className="space-y-2">
         {inputMode === "select" ? (
           <div className="space-y-2">
-            <Label htmlFor="repository">Repository</Label>
+            <Label htmlFor="resource">Resource</Label>
             <div className="flex gap-2 items-center">
-              {isLoadingRepos ? (
+              {isLoadingResources ? (
                 <div className="flex-1 flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
               ) : (
-                <Select value={selectedRepo} onValueChange={handleRepoChange} disabled={!selectedConnector}>
-                  <SelectTrigger id="repository" className="flex-1">
-                    <SelectValue placeholder={selectedConnector ? "Select a repository" : "Select a connector first"} />
+                <Select value={selectedResource} onValueChange={handleResourceChange} disabled={!selectedConnector}>
+                  <SelectTrigger id="resource" className="flex-1">
+                    <SelectValue placeholder={selectedConnector ? "Select a resource" : "Select a connector first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {repositories.map((repo) => (
-                      <SelectItem key={repo.id} value={repo.full_name}>
+                    {resources.map((resource) => (
+                      <SelectItem key={resource.id} value={resource.full_name}>
                         <div className="flex flex-col items-start">
-                          <span className="font-medium">{repo.full_name}</span>
-                          {repo.description && (
+                          <span className="font-medium">{resource.full_name}</span>
+                          {resource.description && (
                             <span className="text-xs opacity-70 truncate max-w-[300px]">
-                              {repo.description}
+                              {resource.description}
                             </span>
                           )}
                         </div>
@@ -124,7 +124,7 @@ export function ConnectorSelector({
                 size="icon"
                 className="h-9 w-9"
                 onClick={() => setInputMode("paste")}
-                title={`Paste ${currentConnector?.type || 'connector'} link`}
+                title={`Paste link`}
                 disabled={!selectedConnector}
               >
                 <LinkIcon className="h-4 w-4" />
@@ -133,12 +133,12 @@ export function ConnectorSelector({
           </div>
         ) : (
           <div className="space-y-2">
-            <Label htmlFor="repo-link">{currentConnector?.type === 'github' ? 'GitHub ' : ''}Repository Link</Label>
+            <Label htmlFor="resource-link">Resource Link</Label>
             <Input
-              id="repo-link"
-              placeholder={currentConnector?.type === 'github' ? "https://github.com/owner/repo or owner/repo" : "Repository identifier"}
-              value={repoLink}
-              onChange={(e) => setRepoLink(e.target.value)}
+              id="resource-link"
+              placeholder="Resource identifier (e.g. owner/repo)"
+              value={resourceLink}
+              onChange={(e) => setResourceLink(e.target.value)}
               onKeyDown={handleLinkKeyDown}
               autoFocus
               disabled={!selectedConnector}
@@ -148,7 +148,7 @@ export function ConnectorSelector({
         {isLoadingTree && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading repository...
+            Loading resource...
           </div>
         )}
       </div>

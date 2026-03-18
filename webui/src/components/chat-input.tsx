@@ -26,39 +26,23 @@ interface ChatInputProps {
   chatSettings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
   uploadedFiles: import('../lib/api').FileResource[];
-  connectorFiles: { repo: string; paths: string[]; excludePaths: string[] };
+  connectorFiles: { connector: string; paths: string[]; excludePaths: string[] };
   onRemoveFile: (fileId: string) => void;
   onRemoveConnectorFiles: () => void;
-  onFileUploadClick: () => void;
-  onConnectorDialogOpen: () => void;
-  onChatUpdated: () => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-export function ChatInput({
-  inputValue,
-  isEditingMode = false,
-  onInputChange,
-  onSend,
-  onKeyDown,
-  isSending,
-  isUploadingFiles,
-  currentConversationId,
-  chatSettings,
-  onSettingsChange,
-  uploadedFiles,
-  connectorFiles,
-  onRemoveFile,
-  onRemoveConnectorFiles,
-  onFileUploadClick,
-  onConnectorDialogOpen,
-  onChatUpdated,
-  textareaRef,
+...
   fileInputRef,
   onFileChange,
 }: ChatInputProps) {
+  // Auto-resize textarea as user types
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      const newHeight = Math.min(textarea.scrollHeight, 300);
+      textarea.style.height = `${newHeight}px`;
+    }
+  }, [inputValue, textareaRef]);
+
   const {
     isRecording,
     isProcessing,
@@ -124,20 +108,15 @@ export function ChatInput({
 
   const insertMention = (skillName: string) => {
     if (mentionStart === -1) return;
-    
     const before = inputValue.substring(0, mentionStart);
-    const cursorPos = textareaRef.current?.selectionStart || 0;
-    const after = inputValue.substring(cursorPos);
-    
-    const newValue = `${before}@${skillName} ${after}`;
-    onInputChange(newValue);
+    // end = mentionStart + 1 (@) + mentionSearch.length
+    const after = inputValue.substring(mentionStart + 1 + mentionSearch.length);
+    onInputChange(`${before}@${skillName} ${after}`);
     setShowMentions(false);
-    
-    // Focus textarea and set cursor position
     setTimeout(() => {
+      const pos = mentionStart + skillName.length + 2;
       textareaRef.current?.focus();
-      const newCursorPos = mentionStart + skillName.length + 2;
-      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+      textareaRef.current?.setSelectionRange(pos, pos);
     }, 0);
   };
 

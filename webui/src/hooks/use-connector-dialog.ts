@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
-import { api, type ConnectorRepo, type FileNode, type Connector } from "../lib/api";
+import { api, type ConnectorResource, type FileNode, type Connector } from "../lib/api";
 
 export function useConnectorDialog(
+  initialInstance: string,
   initialConnector: string,
-  initialRepo: string,
   initialPaths: string[],
   initialExcludePaths: string[]
 ) {
   const [inputMode, setInputMode] = useState<"select" | "paste">("select");
   const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [selectedConnector, setSelectedConnector] = useState<string>(initialConnector);
+  const [selectedConnector, setSelectedConnector] = useState<string>(initialInstance);
   const [isLoadingConnectors, setIsLoadingConnectors] = useState(false);
-  const [repositories, setRepositories] = useState<ConnectorRepo[]>([]);
-  const [selectedRepo, setSelectedRepo] = useState<string>(initialRepo);
-  const [repoLink, setRepoLink] = useState<string>(initialRepo);
-  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [resources, setResources] = useState<ConnectorResource[]>([]);
+  const [selectedResource, setSelectedResource] = useState<string>(initialConnector);
+  const [resourceLink, setResourceLink] = useState<string>(initialConnector);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [treeRoot, setTreeRoot] = useState<FileNode | null>(null);
@@ -29,8 +29,9 @@ export function useConnectorDialog(
   const [tokenEstimate, setTokenEstimate] = useState<number | null>(null);
   const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
 
-  const parseGitHubLink = (link: string): string | null => {
+  const parseConnectorLink = (link: string): string | null => {
     try {
+      // GitHub specific parsing logic (remains but renamed for generic use)
       const match = link.match(/github\.com[:/]([^/]+\/[^/\s.]+)/);
       if (match) {
         return match[1].replace(/\.git$/, "");
@@ -44,11 +45,11 @@ export function useConnectorDialog(
     }
   };
 
-  const getRepoIdentifier = (): string => {
+  const getResourceIdentifier = (): string => {
     if (inputMode === "select") {
-      return selectedRepo;
+      return selectedResource;
     } else {
-      const parsed = parseGitHubLink(repoLink);
+      const parsed = parseConnectorLink(resourceLink);
       return parsed || "";
     }
   };
@@ -69,35 +70,35 @@ export function useConnectorDialog(
     }
   };
 
-  const loadRepositories = async () => {
+  const loadResources = async () => {
     if (!selectedConnector) return;
     try {
-      setIsLoadingRepos(true);
+      setIsLoadingResources(true);
       setError("");
-      const response = await api.listRepositories(selectedConnector);
-      setRepositories(response.repositories);
+      const response = await api.listConnectorResources(selectedConnector);
+      setResources(response.resources);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load repositories");
+      setError(err instanceof Error ? err.message : "Failed to load resources");
     } finally {
-      setIsLoadingRepos(false);
+      setIsLoadingResources(false);
     }
   };
 
   const loadTree = async () => {
-    const repo = getRepoIdentifier();
-    if (!repo) {
-      setError("Please select or enter a valid repository");
+    const resource = getResourceIdentifier();
+    if (!resource) {
+      setError("Please select or enter a valid resource");
       return;
     }
 
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseConnectorTree(selectedConnector, repo, "");
+      const tree = await api.browseConnectorTree(selectedConnector, resource, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setError(err instanceof Error ? err.message : "Failed to load resource tree");
       setTreeRoot(null);
     } finally {
       setIsLoadingTree(false);
@@ -105,12 +106,12 @@ export function useConnectorDialog(
   };
 
   const loadChildren = async (path: string) => {
-    const repo = getRepoIdentifier();
-    if (!repo || !treeRoot || !selectedConnector) return;
+    const resource = getResourceIdentifier();
+    if (!resource || !treeRoot || !selectedConnector) return;
 
     try {
       setLoadingPaths((prev) => new Set(prev).add(path));
-      const subtree = await api.browseConnectorTree(selectedConnector, repo, path);
+      const subtree = await api.browseConnectorTree(selectedConnector, resource, path);
 
       const updateNode = (node: FileNode): FileNode => {
         if (node.path === path) {
@@ -246,15 +247,15 @@ export function useConnectorDialog(
     });
   };
 
-  const handleAddFiles = async (chatId: string | undefined, onSuccess: (repo: string, paths: string[], excludePaths: string[], count: number) => void): Promise<import('../lib/api').FileResource[] | false> => {
+  const handleAddFiles = async (chatId: string | undefined, onSuccess: (resource: string, paths: string[], excludePaths: string[], count: number) => void): Promise<import('../lib/api').FileResource[] | false> => {
     if (!chatId) {
       setError("No active chat selected");
       return false;
     }
 
-    const repo = getRepoIdentifier();
-    if (!repo) {
-      setError("Please select or enter a valid repository");
+    const resource = getResourceIdentifier();
+    if (!resource) {
+      setError("Please select or enter a valid resource");
       return false;
     }
 
@@ -283,8 +284,8 @@ export function useConnectorDialog(
       setIsAdding(true);
       setError("");
 
-      const fileResources = await api.uploadConnectorFiles(selectedConnector, repo, paths, excludePaths);
-      onSuccess(repo, paths, excludePaths, fileResources.length);
+      const fileResources = await api.uploadConnectorFiles(selectedConnector, resource, paths, excludePaths);
+      onSuccess(resource, paths, excludePaths, fileResources.length);
       return fileResources;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add files");
@@ -297,8 +298,8 @@ export function useConnectorDialog(
   // Estimate tokens when selection changes
   useEffect(() => {
     const estimateTokens = async () => {
-      const repo = getRepoIdentifier();
-      if (!repo || selectedPaths.size === 0 || !selectedConnector) {
+      const resource = getResourceIdentifier();
+      if (!resource || selectedPaths.size === 0 || !selectedConnector) {
         setTokenEstimate(null);
         setIsEstimatingTokens(false);
         return;
@@ -323,7 +324,7 @@ export function useConnectorDialog(
           return;
         }
 
-        const estimate = await api.estimateConnectorTokens(selectedConnector, repo, paths, excludePaths);
+        const estimate = await api.estimateConnectorTokens(selectedConnector, resource, paths, excludePaths);
         setTokenEstimate(estimate.total_tokens);
       } catch (err) {
         console.error("Token estimation error:", err);
@@ -334,20 +335,20 @@ export function useConnectorDialog(
     };
 
     estimateTokens();
-  }, [selectedPaths, inputMode, selectedRepo, repoLink, selectedConnector]);
+  }, [selectedPaths, inputMode, selectedResource, resourceLink, selectedConnector]);
 
-  const handleRepoSelect = async (repo: string) => {
-    setSelectedRepo(repo);
+  const handleResourceSelect = async (resource: string) => {
+    setSelectedResource(resource);
     setInputMode("select");
     
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseConnectorTree(selectedConnector, repo, "");
+      const tree = await api.browseConnectorTree(selectedConnector, resource, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setError(err instanceof Error ? err.message : "Failed to load resource tree");
       setTreeRoot(null);
     } finally {
       setIsLoadingTree(false);
@@ -355,13 +356,13 @@ export function useConnectorDialog(
   };
 
   const handleLinkPaste = async (link: string) => {
-    const parsed = parseGitHubLink(link);
+    const parsed = parseConnectorLink(link);
     if (!parsed) {
-      setError("Invalid GitHub repository link");
+      setError("Invalid resource link");
       return;
     }
     
-    setRepoLink(link);
+    setResourceLink(link);
     
     try {
       setIsLoadingTree(true);
@@ -370,7 +371,7 @@ export function useConnectorDialog(
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load repository tree");
+      setError(err instanceof Error ? err.message : "Failed to load resource tree");
       setTreeRoot(null);
     } finally {
       setIsLoadingTree(false);
@@ -382,10 +383,10 @@ export function useConnectorDialog(
     loadConnectors();
   }, []);
 
-  // Load repositories when connector changes
+  // Load resources when connector changes
   useEffect(() => {
     if (selectedConnector) {
-      loadRepositories();
+      loadResources();
     }
   }, [selectedConnector]);
 
@@ -396,12 +397,12 @@ export function useConnectorDialog(
     selectedConnector,
     setSelectedConnector,
     isLoadingConnectors,
-    repositories,
-    selectedRepo,
-    setSelectedRepo,
-    repoLink,
-    setRepoLink,
-    isLoadingRepos,
+    resources,
+    selectedResource,
+    setSelectedResource,
+    resourceLink,
+    setResourceLink,
+    isLoadingResources,
     isLoadingTree,
     loadingPaths,
     treeRoot,
@@ -412,9 +413,9 @@ export function useConnectorDialog(
     setError,
     tokenEstimate,
     isEstimatingTokens,
-    getRepoIdentifier,
+    getResourceIdentifier,
     loadConnectors,
-    loadRepositories,
+    loadResources,
     loadTree,
     loadChildren,
     toggleExpand,
@@ -422,7 +423,7 @@ export function useConnectorDialog(
     isPathExcluded,
     toggleSelect,
     handleAddFiles,
-    handleRepoSelect,
+    handleResourceSelect,
     handleLinkPaste,
   };
 }

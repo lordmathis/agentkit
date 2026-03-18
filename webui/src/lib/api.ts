@@ -21,7 +21,6 @@ export interface Chat {
   model_params?: ModelParams | null;
 }
 
-
 export interface FileResource {
   id: string;
   filename: string;
@@ -111,7 +110,7 @@ export interface Connector {
   type: "github" | "forgejo";
 }
 
-export interface ConnectorRepo {
+export interface ConnectorResource {
   id: string | number;
   name: string;
   full_name: string;
@@ -273,7 +272,6 @@ class ApiClient {
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
-      // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
     });
 
     if (!response.ok) {
@@ -295,25 +293,26 @@ class ApiClient {
     return this.request('/connectors');
   }
 
-  async listRepositories(connector: string): Promise<{ repositories: ConnectorRepo[] }> {
-    return this.request(`/connectors/repositories?connector=${encodeURIComponent(connector)}`);
+  async listConnectorResources(connector: string): Promise<{ resources: ConnectorResource[] }> {
+    const response = await this.request<{ repositories: ConnectorResource[] }>(`/connectors/repositories?connector=${encodeURIComponent(connector)}`);
+    return { resources: response.repositories };
   }
 
-  async browseConnectorTree(connector: string, repo: string, path: string = ""): Promise<FileNode> {
-    return this.request(`/connectors/tree?connector=${encodeURIComponent(connector)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+  async browseConnectorTree(connector: string, resource: string, path: string = ""): Promise<FileNode> {
+    return this.request(`/connectors/tree?connector=${encodeURIComponent(connector)}&repo=${encodeURIComponent(resource)}&path=${encodeURIComponent(path)}`);
   }
 
-  async estimateConnectorTokens(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
+  async estimateConnectorTokens(connector: string, resource: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
     return this.request(`/connectors/estimate?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
-      body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
+      body: JSON.stringify({ repo: resource, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
-  async uploadConnectorFiles(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
+  async uploadConnectorFiles(connector: string, resource: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
     return this.request(`/connectors/files?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
-      body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
+      body: JSON.stringify({ repo: resource, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
@@ -326,7 +325,6 @@ class ApiClient {
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
-      // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
     });
 
     if (!response.ok) {
