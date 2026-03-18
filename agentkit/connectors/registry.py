@@ -2,34 +2,46 @@ from typing import Dict
 import logging
 
 from agentkit.config import ConnectorsConfig, ConnectorType
-from agentkit.connectors.client_base import RepoBrowserClient
+from agentkit.connectors.client_base import ConnectorClient
 from agentkit.connectors.github import GitHubClient
 
 logger = logging.getLogger(__name__)
 
 
 class ConnectorRegistry:
-    def __init__(self, connectors: Dict[str, ConnectorsConfig]) -> None:
-        self._connectors: Dict[str, RepoBrowserClient] = {}
-        for name, cfg in connectors.items():
-            self._connectors[name] = self._create_connector(name, cfg)
+    def __init__(self) -> None:
+        self._connectors: Dict[str, ConnectorClient] = {}
 
-    def _create_connector(self, name: str, cfg: ConnectorsConfig) -> RepoBrowserClient:
+    @classmethod
+    async def create(
+        cls, connectors: Dict[str, ConnectorsConfig]
+    ) -> "ConnectorRegistry":
+        registry = cls()
+        for name, cfg in connectors.items():
+            connector = await registry._create_connector(name, cfg)
+            if connector:
+                registry._connectors[name] = connector
+        return registry
+
+    async def _create_connector(
+        self, name: str, cfg: ConnectorsConfig
+    ) -> ConnectorClient | None:
         connector = None
         if cfg.type == ConnectorType.GITHUB:
             connector = GitHubClient(token=cfg.token)
         else:
             logger.error(f"Unknown connector type: {cfg.type}")
+            return None
 
-        if not connector.authenticate():
+        if not await connector.authenticate():
             logger.error(f"Failed to authenticate connector {name}")
             return None
-        
+
         return connector
 
-    def get_connector(self, name: str) -> RepoBrowserClient | None:
+    def get_connector(self, name: str) -> ConnectorClient | None:
         return self._connectors.get(name)
 
-    def list_connectors(self) -> Dict[str, RepoBrowserClient]:
+    def list_connectors(self) -> Dict[str, ConnectorClient]:
         """List all registered connectors."""
         return self._connectors.copy()

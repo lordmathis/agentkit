@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
     app.state.skill_registry = skill_registry
 
     logger.info("Initializing connectors...")
-    connector_registry = ConnectorRegistry(app_config.connectors)
+    connector_registry = await ConnectorRegistry.create(app_config.connectors)
     app.state.connector_registry = connector_registry
 
     # Initialize agent manager

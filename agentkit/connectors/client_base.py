@@ -21,8 +21,8 @@ class TokenEstimate(BaseModel):
     files: Dict[str, int]
 
 
-class RepoBrowserClient(ABC):
-    """Abstract base class for repository browser clients"""
+class ConnectorClient(ABC):
+    """Abstract base class for connector clients"""
 
     @property
     @abstractmethod

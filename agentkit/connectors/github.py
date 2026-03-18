@@ -4,12 +4,12 @@ from typing import Dict, List
 
 import httpx
 
-from agentkit.connectors.client_base import FileNode, RepoBrowserClient, TokenEstimate
+from agentkit.connectors.client_base import FileNode, ConnectorClient, TokenEstimate
 
 logger = logging.getLogger(__name__)
 
 
-class GitHubClient(RepoBrowserClient):
+class GitHubClient(ConnectorClient):
     """Client for interacting with GitHub REST API"""
 
     @property
