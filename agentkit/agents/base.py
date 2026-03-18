@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
-    """Abstract base for all agent types. Agents own their context and LLM interaction."""
+    """Abstract base for all agent types. Provides infrastructure and contract only."""
 
     def __init__(
         self,
@@ -46,18 +46,19 @@ class BaseAgent(ABC):
         self._llm_client = provider.get_llm_client()
 
     @abstractmethod
-    async def _run(self, message: str) -> Dict[str, Any]:
-        """Execute the agent's logic. Must be implemented by subclasses."""
+    async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
+        """Main entry point for sending a message."""
         ...
 
-    async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
-        """Main entry point. Handles persistence and naming automatically."""
-        await self._save_message("user", message, file_ids=file_ids)
-        response = await self._run(message)
-        asyncio.create_task(
-            generate_title(self.chat_id, self.db, self._llm_client, self.model_id)
-        )
-        return response
+    @abstractmethod
+    async def retry(self) -> Dict[str, Any]:
+        """Retry the last message by re-processing."""
+        ...
+
+    @abstractmethod
+    async def edit(self, new_message: str) -> Dict[str, Any]:
+        """Edit the last user message and re-process."""
+        ...
 
     async def _save_message(
         self,
@@ -169,61 +170,8 @@ class BaseAgent(ABC):
             max_tokens=self.max_tokens,
         )
 
-    def _get_history(self) -> List:
-        """Get raw DB messages for manual context building."""
-        return self.db.get_chat_history(self.chat_id)
-
-    async def retry(self) -> Dict[str, Any]:
-        """Retry the last message by deleting the last assistant response and re-processing."""
-        history = self.db.get_chat_history(self.chat_id)
-        last_assistant = None
-        last_user = None
-        for msg in reversed(history):
-            if msg.role == "assistant" and last_assistant is None:
-                last_assistant = msg
-            elif msg.role == "user" and last_user is None:
-                last_user = msg
-            if last_assistant and last_user:
-                break
-
-        if not last_user:
-            return {"error": "No user message to retry"}
-
-        if last_assistant:
-            self.db.delete_message(last_assistant.id)
-            for msg in history:
-                if msg.role == "tool":
-                    self.db.delete_message(msg.id)
-
-        response = await self._run(last_user.content)
-        return response
-
-    async def edit(self, new_message: str) -> Dict[str, Any]:
-        """Edit the last user message and re-process."""
-        history = self.db.get_chat_history(self.chat_id)
-        last_user = None
-        last_assistant = None
-        for msg in reversed(history):
-            if msg.role == "user" and last_user is None:
-                last_user = msg
-            elif msg.role == "assistant" and last_assistant is None:
-                last_assistant = msg
-            if last_user and last_assistant:
-                break
-
-        if not last_user:
-            return {"error": "No user message to edit"}
-
-        file_ids_str = getattr(last_user, "file_ids", None)
-        self.db.delete_message(last_user.id)
-
-        if last_assistant:
-            self.db.delete_message(last_assistant.id)
-            for msg in history:
-                if msg.role == "tool":
-                    self.db.delete_message(msg.id)
-
-        self.db.save_message(self.chat_id, "user", new_message, file_ids=file_ids_str)
-
-        response = await self._run(new_message)
-        return response
+    async def _generate_title(self) -> None:
+        """Fire title generation as a background task."""
+        asyncio.create_task(
+            generate_title(self.chat_id, self.db, self._llm_client, self.model_id)
+        )

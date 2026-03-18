@@ -43,7 +43,13 @@ class ReActAgent(BaseAgent):
         )
         self.max_iterations = max_iterations
 
-    async def _run(self, message: str) -> Dict[str, Any]:
+    async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
+        await self._save_message("user", message, file_ids=file_ids)
+        result = await self._loop(message)
+        await self._generate_title()
+        return result
+
+    async def _loop(self, message: str) -> Dict[str, Any]:
         messages = await self._build_context(message)
         tools = await self._get_tools(self.tool_servers)
 
@@ -104,32 +110,62 @@ class ReActAgent(BaseAgent):
         )
         return {"error": "Max iterations reached without final response"}
 
+    async def retry(self) -> Dict[str, Any]:
+        history = self.db.get_chat_history(self.chat_id)
+        last_assistant = None
+        last_user = None
+        for msg in reversed(history):
+            if msg.role == "assistant" and last_assistant is None:
+                last_assistant = msg
+            elif msg.role == "user" and last_user is None:
+                last_user = msg
+            if last_assistant and last_user:
+                break
+
+        if not last_user:
+            return {"error": "No user message to retry"}
+
+        if last_assistant:
+            for msg in history:
+                if msg.role == "tool" and msg.sequence > last_assistant.sequence:
+                    self.db.delete_message(msg.id)
+            self.db.delete_message(last_assistant.id)
+
+        return await self._loop(last_user.content)
+
+    async def edit(self, new_message: str) -> Dict[str, Any]:
+        history = self.db.get_chat_history(self.chat_id)
+        last_user = None
+        last_assistant = None
+        for msg in reversed(history):
+            if msg.role == "user" and last_user is None:
+                last_user = msg
+            elif msg.role == "assistant" and last_assistant is None:
+                last_assistant = msg
+            if last_user and last_assistant:
+                break
+
+        if not last_user:
+            return {"error": "No user message to edit"}
+
+        file_ids_str = getattr(last_user, "file_ids", None)
+        file_ids = json.loads(file_ids_str) if file_ids_str else []
+
+        if last_assistant:
+            for msg in history:
+                if msg.role == "tool" and msg.sequence > last_user.sequence:
+                    self.db.delete_message(msg.id)
+            self.db.delete_message(last_assistant.id)
+
+        self.db.delete_message(last_user.id)
+        await self._save_message("user", new_message, file_ids=file_ids)
+
+        return await self._loop(new_message)
+
 
 class ReActAgentPlugin(ReActAgent):
     """
     Base class for ReAct agent plugins.
-
-    Override class attributes to configure the agent:
-
-        class MyChatbot(ReActAgentPlugin):
-            default = True
-            provider_id = "llamactl"
-            model_id = "my-model"
-            system_prompt = "You are a helpful assistant."
-            tool_servers = ["time"]
-
-    For custom behavior, override post_init() and/or _run():
-
-        class StructuredBot(ReActAgentPlugin):
-            provider_id = "anthropic"
-            model_id = "claude-sonnet-4-6"
-
-            def post_init(self) -> None:
-                self._parser = MyOutputParser()
-
-            async def _run(self, message: str) -> Dict[str, Any]:
-                response = await super()._run(message)
-                return self._parser.parse(response)
     """
 
     default: bool = False
