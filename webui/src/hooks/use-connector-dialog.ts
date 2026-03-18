@@ -247,7 +247,7 @@ export function useConnectorDialog(
     });
   };
 
-  const handleAddFiles = async (chatId: string | undefined, onSuccess: (resource: string, paths: string[], excludePaths: string[], count: number) => void): Promise<import('../lib/api').FileResource[] | false> => {
+  const handleAddFiles = async (chatId: string | undefined, onSuccess: (resource: string, paths: string[], excludePaths: string[], files: import('../lib/api').FileResource[]) => void): Promise<import('../lib/api').FileResource[] | false> => {
     if (!chatId) {
       setError("No active chat selected");
       return false;
@@ -285,7 +285,7 @@ export function useConnectorDialog(
       setError("");
 
       const fileResources = await api.uploadConnectorFiles(selectedConnector, resource, paths, excludePaths);
-      onSuccess(resource, paths, excludePaths, fileResources.length);
+      onSuccess(resource, paths, excludePaths, fileResources);
       return fileResources;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add files");

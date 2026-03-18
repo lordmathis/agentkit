@@ -86,9 +86,9 @@ isEstimatingTokens,
 
   const includedCount = Array.from(selectedPaths).filter(p => !p.startsWith("!")).length;
 
-  const handleAdd = async () => {
-    const files = await handleAddFiles(chatId, (resource, paths, excludePaths, _count) => {
-      onFilesAdded?.(selectedConnector, resource, paths, excludePaths, []);
+const handleAdd = async () => {
+    const files = await handleAddFiles(chatId, (resource, paths, excludePaths, uploadedFiles) => {
+      onFilesAdded?.(selectedConnector, resource, paths, excludePaths, uploadedFiles);
     });
     if (files) {
       onOpenChange(false);

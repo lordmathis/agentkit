@@ -48,6 +48,23 @@ export function useMessages(chatId: string | undefined) {
 
   const send = async (text: string, fileIds: string[]) => {
     if (!chatId) return;
+    
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      role: 'user',
+      content: text,
+      sequence: messages.length,
+      created_at: new Date().toISOString(),
+      files: fileIds.map(id => ({
+        id,
+        filename: '',
+        content_type: '',
+      })),
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+    
     try {
       setIsSending(true);
       await api.sendMessage(chatId, {
@@ -56,6 +73,9 @@ export function useMessages(chatId: string | undefined) {
         stream: false,
       });
       await reloadMessages();
+    } catch (error) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      throw error;
     } finally {
       setIsSending(false);
     }

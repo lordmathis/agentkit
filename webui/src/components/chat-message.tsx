@@ -127,11 +127,6 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
           >
             <Wrench className="h-3.5 w-3.5" />
             <span>{showToolResult ? "Hide" : "Show"} result</span>
-            {message.tool_call_id && (
-              <span className="font-mono text-[10px] opacity-60">
-                ({message.tool_call_id.slice(0, 8)})
-              </span>
-            )}
             <svg
               className={cn(
                 "h-3 w-3 transition-transform",
