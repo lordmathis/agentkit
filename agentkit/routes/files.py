@@ -5,16 +5,11 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from agentkit.db.db import Database
+from agentkit.routes.schemas import FileResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class FileResponse(BaseModel):
-    id: str
-    filename: str
-    content_type: str
 
 
 @router.get("/files/{file_id}", response_model=FileResponse)

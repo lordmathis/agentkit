@@ -1,21 +1,21 @@
-import { File, Github, X } from "lucide-react";
+import { File, Link as LinkIcon, X } from "lucide-react";
 
 interface FileAttachmentsProps {
   uploadedFiles: import('../lib/api').FileResource[];
-  githubFiles: { repo: string; paths: string[]; excludePaths: string[] };
+  connectorFiles: { repo: string; paths: string[]; excludePaths: string[] };
   onRemoveFile: (fileId: string) => void;
-  onRemoveGitHubFiles: () => void;
-  onEditGitHubFiles: () => void;
+  onRemoveConnectorFiles: () => void;
+  onEditConnectorFiles: () => void;
 }
 
 export function FileAttachments({
   uploadedFiles,
-  githubFiles,
+  connectorFiles,
   onRemoveFile,
-  onRemoveGitHubFiles,
-  onEditGitHubFiles,
+  onRemoveConnectorFiles,
+  onEditConnectorFiles,
 }: FileAttachmentsProps) {
-  if ((!uploadedFiles || uploadedFiles.length === 0) && (!githubFiles || !githubFiles.paths || githubFiles.paths.length === 0)) {
+  if ((!uploadedFiles || uploadedFiles.length === 0) && (!connectorFiles || !connectorFiles.paths || connectorFiles.paths.length === 0)) {
     return null;
   }
 
@@ -39,19 +39,19 @@ export function FileAttachments({
         </div>
       ))}
 
-      {/* GitHub files */}
-      {githubFiles.paths.length > 0 && (
+      {/* Connector files */}
+      {connectorFiles.paths.length > 0 && (
         <div className="flex items-center gap-1.5 rounded-md border border-border bg-blue-500/10 px-2 py-1 text-xs">
-          <Github className="h-3.5 w-3.5 text-blue-600" />
+          <LinkIcon className="h-3.5 w-3.5 text-blue-600" />
           <span className="text-blue-600 font-medium">
-            {githubFiles.paths.length} item{githubFiles.paths.length !== 1 ? "s" : ""} from{" "}
-            {githubFiles.repo.split("/")[1] || githubFiles.repo}
-            {githubFiles.excludePaths.length > 0 && ` (${githubFiles.excludePaths.length} excluded)`}
+            {connectorFiles.paths.length} item{connectorFiles.paths.length !== 1 ? "s" : ""} from{" "}
+            {connectorFiles.repo.split("/")[1] || connectorFiles.repo}
+            {connectorFiles.excludePaths.length > 0 && ` (${connectorFiles.excludePaths.length} excluded)`}
           </span>
           <button
-            onClick={onEditGitHubFiles}
+            onClick={onEditConnectorFiles}
             className="ml-1 hover:text-blue-700 transition-colors"
-            aria-label="Edit GitHub files"
+            aria-label="Edit connector files"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -68,10 +68,10 @@ export function FileAttachments({
             </svg>
           </button>
           <button
-            onClick={onRemoveGitHubFiles}
+            onClick={onRemoveConnectorFiles}
             className="ml-1 hover:text-destructive transition-colors"
-            aria-label="Remove GitHub files"
-            title="Remove GitHub files"
+            aria-label="Remove connector files"
+            title="Remove connector files"
           >
             <X className="h-3.5 w-3.5" />
           </button>

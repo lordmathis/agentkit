@@ -8,8 +8,9 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from agentkit.db.db import Database
+from agentkit.routes.schemas import FileResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/connectors")
 logger = logging.getLogger(__name__)
 
 
@@ -19,10 +20,9 @@ class EstimateTokensRequest(BaseModel):
     exclude_paths: Optional[List[str]] = []
 
 
-class FileResponse(BaseModel):
-    id: str
-    filename: str
-    content_type: str
+class Connector(BaseModel):
+    name: str
+    type: str
 
 
 class FilesRequest(BaseModel):
@@ -51,7 +51,23 @@ def _get_connector(request: Request, name: str):
     return connector
 
 
-@router.get("/connectors/repositories")
+@router.get("")
+async def list_connectors(request: Request):
+    """List all registered connectors."""
+    connector_registry = getattr(request.app.state, "connector_registry", None)
+    if not connector_registry:
+        return {"connectors": []}
+
+    connectors = connector_registry.list_connectors()
+    return {
+        "connectors": [
+            Connector(name=name, type=client.type)
+            for name, client in connectors.items()
+        ]
+    }
+
+
+@router.get("/repositories")
 async def list_repositories(request: Request, connector: str):
     """
     List repositories accessible with the configured credentials.
@@ -70,7 +86,7 @@ async def list_repositories(request: Request, connector: str):
         )
 
 
-@router.get("/connectors/tree")
+@router.get("/tree")
 async def browse_tree(request: Request, connector: str, repo: str, path: str = ""):
     """
     Browse the file tree of a repository.
@@ -89,7 +105,7 @@ async def browse_tree(request: Request, connector: str, repo: str, path: str = "
         raise HTTPException(status_code=500, detail=f"Failed to browse tree: {str(e)}")
 
 
-@router.post("/connectors/estimate")
+@router.post("/estimate")
 async def estimate_tokens(
     request: Request, connector: str, body: EstimateTokensRequest
 ):
@@ -134,7 +150,7 @@ async def estimate_tokens(
         )
 
 
-@router.post("/connectors/files", response_model=List[FileResponse])
+@router.post("/files", response_model=List[FileResponse])
 async def upload_files(request: Request, connector: str, body: FilesRequest):
     """Fetch files from repository server-side, store to disk, and return their metadata."""
     client = _get_connector(request, connector)

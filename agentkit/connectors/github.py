@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 class GitHubClient(RepoBrowserClient):
     """Client for interacting with GitHub REST API"""
 
+    @property
+    def type(self) -> str:
+        return "github"
+
     def __init__(self, token: str):
         """Initialize GitHub client with authentication token
 

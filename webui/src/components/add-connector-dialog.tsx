@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Github, Loader2, Filter, X } from "lucide-react";
+import { Github, Loader2, Filter, X, Link as LinkIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,36 +11,40 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-import { TreeNode } from "./github/tree-node";
-import { RepoSelector } from "./github/repo-selector";
-import { SelectionSummary } from "./github/selection-summary";
-import { useGitHubDialog } from "../hooks/use-github-dialog";
+import { TreeNode } from "./connector/tree-node";
+import { ConnectorSelector } from "./connector/connector-selector";
+import { SelectionSummary } from "./connector/selection-summary";
+import { useConnectorDialog } from "../hooks/use-connector-dialog";
 import { api } from "../lib/api";
 
-interface AddGitHubDialogProps {
+interface AddConnectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chatId?: string;
   onFilesAdded?: (repo: string, paths: string[], excludePaths: string[], files: import('../lib/api').FileResource[]) => void;
+  initialConnector?: string;
   initialRepo?: string;
   initialPaths?: string[];
   initialExcludePaths?: string[];
-  connector?: string;
 }
 
-export function AddGitHubDialog({
+export function AddConnectorDialog({
   open,
   onOpenChange,
   chatId,
   onFilesAdded,
+  initialConnector = "",
   initialRepo = "",
   initialPaths = [],
   initialExcludePaths = [],
-  connector = "github",
-}: AddGitHubDialogProps) {
+}: AddConnectorDialogProps) {
   const {
     inputMode,
     setInputMode,
+    connectors,
+    selectedConnector,
+    setSelectedConnector,
+    isLoadingConnectors,
     repositories,
     selectedRepo,
     setSelectedRepo,
@@ -68,7 +72,7 @@ export function AddGitHubDialog({
     handleAddFiles,
     handleRepoSelect,
     handleLinkPaste,
-  } = useGitHubDialog(connector, initialRepo, initialPaths, initialExcludePaths);
+  } = useConnectorDialog(initialConnector, initialRepo, initialPaths, initialExcludePaths);
 
   const [filterPattern, setFilterPattern] = useState("");
   const [isApplyingFilter, setIsApplyingFilter] = useState(false);
@@ -94,26 +98,12 @@ export function AddGitHubDialog({
     return patternRegex.test(fileName) || patternRegex.test(filePath);
   };
 
-  // Recursively collect all file paths from the tree
-  const collectAllFilePaths = (node: any): string[] => {
-    const paths: string[] = [];
-    if (node.type === 'file') {
-      paths.push(node.path);
-    }
-    if (node.children) {
-      node.children.forEach((child: any) => {
-        paths.push(...collectAllFilePaths(child));
-      });
-    }
-    return paths;
-  };
-
   // Recursively fetch all file paths using the API directly
   const fetchAllFilePaths = async (repo: string, path: string = ""): Promise<string[]> => {
     const paths: string[] = [];
     
     try {
-      const node = await api.browseRepoTree(connector, repo, path);
+      const node = await api.browseConnectorTree(selectedConnector, repo, path);
       
       if (node.type === 'file') {
         paths.push(node.path);
@@ -170,10 +160,10 @@ export function AddGitHubDialog({
   };
 
   useEffect(() => {
-    if (open && inputMode === "select" && repositories.length === 0) {
+    if (open && inputMode === "select" && repositories.length === 0 && selectedConnector) {
       loadRepositories();
     }
-  }, [open, inputMode]);
+  }, [open, inputMode, selectedConnector]);
 
   const handleAdd = async () => {
     const result = await handleAddFiles(chatId, () => {});
@@ -191,23 +181,30 @@ export function AddGitHubDialog({
 
   const includedCount = Array.from(selectedPaths).filter((p) => !p.startsWith("!")).length;
 
+  const currentConnector = connectors.find(c => c.name === selectedConnector);
+  const Icon = currentConnector?.type === 'github' ? Github : LinkIcon;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Github className="h-5 w-5" />
-            Add from GitHub
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Icon className="h-5 w-5" />
+            Add from {currentConnector ? `${currentConnector.name}` : 'Connector'}
           </DialogTitle>
           <DialogDescription>
-            Select files from a GitHub repository to add to your chat context
+            Select files from a repository to add to your chat context
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4 px-1 -mx-1">
-          <RepoSelector
+          <ConnectorSelector
             inputMode={inputMode}
             setInputMode={setInputMode}
+            connectors={connectors}
+            selectedConnector={selectedConnector}
+            setSelectedConnector={setSelectedConnector}
+            isLoadingConnectors={isLoadingConnectors}
             selectedRepo={selectedRepo}
             setSelectedRepo={setSelectedRepo}
             repoLink={repoLink}

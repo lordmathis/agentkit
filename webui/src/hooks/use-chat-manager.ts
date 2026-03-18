@@ -26,7 +26,7 @@ export function useChatManager() {
   const [isSending, setIsSending] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<import('../lib/api').FileResource[]>([]);
-  const [githubFiles, setGithubFiles] = useState<{
+  const [connectorFiles, setConnectorFiles] = useState<{
     repo: string;
     paths: string[];
     excludePaths: string[];
@@ -211,29 +211,29 @@ export function useChatManager() {
     }
   };
 
-  // Handle removing GitHub files
-  const handleRemoveGitHubFiles = async () => {
+  // Handle removing connector files
+  const handleRemoveConnectorFiles = async () => {
     if (!currentConversationId) return;
 
     try {
-      await api.removeGitHubFilesFromChat(currentConversationId);
-      setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+      // Just clear the state since there's no backend endpoint to remove these from a chat context yet
+      setConnectorFiles({ repo: "", paths: [], excludePaths: [] });
     } catch (error) {
-      console.error("Failed to remove GitHub files:", error);
-      setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+      console.error("Failed to remove connector files:", error);
+      setConnectorFiles({ repo: "", paths: [], excludePaths: [] });
     }
   };
 
-  // Handle files added from GitHub
-  const handleFilesAddedFromGitHub = (
+  // Handle files added from connector
+  const handleFilesAddedFromConnector = (
     repo: string,
     paths: string[],
     excludePaths: string[],
     files: import('../lib/api').FileResource[]
   ) => {
-    console.log(`Successfully added ${files.length} file${files.length !== 1 ? "s" : ""} from GitHub`);
+    console.log(`Successfully added ${files.length} file${files.length !== 1 ? "s" : ""} from connector`);
     setUploadedFiles((prev) => [...(prev || []), ...(files || [])]);
-    setGithubFiles({ repo, paths, excludePaths });
+    setConnectorFiles({ repo, paths, excludePaths });
   };
 
   // Handle creating a new conversation
@@ -406,7 +406,7 @@ export function useChatManager() {
         setIsEditingMode(false);
         setInputValue("");
         setUploadedFiles([]);
-        setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+        setConnectorFiles({ repo: "", paths: [], excludePaths: [] });
 
         const response = await api.editLastMessage(currentConversationId, trimmedMessage);
         const assistantContent = response.choices?.[0]?.message?.content || "No response";
@@ -446,7 +446,7 @@ export function useChatManager() {
         // Handle normal send mode
         setInputValue("");
         setUploadedFiles([]);
-        setGithubFiles({ repo: "", paths: [], excludePaths: [] });
+        setConnectorFiles({ repo: "", paths: [], excludePaths: [] });
 
         const tempUserMessage: Message = {
           id: `temp-user-${Date.now()}`,
@@ -651,7 +651,7 @@ export function useChatManager() {
     isSending,
     isUploadingFiles,
     uploadedFiles,
-    githubFiles,
+    connectorFiles,
 
     // Refs
     textareaRef,
@@ -666,8 +666,8 @@ export function useChatManager() {
     // Handlers
     handleFileChange,
     handleRemoveFile,
-    handleRemoveGitHubFiles,
-    handleFilesAddedFromGitHub,
+    handleRemoveConnectorFiles,
+    handleFilesAddedFromConnector,
     handleNewConversation,
     handleDeleteConversation,
     handleBranchChat,

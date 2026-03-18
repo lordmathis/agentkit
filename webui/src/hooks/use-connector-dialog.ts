@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
-import { api, type GitHubRepository, type FileNode } from "../lib/api";
+import { api, type ConnectorRepo, type FileNode, type Connector } from "../lib/api";
 
-export function useGitHubDialog(
-  connector: string,
+export function useConnectorDialog(
+  initialConnector: string,
   initialRepo: string,
   initialPaths: string[],
   initialExcludePaths: string[]
 ) {
   const [inputMode, setInputMode] = useState<"select" | "paste">("select");
-  const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
+  const [connectors, setConnectors] = useState<Connector[]>([]);
+  const [selectedConnector, setSelectedConnector] = useState<string>(initialConnector);
+  const [isLoadingConnectors, setIsLoadingConnectors] = useState(false);
+  const [repositories, setRepositories] = useState<ConnectorRepo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string>(initialRepo);
   const [repoLink, setRepoLink] = useState<string>(initialRepo);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
@@ -50,11 +53,28 @@ export function useGitHubDialog(
     }
   };
 
+  const loadConnectors = async () => {
+    try {
+      setIsLoadingConnectors(true);
+      setError("");
+      const response = await api.listConnectors();
+      setConnectors(response.connectors);
+      if (response.connectors.length > 0 && !selectedConnector) {
+        setSelectedConnector(response.connectors[0].name);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load connectors");
+    } finally {
+      setIsLoadingConnectors(false);
+    }
+  };
+
   const loadRepositories = async () => {
+    if (!selectedConnector) return;
     try {
       setIsLoadingRepos(true);
       setError("");
-      const response = await api.listRepositories(connector);
+      const response = await api.listRepositories(selectedConnector);
       setRepositories(response.repositories);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load repositories");
@@ -73,7 +93,7 @@ export function useGitHubDialog(
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseRepoTree(connector, repo, "");
+      const tree = await api.browseConnectorTree(selectedConnector, repo, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
@@ -86,11 +106,11 @@ export function useGitHubDialog(
 
   const loadChildren = async (path: string) => {
     const repo = getRepoIdentifier();
-    if (!repo || !treeRoot) return;
+    if (!repo || !treeRoot || !selectedConnector) return;
 
     try {
       setLoadingPaths((prev) => new Set(prev).add(path));
-      const subtree = await api.browseRepoTree(connector, repo, path);
+      const subtree = await api.browseConnectorTree(selectedConnector, repo, path);
 
       const updateNode = (node: FileNode): FileNode => {
         if (node.path === path) {
@@ -263,13 +283,7 @@ export function useGitHubDialog(
       setIsAdding(true);
       setError("");
 
-      const fileResources = await api.uploadRepoFiles(connector, repo, paths, excludePaths);
-
-      // the onSuccess now doesn't strictly know "count" except from array length, but wait
-      // The original onSuccess took: (repo, paths, excludePaths, count). We can pass fileResources length.
-      // Or we can just pass the array back. Wait, let's see how onSuccess is used in chat-manager.
-      
-      // Let's modify onSuccess signature or just pass length.
+      const fileResources = await api.uploadConnectorFiles(selectedConnector, repo, paths, excludePaths);
       onSuccess(repo, paths, excludePaths, fileResources.length);
       return fileResources;
     } catch (err) {
@@ -284,7 +298,7 @@ export function useGitHubDialog(
   useEffect(() => {
     const estimateTokens = async () => {
       const repo = getRepoIdentifier();
-      if (!repo || selectedPaths.size === 0) {
+      if (!repo || selectedPaths.size === 0 || !selectedConnector) {
         setTokenEstimate(null);
         setIsEstimatingTokens(false);
         return;
@@ -309,7 +323,7 @@ export function useGitHubDialog(
           return;
         }
 
-        const estimate = await api.estimateRepoTokens(connector, repo, paths, excludePaths);
+        const estimate = await api.estimateConnectorTokens(selectedConnector, repo, paths, excludePaths);
         setTokenEstimate(estimate.total_tokens);
       } catch (err) {
         console.error("Token estimation error:", err);
@@ -320,7 +334,7 @@ export function useGitHubDialog(
     };
 
     estimateTokens();
-  }, [selectedPaths, inputMode, selectedRepo, repoLink]);
+  }, [selectedPaths, inputMode, selectedRepo, repoLink, selectedConnector]);
 
   const handleRepoSelect = async (repo: string) => {
     setSelectedRepo(repo);
@@ -329,7 +343,7 @@ export function useGitHubDialog(
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseRepoTree(connector, repo, "");
+      const tree = await api.browseConnectorTree(selectedConnector, repo, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
@@ -352,7 +366,7 @@ export function useGitHubDialog(
     try {
       setIsLoadingTree(true);
       setError("");
-      const tree = await api.browseRepoTree(connector, parsed, "");
+      const tree = await api.browseConnectorTree(selectedConnector, parsed, "");
       setTreeRoot(tree);
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
@@ -363,9 +377,25 @@ export function useGitHubDialog(
     }
   };
 
+  // Load connectors on mount
+  useEffect(() => {
+    loadConnectors();
+  }, []);
+
+  // Load repositories when connector changes
+  useEffect(() => {
+    if (selectedConnector) {
+      loadRepositories();
+    }
+  }, [selectedConnector]);
+
   return {
     inputMode,
     setInputMode,
+    connectors,
+    selectedConnector,
+    setSelectedConnector,
+    isLoadingConnectors,
     repositories,
     selectedRepo,
     setSelectedRepo,
@@ -383,6 +413,7 @@ export function useGitHubDialog(
     tokenEstimate,
     isEstimatingTokens,
     getRepoIdentifier,
+    loadConnectors,
     loadRepositories,
     loadTree,
     loadChildren,

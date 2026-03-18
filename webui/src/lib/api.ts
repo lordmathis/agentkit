@@ -4,7 +4,7 @@
 // API Structure:
 // - /api/chats/* - Chat management and messaging
 // - /api/config/* - Configuration (models, agents, providers, default settings)
-// - /api/github/* - GitHub integration
+// - /api/connectors/* - Generic connector integration (GitHub, Forgejo, etc.)
 // - /api/media/* - Media processing (transcription, etc.)
 // - /api/skills/* - Skills management
 // - /api/tools/* - Tool servers and tools
@@ -106,14 +106,16 @@ export interface Tool {
   parameters?: any;
 }
 
-export interface GitHubRepository {
-  id: number;
+export interface Connector {
+  name: string;         // e.g. "my-github-account"
+  type: "github" | "forgejo";
+}
+
+export interface ConnectorRepo {
+  id: string | number;
   name: string;
   full_name: string;
   description: string | null;
-  private: boolean;
-  html_url: string;
-  updated_at: string;
 }
 
 export interface FileNode {
@@ -251,27 +253,6 @@ class ApiClient {
     return this.request('/config/default-chat');
   }
 
-  async listAgents(): Promise<{ agents: Array<{
-    name: string;
-    system_prompt: string;
-    provider: string;
-    model_id: string;
-    tool_servers: string[];
-    temperature?: number;
-    max_tokens?: number;
-    max_iterations: number;
-  }> }> {
-    return this.request('/config/agents');
-  }
-
-  async listProviders(): Promise<{ providers: Array<{
-    name: string;
-    api_base: string;
-    models: string[];
-  }> }> {
-    return this.request('/config/providers');
-  }
-
   // Tools endpoints
   async listTools(): Promise<{ tool_servers: ToolServer[] }> {
     return this.request('/tools');
@@ -309,23 +290,27 @@ class ApiClient {
     });
   }
 
-  // Repository browser endpoints
-  async listRepositories(connector: string): Promise<{ repositories: GitHubRepository[] }> {
+  // Connector endpoints
+  async listConnectors(): Promise<{ connectors: Connector[] }> {
+    return this.request('/connectors');
+  }
+
+  async listRepositories(connector: string): Promise<{ repositories: ConnectorRepo[] }> {
     return this.request(`/connectors/repositories?connector=${encodeURIComponent(connector)}`);
   }
 
-  async browseRepoTree(connector: string, repo: string, path: string = ""): Promise<FileNode> {
+  async browseConnectorTree(connector: string, repo: string, path: string = ""): Promise<FileNode> {
     return this.request(`/connectors/tree?connector=${encodeURIComponent(connector)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
   }
 
-  async estimateRepoTokens(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
+  async estimateConnectorTokens(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<TokenEstimate> {
     return this.request(`/connectors/estimate?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),
     });
   }
 
-  async uploadRepoFiles(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
+  async uploadConnectorFiles(connector: string, repo: string, paths: string[], excludePaths?: string[]): Promise<FileResource[]> {
     return this.request(`/connectors/files?connector=${encodeURIComponent(connector)}`, {
       method: 'POST',
       body: JSON.stringify({ repo, paths, exclude_paths: excludePaths || [] }),

@@ -24,6 +24,12 @@ class TokenEstimate(BaseModel):
 class RepoBrowserClient(ABC):
     """Abstract base class for repository browser clients"""
 
+    @property
+    @abstractmethod
+    def type(self) -> str:
+        """The type of the connector (e.g. 'github', 'forgejo')"""
+        ...
+
     @abstractmethod
     async def authenticate(self) -> bool:
         """Verify that the client is properly authenticated"""

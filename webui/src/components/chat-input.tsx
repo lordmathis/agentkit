@@ -1,4 +1,4 @@
-import { Send, Bot, Zap, Plus, Upload, Github, Mic, Square, AtSign, X } from "lucide-react";
+import { Send, Bot, Zap, Plus, Upload, Link as LinkIcon, Mic, Square, AtSign, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import {
@@ -26,11 +26,11 @@ interface ChatInputProps {
   chatSettings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
   uploadedFiles: import('../lib/api').FileResource[];
-  githubFiles: { repo: string; paths: string[]; excludePaths: string[] };
+  connectorFiles: { repo: string; paths: string[]; excludePaths: string[] };
   onRemoveFile: (fileId: string) => void;
-  onRemoveGitHubFiles: () => void;
+  onRemoveConnectorFiles: () => void;
   onFileUploadClick: () => void;
-  onGitHubDialogOpen: () => void;
+  onConnectorDialogOpen: () => void;
   onChatUpdated: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -49,11 +49,11 @@ export function ChatInput({
   chatSettings,
   onSettingsChange,
   uploadedFiles,
-  githubFiles,
+  connectorFiles,
   onRemoveFile,
-  onRemoveGitHubFiles,
+  onRemoveConnectorFiles,
   onFileUploadClick,
-  onGitHubDialogOpen,
+  onConnectorDialogOpen,
   onChatUpdated,
   textareaRef,
   fileInputRef,
@@ -237,10 +237,10 @@ export function ChatInput({
         {/* File attachments */}
         <FileAttachments
           uploadedFiles={uploadedFiles}
-          githubFiles={githubFiles}
+          connectorFiles={connectorFiles}
           onRemoveFile={onRemoveFile}
-          onRemoveGitHubFiles={onRemoveGitHubFiles}
-          onEditGitHubFiles={onGitHubDialogOpen}
+          onRemoveConnectorFiles={onRemoveConnectorFiles}
+          onEditConnectorFiles={onConnectorDialogOpen}
         />
 
         {/* Input area */}
@@ -308,9 +308,9 @@ export function ChatInput({
                   <Upload className="mr-2 h-4 w-4" />
                   <span>{isUploadingFiles ? "Uploading..." : "Upload files"}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onGitHubDialogOpen}>
-                  <Github className="mr-2 h-4 w-4" />
-                  <span>Add from GitHub</span>
+                <DropdownMenuItem onClick={onConnectorDialogOpen}>
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                  <span>Add from Connector</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

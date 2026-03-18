@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
-import { AddGitHubDialog } from "./add-github-dialog";
+import { AddConnectorDialog } from "./add-connector-dialog";
 import { ChatHeader } from "./chat-header";
 import { MessagesList } from "./messages-list";
 import { ChatInput } from "./chat-input";
@@ -9,7 +9,7 @@ import { useChatManager } from "../hooks/use-chat-manager";
 
 export function ChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(false);
+  const [isConnectorDialogOpen, setIsConnectorDialogOpen] = useState(false);
 
   const {
     inputValue,
@@ -23,7 +23,7 @@ export function ChatView() {
     isSending,
     isUploadingFiles,
     uploadedFiles,
-    githubFiles,
+    connectorFiles,
     textareaRef,
     messagesEndRef,
     fileInputRef,
@@ -32,8 +32,8 @@ export function ChatView() {
     setChatSettings,
     handleFileChange,
     handleRemoveFile,
-    handleRemoveGitHubFiles,
-    handleFilesAddedFromGitHub,
+    handleRemoveConnectorFiles,
+    handleFilesAddedFromConnector,
     handleNewConversation,
     handleDeleteConversation,
     handleBranchChat,
@@ -49,9 +49,9 @@ export function ChatView() {
     fileInputRef.current?.click();
   };
 
-  // Handle GitHub dialog open
-  const handleGitHubDialogOpen = () => {
-    setIsGitHubDialogOpen(true);
+  // Handle connector dialog open
+  const handleConnectorDialogOpen = () => {
+    setIsConnectorDialogOpen(true);
   };
 
   // Get current conversation title
@@ -117,11 +117,11 @@ export function ChatView() {
           chatSettings={chatSettings}
           onSettingsChange={setChatSettings}
           uploadedFiles={uploadedFiles}
-          githubFiles={githubFiles}
+          connectorFiles={connectorFiles}
           onRemoveFile={handleRemoveFile}
-          onRemoveGitHubFiles={handleRemoveGitHubFiles}
+          onRemoveConnectorFiles={handleRemoveConnectorFiles}
           onFileUploadClick={handleFileUploadClick}
-          onGitHubDialogOpen={handleGitHubDialogOpen}
+          onConnectorDialogOpen={handleConnectorDialogOpen}
           onChatUpdated={refreshConversations}
           textareaRef={textareaRef}
           fileInputRef={fileInputRef}
@@ -129,15 +129,15 @@ export function ChatView() {
         />
       </div>
 
-      {/* GitHub Dialog */}
-      <AddGitHubDialog
-        open={isGitHubDialogOpen}
-        onOpenChange={setIsGitHubDialogOpen}
+      {/* Connector Dialog */}
+      <AddConnectorDialog
+        open={isConnectorDialogOpen}
+        onOpenChange={setIsConnectorDialogOpen}
         chatId={currentConversationId}
-        onFilesAdded={handleFilesAddedFromGitHub}
-        initialRepo={githubFiles.repo}
-        initialPaths={githubFiles.paths}
-        initialExcludePaths={githubFiles.excludePaths}
+        onFilesAdded={handleFilesAddedFromConnector}
+        initialRepo={connectorFiles.repo}
+        initialPaths={connectorFiles.paths}
+        initialExcludePaths={connectorFiles.excludePaths}
       />
     </div>
   );
