@@ -18,6 +18,7 @@ interface ChatInputProps {
   inputValue: string;
   isEditingMode?: boolean;
   onInputChange: (value: string) => void;
+  onCancelEdit?: () => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   isSending: boolean;
@@ -41,6 +42,7 @@ export function ChatInput({
   inputValue,
   isEditingMode,
   onInputChange,
+  onCancelEdit,
   onSend,
   onKeyDown,
   isSending,
@@ -215,7 +217,7 @@ export function ChatInput({
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0"
-              onClick={() => onInputChange("")}
+              onClick={() => onCancelEdit?.()}
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Cancel edit</span>

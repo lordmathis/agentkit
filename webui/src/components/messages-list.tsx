@@ -1,5 +1,6 @@
 import { Bot } from "lucide-react";
 import { ChatMessage } from "./chat-message";
+import { ToolMessage } from "./tool-message";
 import { ScrollArea } from "./ui/scroll-area";
 import { useEffect } from "react";
 import type { Message } from "../lib/api";
@@ -30,6 +31,12 @@ export function MessagesList({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending, messagesEndRef]);
 
+  // Compute last user message index once (Phase 4a: hoisted out of render loop)
+  const lastUserMessageIndex = messages.reduce(
+    (acc, m, i) => (m.role === "user" ? i : acc),
+    -1
+  );
+
   return (
     <ScrollArea className="flex-1 min-h-0">
       <div className="mx-auto max-w-3xl pb-6">
@@ -49,28 +56,28 @@ export function MessagesList({
             </div>
           </div>
         ) : (
-          <>
-            <div className="space-y-4">
-              {messages.map((message, index) => {
-                const isLastMessage = index === messages.length - 1;
-                const isLastAssistantMessage = isLastMessage && message.role === "assistant";
-                
-                // Find the last user message in the entire conversation
-                const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
-                const isLastUserMessage = lastUserMessageIndex !== -1 && index === messages.length - 1 - lastUserMessageIndex;
-                
-                return (
-                  <ChatMessage 
-                    key={message.id} 
-                    message={message} 
-                    onBranch={onBranch} 
-                    onRetry={isLastAssistantMessage ? onRetry : undefined}
-                    onEdit={onEdit}
-                    isLastUserMessage={isLastUserMessage}
-                  />
-                );
-              })}
-              {isSending && (
+          <div className="space-y-4">
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const isLastAssistantMessage = isLastMessage && message.role === "assistant";
+              const isLastUserMessage = lastUserMessageIndex !== -1 && index === lastUserMessageIndex;
+              
+              if (message.role === "tool") {
+                return <ToolMessage key={message.id} message={message} />;
+              }
+              
+              return (
+                <ChatMessage 
+                  key={message.id} 
+                  message={message} 
+                  onBranch={onBranch} 
+                  onRetry={isLastAssistantMessage ? onRetry : undefined}
+                  onEdit={onEdit}
+                  isLastUserMessage={isLastUserMessage}
+                />
+              );
+            })}
+            {isSending && (
                 <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
                   <div className="flex-shrink-0">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground">
@@ -98,8 +105,7 @@ export function MessagesList({
                   </div>
                 </div>
               )}
-            </div>
-          </>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

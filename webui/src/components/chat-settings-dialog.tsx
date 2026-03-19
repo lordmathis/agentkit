@@ -51,14 +51,9 @@ export function ChatSettingsDialog({
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  // Fetch tools immediately when dialog opens, then models after
   useEffect(() => {
     if (open) {
-      // Load tools first (fast) so they appear immediately
-      fetchTools().then(() => {
-        // Load models after tools finish (slower, won't block tools UI)
-        fetchModels();
-      });
+      void Promise.all([fetchTools(), fetchModels()]);
     }
   }, [open]);
 

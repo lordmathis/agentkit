@@ -7,39 +7,48 @@ import { ChatInput } from "./chat-input";
 import { useConversations } from "../hooks/use-conversations";
 import { useMessages } from "../hooks/use-messages";
 import { useChatFiles } from "../hooks/use-chat-files";
+import { useChatInput } from "../hooks/use-chat-input";
 
 export function ChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnectorDialogOpen, setIsConnectorDialogOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | undefined>();
-  const [inputValue, setInputValue] = useState("");
-  const [isEditingMode, setIsEditingMode] = useState(false);
 
   const conversations = useConversations();
   const messages = useMessages(currentConversationId);
   const files = useChatFiles(currentConversationId);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle file upload button click
+  const chatInput = useChatInput({
+    onSend: messages.send,
+    onEdit: messages.edit,
+    messages: messages.messages,
+    getFileIds: () => files.uploadedFiles.map(f => f.id),
+    isSending: messages.isSending,
+    onSendComplete: () => {
+      files.clearAll();
+      conversations.refresh();
+    },
+    onEditComplete: () => {
+      conversations.refresh();
+    },
+  });
+
   const handleFileUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Handle connector dialog open
   const handleConnectorDialogOpen = () => {
     setIsConnectorDialogOpen(true);
   };
 
-  // Get current conversation title
   const currentConversation = conversations.conversations.find(
     (conv) => conv.id === currentConversationId
   );
   const currentChatTitle = currentConversation?.title;
 
-  // Update page title when chat changes
   useEffect(() => {
     if (currentChatTitle) {
       document.title = `${currentChatTitle} - AgentKit Chat`;
@@ -48,46 +57,9 @@ export function ChatView() {
     }
   }, [currentChatTitle]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim() || messages.isSending) return;
-    
-    const text = inputValue.trim();
-    const fileIds = files.uploadedFiles.map(f => f.id);
-    
-    setInputValue("");
-    files.clearAll();
-    
-    if (isEditingMode) {
-      await messages.edit(text);
-      setIsEditingMode(false);
-    } else {
-      await messages.send(text, fileIds);
-    }
-    conversations.refresh();
-  };
-
   const handleRetry = async () => {
     await messages.retry();
     conversations.refresh();
-  };
-
-  const handleEdit = () => {
-    const lastUserMessage = [...messages.messages]
-      .reverse()
-      .find((msg) => msg.role === "user");
-
-    if (!lastUserMessage) return;
-
-    setInputValue(lastUserMessage.content);
-    setIsEditingMode(true);
-    textareaRef.current?.focus();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   return (
@@ -127,15 +99,16 @@ export function ChatView() {
             setCurrentConversationId(id);
           }}
           onRetry={handleRetry}
-          onEdit={handleEdit}
+          onEdit={chatInput.handleEdit}
         />
 
         <ChatInput
-          inputValue={inputValue}
-          isEditingMode={isEditingMode}
-          onInputChange={setInputValue}
-          onSend={handleSend}
-          onKeyDown={handleKeyDown}
+          inputValue={chatInput.inputValue}
+          isEditingMode={chatInput.isEditingMode}
+          onInputChange={chatInput.setInputValue}
+          onCancelEdit={chatInput.cancelEdit}
+          onSend={chatInput.handleSend}
+          onKeyDown={chatInput.handleKeyDown}
           isSending={messages.isSending}
           isUploadingFiles={files.isUploading}
           currentConversationId={currentConversationId}
@@ -148,7 +121,7 @@ export function ChatView() {
           onFileUploadClick={handleFileUploadClick}
           onConnectorDialogOpen={handleConnectorDialogOpen}
           onChatUpdated={conversations.refresh}
-          textareaRef={textareaRef}
+          textareaRef={chatInput.textareaRef}
           fileInputRef={fileInputRef}
           onFileChange={(e) => {
             if (e.target.files) files.uploadFiles(Array.from(e.target.files));

@@ -31,16 +31,15 @@ export function useConversations() {
 
   const createConversation = async (overrideConfig?: Partial<ChatConfig>) => {
     const defaults = await api.getDefaultChatConfig();
-    const config: ChatConfig = {
-      model: overrideConfig?.model || defaults.model || "",
-      system_prompt: overrideConfig?.system_prompt ?? defaults.system_prompt ?? (defaults.system_prompt || undefined),
-      tool_servers: overrideConfig?.tool_servers ?? defaults.tool_servers ?? [],
-      model_params: overrideConfig?.model_params ?? defaults.model_params ?? (defaults.model_params || undefined),
-    };
+    const model = overrideConfig?.model ?? defaults.model;
+    if (!model) throw new Error("No model available — configure a default in settings.");
 
-    if (!config.model) {
-      throw new Error("No model selected and no default model available.");
-    }
+    const config: ChatConfig = {
+      model,
+      system_prompt: overrideConfig?.system_prompt ?? defaults.system_prompt ?? undefined,
+      tool_servers: overrideConfig?.tool_servers ?? defaults.tool_servers ?? [],
+      model_params: overrideConfig?.model_params ?? defaults.model_params ?? undefined,
+    };
 
     const chat = await api.createChat({ title: "Untitled Chat", config });
     await refresh();
