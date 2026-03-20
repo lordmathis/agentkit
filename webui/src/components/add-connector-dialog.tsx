@@ -15,17 +15,14 @@ import { ConnectorSelector } from "./connector/connector-selector";
 import { SelectionSummary } from "./connector/selection-summary";
 import { usePathSelection } from "../hooks/use-path-selection";
 import { useConnectorData } from "../hooks/use-connector-data";
-import type { FileResource } from "../lib/api";
+import type { ConnectorEntry } from "../lib/api";
 
 interface AddConnectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chatId?: string;
-  onFilesAdded?: (connectorId: string, resourceId: string, paths: string[], excludePaths: string[], files: FileResource[]) => void;
-  initialInstance?: string;
-  initialConnector?: string;
-  initialPaths?: string[];
-  initialExcludePaths?: string[];
+  onFilesAdded?: (entry: ConnectorEntry) => void;
+  editingEntry?: ConnectorEntry;
 }
 
 export function AddConnectorDialog({
@@ -33,15 +30,15 @@ export function AddConnectorDialog({
   onOpenChange,
   chatId,
   onFilesAdded,
-  initialInstance = "",
-  initialConnector = "",
-  initialPaths = [],
-  initialExcludePaths = [],
+  editingEntry,
 }: AddConnectorDialogProps) {
-  const pathSelection = usePathSelection(initialPaths, initialExcludePaths);
+  const pathSelection = usePathSelection(
+    editingEntry?.paths || [],
+    editingEntry?.excludePaths || []
+  );
   const connectorData = useConnectorData(
-    initialInstance,
-    initialConnector,
+    editingEntry?.connectorId || "",
+    editingEntry?.resourceId || "",
     pathSelection.includedPaths,
     pathSelection.excludedPaths
   );
@@ -65,13 +62,13 @@ export function AddConnectorDialog({
         pathSelection.includedPaths,
         pathSelection.excludedPaths
       );
-      onFilesAdded?.(
-        connectorData.selectedConnector,
-        connectorData.getResourceIdentifier(),
-        pathSelection.includedPaths,
-        pathSelection.excludedPaths,
-        files
-      );
+      onFilesAdded?.({
+        connectorId: connectorData.selectedConnector,
+        resourceId: connectorData.getResourceIdentifier(),
+        paths: pathSelection.includedPaths,
+        excludePaths: pathSelection.excludedPaths,
+        files,
+      });
       onOpenChange(false);
     } catch {
       // Error already set in hook

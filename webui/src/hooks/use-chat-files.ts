@@ -1,14 +1,9 @@
 import { useState } from "react";
-import { api, type FileResource } from "../lib/api";
+import { api, type FileResource, type ConnectorEntry } from "../lib/api";
 
 export function useChatFiles(_chatId: string | undefined) {
   const [uploadedFiles, setUploadedFiles] = useState<FileResource[]>([]);
-  const [connectorFiles, setConnectorFilesState] = useState<{
-    connectorId: string;
-    resourceId: string;
-    paths: string[];
-    excludePaths: string[];
-  }>({ connectorId: "", resourceId: "", paths: [], excludePaths: [] });
+  const [connectorEntries, setConnectorEntries] = useState<ConnectorEntry[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const uploadFiles = async (files: File[]) => {
@@ -21,18 +16,50 @@ export function useChatFiles(_chatId: string | undefined) {
     }
   };
 
-  const setConnectorFiles = (connectorId: string, resourceId: string, paths: string[], excludePaths: string[], files: FileResource[]) => {
-    setConnectorFilesState({ connectorId, resourceId, paths, excludePaths });
-    setUploadedFiles((prev) => [...prev, ...files]);
+  const addConnectorEntry = (entry: ConnectorEntry) => {
+    setConnectorEntries((prev) => [...prev, entry]);
   };
 
-  const removeConnectorFiles = async () => {
-    setConnectorFilesState({ connectorId: "", resourceId: "", paths: [], excludePaths: [] });
+  const updateConnectorEntry = async (
+    connectorId: string,
+    resourceId: string,
+    newEntry: ConnectorEntry
+  ) => {
+    const oldEntry = connectorEntries.find(
+      (e) => e.connectorId === connectorId && e.resourceId === resourceId
+    );
+    if (oldEntry) {
+      for (const file of oldEntry.files) {
+        try {
+          await api.deleteFile(file.id);
+        } catch (error) {
+          console.error("Failed to delete file:", error);
+        }
+      }
+    }
+    setConnectorEntries((prev) =>
+      prev.map((e) =>
+        e.connectorId === connectorId && e.resourceId === resourceId ? newEntry : e
+      )
+    );
   };
 
-  const clearAll = () => {
-    setUploadedFiles([]);
-    setConnectorFilesState({ connectorId: "", resourceId: "", paths: [], excludePaths: [] });
+  const removeConnectorEntry = async (connectorId: string, resourceId: string) => {
+    const entry = connectorEntries.find(
+      (e) => e.connectorId === connectorId && e.resourceId === resourceId
+    );
+    if (entry) {
+      for (const file of entry.files) {
+        try {
+          await api.deleteFile(file.id);
+        } catch (error) {
+          console.error("Failed to delete file:", error);
+        }
+      }
+    }
+    setConnectorEntries((prev) =>
+      prev.filter((e) => !(e.connectorId === connectorId && e.resourceId === resourceId))
+    );
   };
 
   const removeFile = async (id: string) => {
@@ -45,14 +72,25 @@ export function useChatFiles(_chatId: string | undefined) {
     }
   };
 
+  const clearAll = () => {
+    setUploadedFiles([]);
+    setConnectorEntries([]);
+  };
+
+  const getAllFiles = (): FileResource[] => {
+    return [...uploadedFiles, ...connectorEntries.flatMap((e) => e.files)];
+  };
+
   return {
     uploadedFiles,
-    connectorFiles,
+    connectorEntries,
     isUploading,
     uploadFiles,
+    addConnectorEntry,
+    updateConnectorEntry,
+    removeConnectorEntry,
     removeFile,
-    setConnectorFiles,
-    removeConnectorFiles,
     clearAll,
+    getAllFiles,
   };
 }

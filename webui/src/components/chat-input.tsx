@@ -1,4 +1,5 @@
 import { Send, Bot, Zap, Plus, Upload, Link as LinkIcon, Mic, Square, AtSign, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import {
@@ -11,8 +12,7 @@ import { ChatSettingsDialog, type ChatSettings } from "./chat-settings-dialog";
 import { FileAttachments } from "./file-attachments";
 import { getModelLabel, getToolLabel } from "../lib/formatters";
 import { useVoiceRecording } from "../hooks/use-voice-recording";
-import { api, type Skill } from "../lib/api";
-import { useEffect, useState } from "react";
+import { api, type Skill, type ConnectorEntry } from "../lib/api";
 
 interface ChatInputProps {
   inputValue: string;
@@ -27,9 +27,10 @@ interface ChatInputProps {
   chatSettings: ChatSettings;
   onSettingsChange: (settings: ChatSettings) => void;
   uploadedFiles: import('../lib/api').FileResource[];
-  connectorFiles: { connectorId: string; resourceId: string; paths: string[]; excludePaths: string[] };
+  connectorEntries: ConnectorEntry[];
   onRemoveFile: (fileId: string) => void;
-  onRemoveConnectorFiles: () => void;
+  onRemoveConnectorEntry: (connectorId: string, resourceId: string) => void;
+  onEditConnectorEntry: (connectorId: string, resourceId: string) => void;
   onFileUploadClick: () => void;
   onConnectorDialogOpen: () => void;
   onChatUpdated: () => void;
@@ -51,9 +52,10 @@ export function ChatInput({
   chatSettings,
   onSettingsChange,
   uploadedFiles,
-  connectorFiles,
+  connectorEntries,
   onRemoveFile,
-  onRemoveConnectorFiles,
+  onRemoveConnectorEntry,
+  onEditConnectorEntry,
   onFileUploadClick,
   onConnectorDialogOpen,
   onChatUpdated,
@@ -244,10 +246,10 @@ export function ChatInput({
         {/* File attachments */}
         <FileAttachments
           uploadedFiles={uploadedFiles}
-          connectorFiles={connectorFiles}
+          connectorEntries={connectorEntries}
           onRemoveFile={onRemoveFile}
-          onRemoveConnectorFiles={onRemoveConnectorFiles}
-          onEditConnectorFiles={onConnectorDialogOpen}
+          onRemoveConnectorEntry={onRemoveConnectorEntry}
+          onEditConnectorEntry={onEditConnectorEntry}
         />
 
         {/* Input area */}

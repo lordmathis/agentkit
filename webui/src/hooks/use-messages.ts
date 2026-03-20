@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { api, type Message } from "../lib/api";
+import { api, type Message, type FileResource } from "../lib/api";
 import { type ChatSettings } from "../components/chat-settings-dialog";
 
 export function useMessages(chatId: string | undefined) {
@@ -46,7 +46,7 @@ export function useMessages(chatId: string | undefined) {
     fetchInitial();
   }, [chatId, reloadMessages]);
 
-  const send = async (text: string, fileIds: string[]) => {
+  const send = async (text: string, files: FileResource[]) => {
     if (!chatId) return;
     
     const tempId = `temp-${Date.now()}`;
@@ -56,10 +56,10 @@ export function useMessages(chatId: string | undefined) {
       content: text,
       sequence: messages.length,
       created_at: new Date().toISOString(),
-      files: fileIds.map(id => ({
-        id,
-        filename: '',
-        content_type: '',
+      files: files.map(f => ({
+        id: f.id,
+        filename: f.filename,
+        content_type: f.content_type,
       })),
     };
     
@@ -69,7 +69,7 @@ export function useMessages(chatId: string | undefined) {
       setIsSending(true);
       await api.sendMessage(chatId, {
         message: text,
-        file_ids: fileIds,
+        file_ids: files.map(f => f.id),
         stream: false,
       });
       await reloadMessages();

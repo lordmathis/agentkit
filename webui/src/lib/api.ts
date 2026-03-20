@@ -27,6 +27,14 @@ export interface FileResource {
   content_type: string;
 }
 
+export interface ConnectorEntry {
+  connectorId: string;
+  resourceId: string;
+  paths: string[];
+  excludePaths: string[];
+  files: FileResource[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';

@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback } from "react";
-import type { Message } from "../lib/api";
+import type { Message, FileResource } from "../lib/api";
 
 interface UseChatInputOptions {
-  onSend: (text: string, fileIds: string[]) => Promise<void>;
+  onSend: (text: string, files: FileResource[]) => Promise<void>;
   onEdit: (text: string) => Promise<void>;
   messages: Message[];
-  getFileIds: () => string[];
+  getFiles: () => FileResource[];
   isSending: boolean;
   onSendComplete?: () => void;
   onEditComplete?: () => void;
@@ -26,7 +26,7 @@ export function useChatInput({
   onSend,
   onEdit,
   messages,
-  getFileIds,
+  getFiles,
   isSending,
   onSendComplete,
   onEditComplete,
@@ -39,7 +39,7 @@ export function useChatInput({
     if (!inputValue.trim() || isSending) return;
 
     const text = inputValue.trim();
-    const fileIds = getFileIds();
+    const files = getFiles();
 
     setInputValue("");
 
@@ -48,10 +48,10 @@ export function useChatInput({
       setIsEditingMode(false);
       onEditComplete?.();
     } else {
-      await onSend(text, fileIds);
+      await onSend(text, files);
       onSendComplete?.();
     }
-  }, [inputValue, isSending, getFileIds, isEditingMode, onSend, onEdit, onSendComplete, onEditComplete]);
+  }, [inputValue, isSending, getFiles, isEditingMode, onSend, onEdit, onSendComplete, onEditComplete]);
 
   const handleEdit = useCallback(() => {
     const lastUserMessage = [...messages].reverse().find((msg) => msg.role === "user");

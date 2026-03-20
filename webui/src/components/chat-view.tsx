@@ -8,10 +8,12 @@ import { useConversations } from "../hooks/use-conversations";
 import { useMessages } from "../hooks/use-messages";
 import { useChatFiles } from "../hooks/use-chat-files";
 import { useChatInput } from "../hooks/use-chat-input";
+import type { ConnectorEntry } from "../lib/api";
 
 export function ChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnectorDialogOpen, setIsConnectorDialogOpen] = useState(false);
+  const [editingConnectorEntry, setEditingConnectorEntry] = useState<ConnectorEntry | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | undefined>();
 
   const conversations = useConversations();
@@ -25,7 +27,7 @@ export function ChatView() {
     onSend: messages.send,
     onEdit: messages.edit,
     messages: messages.messages,
-    getFileIds: () => files.uploadedFiles.map(f => f.id),
+    getFiles: () => files.getAllFiles(),
     isSending: messages.isSending,
     onSendComplete: () => {
       files.clearAll();
@@ -38,10 +40,6 @@ export function ChatView() {
 
   const handleFileUploadClick = () => {
     fileInputRef.current?.click();
-  };
-
-  const handleConnectorDialogOpen = () => {
-    setIsConnectorDialogOpen(true);
   };
 
   const currentConversation = conversations.conversations.find(
@@ -115,11 +113,23 @@ export function ChatView() {
           chatSettings={messages.chatSettings}
           onSettingsChange={messages.setChatSettings}
           uploadedFiles={files.uploadedFiles}
-          connectorFiles={files.connectorFiles}
+          connectorEntries={files.connectorEntries}
           onRemoveFile={files.removeFile}
-          onRemoveConnectorFiles={files.removeConnectorFiles}
+          onRemoveConnectorEntry={files.removeConnectorEntry}
+          onEditConnectorEntry={(connectorId, resourceId) => {
+            const entry = files.connectorEntries.find(
+              e => e.connectorId === connectorId && e.resourceId === resourceId
+            );
+            if (entry) {
+              setEditingConnectorEntry(entry);
+              setIsConnectorDialogOpen(true);
+            }
+          }}
           onFileUploadClick={handleFileUploadClick}
-          onConnectorDialogOpen={handleConnectorDialogOpen}
+          onConnectorDialogOpen={() => {
+            setEditingConnectorEntry(null);
+            setIsConnectorDialogOpen(true);
+          }}
           onChatUpdated={conversations.refresh}
           textareaRef={chatInput.textareaRef}
           fileInputRef={fileInputRef}
@@ -131,15 +141,24 @@ export function ChatView() {
 
       <AddConnectorDialog
         open={isConnectorDialogOpen}
-        onOpenChange={setIsConnectorDialogOpen}
-        chatId={currentConversationId}
-        onFilesAdded={(connectorId, resourceId, paths, excludePaths, uploaded) => {
-          files.setConnectorFiles(connectorId, resourceId, paths, excludePaths, uploaded);
+        onOpenChange={(open) => {
+          setIsConnectorDialogOpen(open);
+          if (!open) setEditingConnectorEntry(null);
         }}
-        initialInstance={files.connectorFiles.connectorId}
-        initialConnector={files.connectorFiles.resourceId}
-        initialPaths={files.connectorFiles.paths}
-        initialExcludePaths={files.connectorFiles.excludePaths}
+        chatId={currentConversationId}
+        editingEntry={editingConnectorEntry ?? undefined}
+        onFilesAdded={(entry) => {
+          if (editingConnectorEntry) {
+            files.updateConnectorEntry(
+              editingConnectorEntry.connectorId,
+              editingConnectorEntry.resourceId,
+              entry
+            );
+          } else {
+            files.addConnectorEntry(entry);
+          }
+          setEditingConnectorEntry(null);
+        }}
       />
     </div>
   );
