@@ -1,11 +1,15 @@
+import asyncio
 import json
 from datetime import datetime
-from typing import List, Optional
+from typing import AsyncGenerator, List, Optional
 
+from dataclasses import asdict
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agentkit.agents.manager import AgentManager
+from agentkit.agents.streaming import StreamEvent
 
 
 def format_timestamp(dt: datetime) -> str:
@@ -16,6 +20,20 @@ def format_timestamp(dt: datetime) -> str:
     if not iso.endswith("Z") and "+" not in iso and "-" not in iso[10:]:
         return iso + "Z"
     return iso
+
+
+async def event_stream(
+    task: asyncio.Task, queue: asyncio.Queue
+) -> AsyncGenerator[str, None]:
+    try:
+        while True:
+            event: StreamEvent = await queue.get()
+            yield f"data: {json.dumps(asdict(event))}\n\n"
+            if event.type == "done":
+                break
+    except GeneratorExit:
+        task.cancel()
+        raise
 
 
 router = APIRouter()
@@ -57,6 +75,11 @@ class BranchChatRequest(BaseModel):
 
 class EditLastMessageRequest(BaseModel):
     message: str
+    stream: Optional[bool] = False
+
+
+class RetryRequest(BaseModel):
+    stream: Optional[bool] = False
 
 
 @router.post("/chats")
@@ -354,8 +377,14 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
         raise HTTPException(status_code=404, detail=str(e))
 
     if body.stream:
-        raise HTTPException(
-            status_code=501, detail="Streaming support not yet implemented"
+        queue: asyncio.Queue = asyncio.Queue()
+        task = asyncio.create_task(
+            agent.chat_stream(message=body.message, queue=queue, file_ids=body.file_ids)
+        )
+        return StreamingResponse(
+            event_stream(task, queue),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     try:
@@ -368,7 +397,7 @@ async def send_message(request: Request, chat_id: str, body: SendMessageRequest)
 
 
 @router.post("/chats/{chat_id}/retry")
-async def retry_message(request: Request, chat_id: str):
+async def retry_message(request: Request, chat_id: str, body: RetryRequest):
     """
     Retry the last message by deleting the last assistant response and re-processing.
 
@@ -381,6 +410,15 @@ async def retry_message(request: Request, chat_id: str):
         agent = agent_manager.get(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if body.stream:
+        queue: asyncio.Queue = asyncio.Queue()
+        task = asyncio.create_task(agent.retry_stream(queue=queue))
+        return StreamingResponse(
+            event_stream(task, queue),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     try:
         result = await agent.retry()
@@ -406,6 +444,17 @@ async def edit_last_user_message(
         agent = agent_manager.get(chat_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if body.stream:
+        queue: asyncio.Queue = asyncio.Queue()
+        task = asyncio.create_task(
+            agent.edit_stream(new_message=body.message, queue=queue)
+        )
+        return StreamingResponse(
+            event_stream(task, queue),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     try:
         result = await agent.edit(body.message)

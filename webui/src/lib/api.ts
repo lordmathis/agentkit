@@ -54,6 +54,11 @@ export interface Message {
   }>;
 }
 
+export interface StreamEvent {
+  type: 'message' | 'error' | 'done';
+  data: Message | { message: string } | Record<string, never>;
+}
+
 export interface ModelParams {
   max_iterations?: number;
   temperature?: number;
@@ -249,6 +254,91 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ message }),
     });
+  }
+
+  private async *parseSSE(response: Response): AsyncGenerator<StreamEvent> {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6);
+            try {
+              const event = JSON.parse(jsonStr) as StreamEvent;
+              yield event;
+              if (event.type === 'done') return;
+            } catch (e) {
+              console.error('Failed to parse SSE event:', jsonStr, e);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  async *streamMessage(
+    chatId: string,
+    data: SendMessageRequest
+  ): AsyncGenerator<StreamEvent> {
+    const url = `${this.baseURL}/chats/${chatId}/messages`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, stream: true }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    yield* this.parseSSE(response);
+  }
+
+  async *streamRetry(chatId: string): AsyncGenerator<StreamEvent> {
+    const url = `${this.baseURL}/chats/${chatId}/retry`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stream: true }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    yield* this.parseSSE(response);
+  }
+
+  async *streamEdit(chatId: string, message: string): AsyncGenerator<StreamEvent> {
+    const url = `${this.baseURL}/chats/${chatId}/edit`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, stream: true }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    yield* this.parseSSE(response);
   }
 
   // Configuration endpoints

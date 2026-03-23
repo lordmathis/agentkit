@@ -10,6 +10,7 @@ from agentkit.agents.context import format_history, generate_title, parse_mentio
 from agentkit.agents.context.messages import extract_assistant_content
 from agentkit.agents.context.skills import apply_skill_context, build_skill_context
 from agentkit.db.db import Database
+from agentkit.db.models import Message
 from agentkit.providers.provider import Provider
 from agentkit.skills.registry import SkillRegistry
 from agentkit.tools.manager import ToolManager
@@ -60,18 +61,35 @@ class BaseAgent(ABC):
         """Edit the last user message and re-process."""
         ...
 
+    @abstractmethod
+    async def chat_stream(
+        self, message: str, queue: asyncio.Queue, file_ids: List[str] = []
+    ) -> None:
+        """Stream chat response through queue."""
+        ...
+
+    @abstractmethod
+    async def retry_stream(self, queue: asyncio.Queue) -> None:
+        """Stream retry response through queue."""
+        ...
+
+    @abstractmethod
+    async def edit_stream(self, new_message: str, queue: asyncio.Queue) -> None:
+        """Stream edit response through queue."""
+        ...
+
     async def _save_message(
         self,
         role: str,
         content_or_response: str | Dict[str, Any],
         file_ids: List[str] = [],
         tool_call_id: Optional[str] = None,
-    ) -> None:
-        """Save a message to the database."""
+    ) -> Message:
+        """Save a message to the database and return the saved Message object."""
         if role == "assistant":
             if isinstance(content_or_response, dict):
                 if "error" in content_or_response:
-                    self.db.save_message(
+                    return self.db.save_message(
                         self.chat_id,
                         "assistant",
                         f"Error: {content_or_response['error']}",
@@ -81,7 +99,7 @@ class BaseAgent(ABC):
                         content_or_response
                     )
                     tool_calls_json = json.dumps(tool_calls) if tool_calls else None
-                    self.db.save_message(
+                    return self.db.save_message(
                         self.chat_id,
                         "assistant",
                         content,
@@ -89,9 +107,11 @@ class BaseAgent(ABC):
                         tool_calls=tool_calls_json,
                     )
             else:
-                self.db.save_message(self.chat_id, "assistant", content_or_response)
+                return self.db.save_message(
+                    self.chat_id, "assistant", content_or_response
+                )
         elif role == "tool":
-            self.db.save_message(
+            return self.db.save_message(
                 self.chat_id,
                 "tool",
                 str(content_or_response),
@@ -99,11 +119,12 @@ class BaseAgent(ABC):
             )
         else:
             file_ids_json = json.dumps(file_ids) if file_ids else None
-            self.db.save_message(
+            msg = self.db.save_message(
                 self.chat_id, "user", content_or_response, file_ids=file_ids_json
             )
             if file_ids:
                 self.db.attach_files(file_ids)
+            return msg
 
     async def _build_context(self, message: str) -> List[ChatCompletionMessageParam]:
         """Build full context from DB history with skill context injected from @mentions."""

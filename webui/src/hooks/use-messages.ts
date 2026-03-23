@@ -67,12 +67,17 @@ export function useMessages(chatId: string | undefined) {
     
     try {
       setIsSending(true);
-      await api.sendMessage(chatId, {
+      for await (const event of api.streamMessage(chatId, {
         message: text,
         file_ids: files.map(f => f.id),
-        stream: false,
-      });
-      await reloadMessages();
+      })) {
+        if (event.type === 'message') {
+          setMessages(prev => [...prev, event.data as Message]);
+        } else if (event.type === 'error') {
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          throw new Error((event.data as { message: string }).message);
+        }
+      }
     } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       throw error;
@@ -85,8 +90,14 @@ export function useMessages(chatId: string | undefined) {
     if (!chatId) return;
     try {
       setIsSending(true);
-      await api.retryLastMessage(chatId);
       await reloadMessages();
+      for await (const event of api.streamRetry(chatId)) {
+        if (event.type === 'message') {
+          setMessages(prev => [...prev, event.data as Message]);
+        } else if (event.type === 'error') {
+          throw new Error((event.data as { message: string }).message);
+        }
+      }
     } finally {
       setIsSending(false);
     }
@@ -96,8 +107,14 @@ export function useMessages(chatId: string | undefined) {
     if (!chatId) return;
     try {
       setIsSending(true);
-      await api.editLastMessage(chatId, text);
       await reloadMessages();
+      for await (const event of api.streamEdit(chatId, text)) {
+        if (event.type === 'message') {
+          setMessages(prev => [...prev, event.data as Message]);
+        } else if (event.type === 'error') {
+          throw new Error((event.data as { message: string }).message);
+        }
+      }
     } finally {
       setIsSending(false);
     }
