@@ -91,7 +91,7 @@ class AppConfig(BaseModel):
     uploads_dir: str = "uploads"
     data_dir: str = "data"
     mcp_timeout: int = 60
-    connectors: Dict[str, ConnectorsConfig] = None
+    connectors: Dict[str, ConnectorsConfig] = {}
     transcription: TranscriptionConfig = TranscriptionConfig()
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24
