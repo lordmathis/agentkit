@@ -14,20 +14,6 @@ from agentkit.tools.manager import ToolManager
 logger = logging.getLogger(__name__)
 
 
-def _format_message(msg) -> dict:
-    return {
-        "id": msg.id,
-        "role": msg.role,
-        "content": msg.content,
-        "reasoning_content": msg.reasoning_content,
-        "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
-        "tool_call_id": msg.tool_call_id,
-        "sequence": msg.sequence,
-        "created_at": msg.created_at.isoformat() if msg.created_at else None,
-        "files": [],
-    }
-
-
 class ReActAgent(BaseAgent):
     """ReAct agent: iterative think -> act -> observe loop."""
 
@@ -59,9 +45,7 @@ class ReActAgent(BaseAgent):
         )
         self.max_iterations = max_iterations
 
-    async def _emit(self, queue: Optional[asyncio.Queue], event: StreamEvent) -> None:
-        if queue is not None:
-            await queue.put(event)
+
 
     async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
         await self._save_message("user", message, file_ids=file_ids)
@@ -93,14 +77,14 @@ class ReActAgent(BaseAgent):
                 ):
                     msg = await self._save_message("assistant", response)
                     await self._emit(
-                        queue, StreamEvent(type="message", data=_format_message(msg))
+                        queue, StreamEvent(type="message", data=self._format_message(msg))
                     )
                     await self._emit(queue, STREAM_DONE)
                     return response
 
                 msg = await self._save_message("assistant", response)
                 await self._emit(
-                    queue, StreamEvent(type="message", data=_format_message(msg))
+                    queue, StreamEvent(type="message", data=self._format_message(msg))
                 )
 
                 tool_calls_raw = message_data["tool_calls"]
@@ -138,7 +122,7 @@ class ReActAgent(BaseAgent):
                         "tool", str(result), tool_call_id=tool_call["id"]
                     )
                     await self._emit(
-                        queue, StreamEvent(type="message", data=_format_message(msg))
+                        queue, StreamEvent(type="message", data=self._format_message(msg))
                     )
 
                     messages.append(
@@ -153,7 +137,7 @@ class ReActAgent(BaseAgent):
                 "assistant", {"error": "Max iterations reached without final response"}
             )
             await self._emit(
-                queue, StreamEvent(type="message", data=_format_message(msg))
+                queue, StreamEvent(type="message", data=self._format_message(msg))
             )
             await self._emit(queue, STREAM_DONE)
             return {"error": "Max iterations reached without final response"}

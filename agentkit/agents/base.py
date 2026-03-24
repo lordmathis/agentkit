@@ -9,6 +9,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from agentkit.agents.context import format_history, generate_title, parse_mentions
 from agentkit.agents.context.messages import extract_assistant_content
 from agentkit.agents.context.skills import apply_skill_context, build_skill_context
+from agentkit.agents.streaming import StreamEvent
 from agentkit.db.db import Database
 from agentkit.db.models import Message
 from agentkit.providers.provider import Provider
@@ -77,6 +78,25 @@ class BaseAgent(ABC):
     async def edit_stream(self, new_message: str, queue: asyncio.Queue) -> None:
         """Stream edit response through queue."""
         ...
+
+    @staticmethod
+    def _format_message(msg: Message) -> dict:
+        return {
+            "id": msg.id,
+            "role": msg.role,
+            "content": msg.content,
+            "reasoning_content": msg.reasoning_content,
+            "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
+            "tool_call_id": msg.tool_call_id,
+            "sequence": msg.sequence,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            "files": [],  # Files are only on user message so this shoul be fine
+        }
+    
+    @staticmethod
+    async def _emit(queue: Optional[asyncio.Queue], event: StreamEvent) -> None:
+        if queue is not None:
+            await queue.put(event)
 
     async def _save_message(
         self,
