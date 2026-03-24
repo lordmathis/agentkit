@@ -296,6 +296,14 @@ class Database:
         with self.SessionLocal() as session:
             return session.get(File, file_id)
 
+    def get_files(self, file_ids: List[str]) -> Dict[str, File]:
+        with self.SessionLocal() as session:
+            if not file_ids:
+                return {}
+            stmt = select(File).where(File.id.in_(file_ids))
+            result = session.execute(stmt)
+            return {f.id: f for f in result.scalars().all()}
+
     def list_pending_files(self) -> List[File]:
         with self.SessionLocal() as session:
             stmt = select(File).where(File.status == "pending")

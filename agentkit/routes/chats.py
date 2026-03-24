@@ -165,6 +165,13 @@ async def get_chat(request: Request, chat_id: str):
 
     messages = database.get_chat_history(chat_id)
 
+    all_file_ids = []
+    for msg in messages:
+        if msg.file_ids:
+            all_file_ids.extend(json.loads(msg.file_ids))
+
+    files_by_id = database.get_files(all_file_ids)
+
     return {
         "id": chat.id,
         "title": chat.title,
@@ -186,12 +193,12 @@ async def get_chat(request: Request, chat_id: str):
                 "created_at": format_timestamp(msg.created_at),
                 "files": [
                     {
-                        "id": database.get_file(fid).id,
-                        "filename": database.get_file(fid).filename,
-                        "content_type": database.get_file(fid).content_type,
+                        "id": files_by_id[fid].id,
+                        "filename": files_by_id[fid].filename,
+                        "content_type": files_by_id[fid].content_type,
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
-                    if database.get_file(fid)
+                    if fid in files_by_id
                 ],
             }
             for msg in messages
@@ -323,6 +330,13 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
 
     messages = database.get_chat_history(branched_chat.id)
 
+    all_file_ids = []
+    for msg in messages:
+        if msg.file_ids:
+            all_file_ids.extend(json.loads(msg.file_ids))
+
+    files_by_id = database.get_files(all_file_ids)
+
     return {
         "id": branched_chat.id,
         "title": branched_chat.title,
@@ -348,12 +362,12 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                 "created_at": format_timestamp(msg.created_at),
                 "files": [
                     {
-                        "id": database.get_file(fid).id,
-                        "filename": database.get_file(fid).filename,
-                        "content_type": database.get_file(fid).content_type,
+                        "id": files_by_id[fid].id,
+                        "filename": files_by_id[fid].filename,
+                        "content_type": files_by_id[fid].content_type,
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
-                    if database.get_file(fid)
+                    if fid in files_by_id
                 ],
             }
             for msg in messages
