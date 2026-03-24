@@ -163,7 +163,7 @@ async def get_chat(request: Request, chat_id: str):
     if not chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
-    messages = database.get_chat_history(chat_id, limit=1000)
+    messages = database.get_chat_history(chat_id)
 
     return {
         "id": chat.id,
@@ -321,7 +321,7 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
             detail=f"Failed to create agent for branch: {str(e)}",
         )
 
-    messages = database.get_chat_history(branched_chat.id, limit=1000)
+    messages = database.get_chat_history(branched_chat.id)
 
     return {
         "id": branched_chat.id,

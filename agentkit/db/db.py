@@ -78,13 +78,12 @@ class Database:
             session.refresh(message)
             return message
 
-    def get_chat_history(self, chat_id: str, limit: int = 50) -> List[Message]:
+    def get_chat_history(self, chat_id: str) -> List[Message]:
         with self.SessionLocal() as session:
             stmt = (
                 select(Message)
                 .where(Message.chat_id == chat_id)
-                .order_by(Message.sequence)  # Order by sequence, not created_at
-                .limit(limit)
+                .order_by(Message.sequence)
             )
             result = session.execute(stmt)
             return list(result.scalars().all())
