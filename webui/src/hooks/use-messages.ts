@@ -15,6 +15,20 @@ export function useMessages(chatId: string | undefined) {
     },
   });
 
+  const loadDefaultSettings = useCallback(async () => {
+    try {
+      const defaults = await api.getDefaultChatConfig();
+      setChatSettings({
+        baseModel: defaults.model || "",
+        systemPrompt: defaults.system_prompt || "",
+        enabledTools: defaults.tool_servers || [],
+        modelParams: defaults.model_params || { max_iterations: 5 },
+      });
+    } catch (error) {
+      console.error("Failed to load default settings:", error);
+    }
+  }, []);
+
   const reloadMessages = useCallback(async () => {
     if (!chatId) return;
     try {
@@ -36,6 +50,7 @@ export function useMessages(chatId: string | undefined) {
   useEffect(() => {
     if (!chatId) {
       setMessages([]);
+      loadDefaultSettings();
       return;
     }
     const fetchInitial = async () => {
@@ -44,7 +59,7 @@ export function useMessages(chatId: string | undefined) {
       setIsLoading(false);
     };
     fetchInitial();
-  }, [chatId, reloadMessages]);
+  }, [chatId, reloadMessages, loadDefaultSettings]);
 
   const send = async (text: string, files: FileResource[]) => {
     if (!chatId) return;
