@@ -145,7 +145,9 @@ class ReActAgent(BaseAgent):
         except Exception as e:
             await self._emit(queue, StreamEvent(type="error", data={"message": str(e)}))
             await self._emit(queue, STREAM_DONE)
-            raise
+            if queue is None:
+                raise
+            logger.error(f"Agent loop error: {e}")
 
     def _prepare_retry(self) -> Optional[str]:
         history = self.db.get_chat_history(self.chat_id)
