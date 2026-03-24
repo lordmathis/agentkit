@@ -53,6 +53,7 @@ class ToolManager:
             Dict mapping class names to class types
         """
         plugins = {}
+        seen_classes = set()
         tools_path = Path(self._tools_dir)
 
         if not tools_path.exists() or not tools_path.is_dir():
@@ -78,9 +79,10 @@ class ToolManager:
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     if not issubclass(obj, ToolSetHandler) or obj is ToolSetHandler:
                         continue
-                    if obj.__module__ != module_name:
+                    if obj in seen_classes:
                         continue
 
+                    seen_classes.add(obj)
                     logger.info(
                         f"Discovered toolset plugin: {name} from {py_file.name}"
                     )
