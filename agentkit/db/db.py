@@ -262,6 +262,7 @@ class Database:
                     content=old_message.content,
                     reasoning_content=old_message.reasoning_content,
                     tool_calls=old_message.tool_calls,
+                    tool_call_id=old_message.tool_call_id,
                     file_ids=old_message.file_ids,
                     status=old_message.status,
                 )
