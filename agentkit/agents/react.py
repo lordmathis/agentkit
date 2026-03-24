@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from agentkit.agents.base import BaseAgent
 from agentkit.agents.streaming import STREAM_DONE, StreamEvent
 from agentkit.db.db import Database
+from agentkit.db.models import Message
 from agentkit.providers.provider import Provider
 from agentkit.skills.registry import SkillRegistry
 from agentkit.tools.approval import ToolDeniedError
@@ -45,8 +46,6 @@ class ReActAgent(BaseAgent):
         )
         self.max_iterations = max_iterations
 
-
-
     async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
         await self._save_message("user", message, file_ids=file_ids)
         result = await self._loop(message)
@@ -77,7 +76,8 @@ class ReActAgent(BaseAgent):
                 ):
                     msg = await self._save_message("assistant", response)
                     await self._emit(
-                        queue, StreamEvent(type="message", data=self._format_message(msg))
+                        queue,
+                        StreamEvent(type="message", data=self._format_message(msg)),
                     )
                     await self._emit(queue, STREAM_DONE)
                     return response
@@ -122,7 +122,8 @@ class ReActAgent(BaseAgent):
                         "tool", str(result), tool_call_id=tool_call["id"]
                     )
                     await self._emit(
-                        queue, StreamEvent(type="message", data=self._format_message(msg))
+                        queue,
+                        StreamEvent(type="message", data=self._format_message(msg)),
                     )
 
                     messages.append(
@@ -169,27 +170,6 @@ class ReActAgent(BaseAgent):
 
         return last_user.content
 
-    def _prepare_edit(self, new_message: str) -> None:
-        history = self.db.get_chat_history(self.chat_id)
-        last_user = None
-        last_assistant = None
-        for msg in reversed(history):
-            if msg.role == "user" and last_user is None:
-                last_user = msg
-            elif msg.role == "assistant" and last_assistant is None:
-                last_assistant = msg
-            if last_user and last_assistant:
-                break
-
-        if last_assistant:
-            for msg in history:
-                if msg.role == "tool" and msg.sequence > last_user.sequence:
-                    self.db.delete_message(msg.id)
-            self.db.delete_message(last_assistant.id)
-
-        if last_user:
-            self.db.delete_message(last_user.id)
-
     async def retry(self) -> Dict[str, Any]:
         message = self._prepare_retry()
         if not message:
@@ -206,7 +186,7 @@ class ReActAgent(BaseAgent):
             return
         await self._loop(message, queue=queue)
 
-    async def edit(self, new_message: str) -> Dict[str, Any]:
+    def _prepare_edit(self) -> Optional[Message]:
         history = self.db.get_chat_history(self.chat_id)
         last_user = None
         last_assistant = None
@@ -219,16 +199,23 @@ class ReActAgent(BaseAgent):
                 break
 
         if not last_user:
+            return None
+
+        if last_assistant:
+            for msg in history:
+                if msg.sequence > last_user.sequence:
+                    self.db.delete_message(msg.id)
+
+        return last_user
+
+    async def edit(self, new_message: str) -> Dict[str, Any]:
+        last_user = self._prepare_edit()
+
+        if not last_user:
             return {"error": "No user message to edit"}
 
         file_ids_str = getattr(last_user, "file_ids", None)
         file_ids = json.loads(file_ids_str) if file_ids_str else []
-
-        if last_assistant:
-            for msg in history:
-                if msg.role == "tool" and msg.sequence > last_user.sequence:
-                    self.db.delete_message(msg.id)
-            self.db.delete_message(last_assistant.id)
 
         self.db.delete_message(last_user.id)
         await self._save_message("user", new_message, file_ids=file_ids)
@@ -236,16 +223,7 @@ class ReActAgent(BaseAgent):
         return await self._loop(new_message)
 
     async def edit_stream(self, new_message: str, queue: asyncio.Queue) -> None:
-        history = self.db.get_chat_history(self.chat_id)
-        last_user = None
-        last_assistant = None
-        for msg in reversed(history):
-            if msg.role == "user" and last_user is None:
-                last_user = msg
-            elif msg.role == "assistant" and last_assistant is None:
-                last_assistant = msg
-            if last_user and last_assistant:
-                break
+        last_user = self._prepare_edit()
 
         if not last_user:
             await queue.put(
@@ -257,16 +235,10 @@ class ReActAgent(BaseAgent):
         file_ids_str = getattr(last_user, "file_ids", None)
         file_ids = json.loads(file_ids_str) if file_ids_str else []
 
-        if last_assistant:
-            for msg in history:
-                if msg.role == "tool" and msg.sequence > last_user.sequence:
-                    self.db.delete_message(msg.id)
-            self.db.delete_message(last_assistant.id)
-
         self.db.delete_message(last_user.id)
         await self._save_message("user", new_message, file_ids=file_ids)
 
-        await self._loop(new_message, queue=queue)
+        await self._loop(new_message)
 
 
 class ReActAgentPlugin(ReActAgent):
