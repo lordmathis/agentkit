@@ -1,15 +1,3 @@
-// Helper function to format model ID as a display label
-export const getModelLabel = (modelValue: string): string => {
-  // Remove provider prefix if present (e.g., "openai:gpt-4" -> "gpt-4")
-  const modelId = modelValue.includes(':') ? modelValue.split(':')[1] : modelValue;
-  
-  // Convert snake_case or kebab-case to Title Case
-  return modelId
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
-
 // Helper function to format tool server name as a display label
 export const getToolLabel = (toolId: string): string => {
   // Convert snake_case or kebab-case to Title Case

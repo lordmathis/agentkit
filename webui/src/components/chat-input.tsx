@@ -10,7 +10,7 @@ import {
 } from "./ui/dropdown-menu";
 import { ChatSettingsDialog, type ChatSettings } from "./chat-settings-dialog";
 import { FileAttachments } from "./file-attachments";
-import { getModelLabel, getToolLabel } from "../lib/formatters";
+import { getToolLabel } from "../lib/formatters";
 import { useVoiceRecording } from "../hooks/use-voice-recording";
 import { api, type Skill, type ConnectorEntry } from "../lib/api";
 
@@ -231,7 +231,7 @@ export function ChatInput({
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
             <Bot className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-medium">{getModelLabel(chatSettings.baseModel)}</span>
+            <span className="font-medium">{chatSettings.baseModel}</span>
           </div>
           {chatSettings.enabledTools.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
