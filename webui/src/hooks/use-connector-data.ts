@@ -1,6 +1,23 @@
 import { useState, useEffect } from "react";
 import { api, type ConnectorResource, type FileNode, type Connector, type FileResource } from "../lib/api";
 
+const sortChildren = (children: FileNode[]): FileNode[] => {
+  return [...children].sort((a, b) => {
+    const aIsDir = a.type === "dir";
+    const bIsDir = b.type === "dir";
+    if (aIsDir && !bIsDir) return -1;
+    if (!aIsDir && bIsDir) return 1;
+    return a.name.localeCompare(b.name);
+  });
+};
+
+const sortTree = (node: FileNode): FileNode => {
+  if (node.children) {
+    return { ...node, children: sortChildren(node.children).map(sortTree) };
+  }
+  return node;
+};
+
 export function useConnectorData(
   initialInstance: string,
   initialConnector: string,
@@ -88,7 +105,7 @@ export function useConnectorData(
 
       const updateNode = (node: FileNode): FileNode => {
         if (node.path === path) {
-          return { ...node, children: subtree.children };
+          return { ...node, children: subtree.children ? sortChildren(subtree.children) : undefined };
         }
         if (node.children) {
           return { ...node, children: node.children.map(updateNode) };
@@ -128,7 +145,7 @@ export function useConnectorData(
       setIsLoadingTree(true);
       setError("");
       const tree = await api.browseConnectorTree(selectedConnector, resource, "");
-      setTreeRoot(tree);
+      setTreeRoot(sortTree(tree));
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resource tree");
@@ -151,7 +168,7 @@ export function useConnectorData(
       setIsLoadingTree(true);
       setError("");
       const tree = await api.browseConnectorTree(selectedConnector, parsed, "");
-      setTreeRoot(tree);
+      setTreeRoot(sortTree(tree));
       setExpandedPaths(new Set([tree.path]));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load resource tree");

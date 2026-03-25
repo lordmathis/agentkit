@@ -45,7 +45,7 @@ export function TreeNode({
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-1.5 px-2 hover:bg-accent rounded-md cursor-pointer"
+        className="flex items-center gap-2 py-1.5 px-2 hover:bg-accent hover:text-accent-foreground rounded-md cursor-pointer"
         style={{ paddingLeft: `${level * 20 + 8}px` }}
       >
         {isDir && (
