@@ -75,6 +75,7 @@ export function useMessages(chatId: string | undefined) {
         id: f.id,
         filename: f.filename,
         content_type: f.content_type,
+        source: f.source,
       })),
     };
     

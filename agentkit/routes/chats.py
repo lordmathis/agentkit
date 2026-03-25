@@ -196,6 +196,7 @@ async def get_chat(request: Request, chat_id: str):
                         "id": files_by_id[fid].id,
                         "filename": files_by_id[fid].filename,
                         "content_type": files_by_id[fid].content_type,
+                        "source": files_by_id[fid].source,
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
                     if fid in files_by_id
@@ -354,6 +355,7 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
                         "id": files_by_id[fid].id,
                         "filename": files_by_id[fid].filename,
                         "content_type": files_by_id[fid].content_type,
+                        "source": files_by_id[fid].source,
                     }
                     for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
                     if fid in files_by_id

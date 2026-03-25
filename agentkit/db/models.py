@@ -68,9 +68,10 @@ class File(Base):
     __tablename__ = "files"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     filename: Mapped[str] = mapped_column(String)
-    file_path: Mapped[str] = mapped_column(String)  # Path on disk
+    file_path: Mapped[str] = mapped_column(String)
     content_type: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, attached
+    source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="pending")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )

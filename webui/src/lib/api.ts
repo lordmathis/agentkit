@@ -25,6 +25,7 @@ export interface FileResource {
   id: string;
   filename: string;
   content_type: string;
+  source?: string | null;
 }
 
 export interface ConnectorEntry {
@@ -51,6 +52,7 @@ export interface Message {
     id: string;
     filename: string;
     content_type: string;
+    source?: string | null;
   }>;
 }
 

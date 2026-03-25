@@ -1,4 +1,4 @@
-import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check, Link } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -100,6 +100,51 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
     }
   };
 
+  const groupedFiles = (() => {
+    if (!message.files) return [];
+    
+    const groups: { source: string | null; files: typeof message.files }[] = [];
+    const filesBySource = new Map<string | null, typeof message.files>();
+    
+    for (const file of message.files) {
+      const key = file.source ?? null;
+      if (!filesBySource.has(key)) {
+        filesBySource.set(key, []);
+      }
+      filesBySource.get(key)!.push(file);
+    }
+    
+    for (const [source, files] of filesBySource) {
+      groups.push({ source, files });
+    }
+    
+    return groups;
+  })();
+
+  const renderFileChip = (file: { id: string; filename: string }) => (
+    <div
+      key={file.id}
+      className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-xs"
+    >
+      <File className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="font-medium">{file.filename}</span>
+    </div>
+  );
+
+  const renderSourceChip = (source: string, fileCount: number) => {
+    const repo = source.includes(':') ? source.split(':').slice(1).join(':') : source;
+    return (
+      <div
+        className="flex items-center gap-1.5 rounded-md border border-border bg-blue-500/10 px-2 py-1 text-xs"
+      >
+        <Link className="h-3.5 w-3.5 text-blue-500" />
+        <span className="font-medium text-blue-600 dark:text-blue-400">
+          {fileCount} file{fileCount !== 1 ? 's' : ''} from {repo}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -133,15 +178,13 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
         {/* File attachments - show for user messages */}
         {isUser && message.files && message.files.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
-            {message.files.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-xs"
-              >
-                <File className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-medium">{file.filename}</span>
-              </div>
-            ))}
+            {groupedFiles.map(({ source, files }) => {
+              if (source === null) {
+                return files.map(file => renderFileChip(file));
+              } else {
+                return <div key={source}>{renderSourceChip(source, files.length)}</div>;
+              }
+            })}
           </div>
         )}
         

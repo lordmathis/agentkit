@@ -166,6 +166,7 @@ async def upload_files(request: Request, connector: str, body: FilesRequest):
         )
 
     db: Database = request.app.state.database
+    source_str = f"{client.type}:{body.repo}"
     result = []
     for path in file_paths:
         try:
@@ -193,6 +194,7 @@ async def upload_files(request: Request, connector: str, body: FilesRequest):
                 file_path=os.path.abspath(file_path),
                 content_type=content_type,
                 file_id=file_id,
+                source=source_str,
             )
 
             result.append(
@@ -200,6 +202,7 @@ async def upload_files(request: Request, connector: str, body: FilesRequest):
                     id=file_obj.id,
                     filename=file_obj.filename,
                     content_type=file_obj.content_type,
+                    source=file_obj.source,
                 )
             )
 

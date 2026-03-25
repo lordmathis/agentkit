@@ -278,6 +278,7 @@ class Database:
         file_path: str,
         content_type: str,
         file_id: Optional[str] = None,
+        source: Optional[str] = None,
     ) -> File:
         with self.SessionLocal() as session:
             file_obj = File(
@@ -285,6 +286,7 @@ class Database:
                 filename=filename,
                 file_path=file_path,
                 content_type=content_type,
+                source=source,
                 status="pending",
             )
             session.add(file_obj)

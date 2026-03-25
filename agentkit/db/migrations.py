@@ -9,6 +9,7 @@ def run_migrations(engine):
         _migrate_file_ids_column(conn)
         _migrate_drop_file_attachments_table(conn)
         _migrate_tool_call_id_column(conn)
+        _migrate_file_source_column(conn)
         conn.commit()
 
 
@@ -46,3 +47,15 @@ def _migrate_tool_call_id_column(conn):
         logger.info("Column tool_call_id added to messages table.")
     else:
         logger.debug("Column tool_call_id already exists in messages table.")
+
+
+def _migrate_file_source_column(conn):
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("files")]
+
+    if "source" not in columns:
+        logger.info("Adding source column to files table...")
+        conn.execute(text("ALTER TABLE files ADD COLUMN source TEXT"))
+        logger.info("Column source added to files table.")
+    else:
+        logger.debug("Column source already exists in files table.")
