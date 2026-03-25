@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Filter, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { TreeNode } from "./connector/tree-node";
 import { ConnectorSelector } from "./connector/connector-selector";
@@ -45,6 +46,15 @@ export function AddConnectorDialog({
 
   const handleToggleSelect = (path: string, isDir: boolean) =>
     pathSelection.toggleSelect(path, isDir, connectorData.treeRoot);
+
+  const handleApplyFilter = () => {
+    connectorData.applyFilter(
+      handleToggleSelect,
+      connectorData.treeRoot,
+      pathSelection.isPathSelected,
+      pathSelection.isPathExcluded
+    );
+  };
 
   useEffect(() => {
     if (open && connectorData.inputMode === "select" && connectorData.resources.length === 0 && connectorData.selectedConnector) {
@@ -128,6 +138,38 @@ export function AddConnectorDialog({
                   isPathExcluded={pathSelection.isPathExcluded}
                 />
               </ScrollArea>
+            </div>
+          )}
+
+          {connectorData.treeRoot && (
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+                <Input
+                  placeholder="Exclude by pattern, comma-separated (e.g. *.lock, uv.lock)"
+                  value={connectorData.filterPattern}
+                  onChange={(e) => connectorData.setFilterPattern(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleApplyFilter(); }}
+                  className="pl-9 pr-9 focus-visible:ring-inset"
+                />
+                {connectorData.filterPattern && (
+                  <button
+                    onClick={() => connectorData.setFilterPattern("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleApplyFilter}
+                disabled={!connectorData.filterPattern.trim() || connectorData.isApplyingFilter}
+              >
+                {connectorData.isApplyingFilter
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying...</>
+                  : "Exclude"}
+              </Button>
             </div>
           )}
 

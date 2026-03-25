@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api, type ConnectorResource, type FileNode, type Connector, type FileResource } from "../lib/api";
+import { fetchAllFilePaths, matchesPatterns } from "../lib/connector-utils";
 
 const sortChildren = (children: FileNode[]): FileNode[] => {
   return [...children].sort((a, b) => {
@@ -40,6 +41,8 @@ export function useConnectorData(
   const [error, setError] = useState<string>("");
   const [tokenEstimate, setTokenEstimate] = useState<number | null>(null);
   const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
+  const [filterPattern, setFilterPattern] = useState("");
+  const [isApplyingFilter, setIsApplyingFilter] = useState(false);
 
   const parseConnectorLink = (link: string): string | null => {
     try {
@@ -204,6 +207,33 @@ export function useConnectorData(
     }
   };
 
+  const applyFilter = async (
+    toggleSelect: (path: string, isDir: boolean, treeRoot: FileNode | null) => void,
+    treeRoot: FileNode | null,
+    isPathSelected: (path: string) => boolean,
+    isPathExcluded: (path: string) => boolean
+  ) => {
+    if (!filterPattern.trim() || !treeRoot) return;
+    const resource = getResourceIdentifier();
+    if (!resource || !selectedConnector) return;
+
+    try {
+      setIsApplyingFilter(true);
+      setError("");
+      const allPaths = await fetchAllFilePaths(selectedConnector, resource);
+      for (const path of allPaths) {
+        if (matchesPatterns(path, filterPattern) && isPathSelected(path) && !isPathExcluded(path)) {
+          toggleSelect(path, false, treeRoot);
+        }
+      }
+      setFilterPattern("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to apply filter");
+    } finally {
+      setIsApplyingFilter(false);
+    }
+  };
+
   // Estimate tokens when selection changes
   useEffect(() => {
     const estimateTokens = async () => {
@@ -262,6 +292,10 @@ export function useConnectorData(
     error,
     tokenEstimate,
     isEstimatingTokens,
+    filterPattern,
+    setFilterPattern,
+    isApplyingFilter,
+    applyFilter,
     getResourceIdentifier,
     loadResources,
     loadChildren,
