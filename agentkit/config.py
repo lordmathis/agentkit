@@ -67,6 +67,7 @@ class ConnectorType(str, Enum):
 class ConnectorsConfig(BaseModel):
     type: ConnectorType = ConnectorType.GITHUB
     token: str
+    base_url: Optional[str] = None
 
 
 class TranscriptionConfig(BaseModel):
