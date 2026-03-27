@@ -234,7 +234,7 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
             <button
               onClick={() => setShowReasoning(!showReasoning)}
               className="flex items-center gap-2 cp-label hover:text-foreground transition-colors"
-              style={{ color: 'var(--color-cp-cyan)' }}
+              style={{ color: '#8a8270' }}
             >
               <Brain className="h-3.5 w-3.5" />
               <span>{showReasoning ? "Hide" : "Show"} reasoning</span>
@@ -276,14 +276,14 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
         {!isUser && message.tool_calls && message.tool_calls.length > 0 && (
           <div className="mb-2">
             <div className="flex items-start gap-2 cp-label text-muted-foreground">
-              <span className="font-medium" style={{ color: '#f5d800' }}>TOOLS_USED:</span>
+              <span className="font-medium text-muted-foreground">TOOLS_USED:</span>
               <div className="flex flex-wrap gap-1.5">
                 {message.tool_calls.map((tool, index) => (
                   <TooltipProvider key={index} delayDuration={300}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span
-                          className="inline-flex items-center gap-1 border border-[rgba(245,216,0,0.15)] bg-[rgba(245,216,0,0.05)] px-2 py-0.5 text-xs hover:border-[rgba(245,216,0,0.3)] transition-colors cursor-default"
+                          className="inline-flex items-center gap-1 border border-[rgba(138,130,112,0.2)] bg-[rgba(138,130,112,0.05)] px-2 py-0.5 text-xs hover:border-[rgba(138,130,112,0.35)] transition-colors cursor-default"
                           style={{
                             fontFamily: 'var(--font-mono)',
                             clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%)",

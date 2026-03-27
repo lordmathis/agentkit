@@ -14,20 +14,20 @@ export function ToolMessage({ message }: ToolMessageProps) {
     <div
       className="group relative flex gap-4 px-4 py-3 sm:px-6 border overflow-hidden bg-[#12110e]"
       style={{
-        borderColor: "rgba(245, 216, 0, 0.2)",
+        borderColor: "rgba(0, 212, 255, 0.2)",
         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))",
         transition: "border-color 0.15s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(245, 216, 0, 0.4)";
+        e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.4)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "rgba(245, 216, 0, 0.2)";
+        e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.2)";
       }}
     >
       <div
         className="absolute top-0 right-0 w-[14px] h-[14px] opacity-30"
-        style={{ background: '#f5d800', clipPath: 'polygon(0 0, 100% 100%, 100% 0)' }}
+        style={{ background: '#00d4ff', clipPath: 'polygon(0 0, 100% 100%, 100% 0)' }}
       />
 
       <div
@@ -41,16 +41,16 @@ export function ToolMessage({ message }: ToolMessageProps) {
         <div
           className="flex h-8 w-8 items-center justify-center"
           style={{
-            background: "rgba(245, 216, 0, 0.1)",
+            background: "rgba(0, 212, 255, 0.1)",
             clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
           }}
         >
-          <Wrench className="h-4 w-4 text-primary/70" />
+          <Wrench className="h-4 w-4 text-[#00d4ff]/70" />
         </div>
       </div>
       <div className="flex-1 space-y-2 overflow-hidden relative z-10">
         <div className="flex items-center gap-2">
-          <p className="cp-label font-bold" style={{ color: '#f5d800' }}>
+          <p className="cp-label font-bold" style={{ color: '#00d4ff' }}>
             // DATA_SHARD
           </p>
         </div>
@@ -58,7 +58,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
         <button
           onClick={() => setShowToolResult(!showToolResult)}
           className="flex items-center gap-2 cp-label transition-colors"
-          style={{ color: 'var(--color-cp-cyan)' }}
+          style={{ color: '#8a8270' }}
         >
           <Wrench className="h-3.5 w-3.5" />
           <span>{showToolResult ? "Hide" : "Show"} result</span>
@@ -83,7 +83,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
         {showToolResult && (
           <div className="text-foreground">
             <pre
-              className="text-xs whitespace-pre-wrap overflow-auto max-h-60 bg-[rgba(245,216,0,0.03)] border border-[rgba(245,216,0,0.1)] p-3"
+              className="text-xs whitespace-pre-wrap overflow-auto max-h-60 bg-[rgba(0,212,255,0.03)] border border-[rgba(0,212,255,0.1)] p-3"
               style={{ clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%)" }}
             >
               {message.content}

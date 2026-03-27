@@ -113,17 +113,17 @@ export function MessagesList({
                     </div>
                     <div className="flex items-center gap-2 cp-label text-muted-foreground">
                       <div className="flex gap-1">
-                        <span className="animate-bounce text-primary" style={{ animationDelay: "0ms" }}>
+                        <span className="animate-bounce text-foreground" style={{ animationDelay: "0ms" }}>
                           &#9654;
                         </span>
-                        <span className="animate-bounce text-primary" style={{ animationDelay: "150ms" }}>
+                        <span className="animate-bounce text-foreground" style={{ animationDelay: "150ms" }}>
                           &#9654;
                         </span>
-                        <span className="animate-bounce text-primary" style={{ animationDelay: "300ms" }}>
+                        <span className="animate-bounce text-foreground" style={{ animationDelay: "300ms" }}>
                           &#9654;
                         </span>
                       </div>
-                      <span className="text-[var(--color-cp-cyan)]">Generating response...</span>
+                      <span className="text-foreground">Breaching...</span>
                     </div>
                   </div>
                 </div>
