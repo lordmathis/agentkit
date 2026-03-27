@@ -42,7 +42,6 @@ class ForgejoClient(ConnectorClient):
         """
         try:
             response = await self.client.get(f"{self.base_url}/user")
-            logger.info(response.status_code)
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Authentication failed: {e}")

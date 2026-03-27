@@ -29,5 +29,8 @@ uploads/
 # Plugins
 plugins/
 
+# Specs
+specs/
+
 # Logs
 *.log

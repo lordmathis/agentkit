@@ -61,7 +61,7 @@ export function ChatView() {
   };
 
   return (
-    <div className="relative flex h-screen bg-background">
+    <div className="relative flex h-screen" style={{ background: '#0a0a0c' }}>
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}

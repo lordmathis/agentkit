@@ -44,7 +44,6 @@ def _serve_with_compression(
     if supports_brotli:
         br_path = Path(str(file_path) + ".br")
         if br_path.exists():
-            logger.info(f"Serving brotli compressed file: {br_path}")
             return FileResponse(
                 br_path,
                 headers={"Content-Encoding": "br", "Content-Type": content_type},
@@ -54,7 +53,6 @@ def _serve_with_compression(
     if supports_gzip:
         gz_path = Path(str(file_path) + ".gz")
         if gz_path.exists():
-            logger.info(f"Serving gzip compressed file: {gz_path}")
             return FileResponse(
                 gz_path,
                 headers={"Content-Encoding": "gzip", "Content-Type": content_type},

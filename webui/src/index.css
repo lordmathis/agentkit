@@ -1,76 +1,65 @@
 @import "tailwindcss";
 
 @theme {
-  /* ========================================
-     BASE PALETTE - Core cyberpunk colors
-     ======================================== */
+  --color-black: #0a0a0c;
+  --color-white: #e8e0c8;
 
-  /* Deep black - used for backgrounds and dark surfaces */
-  --color-black: oklch(0.1 0 0);
-  /* Bright white - used for text and bright foreground */
-  --color-white: oklch(0.98 0 0);
-  
-  /* ========================================
-     CYAN - Primary brand color (bright neon cyan)
-     ======================================== */
-  --color-cyan: oklch(0.8524 0.1296 181.48);
-  --color-cyan-dark: oklch(0.1 0 0);
-  --color-cyan-soft: color-mix(in oklch, var(--color-cyan) 45%, transparent);
-  --color-cyan-glow: color-mix(in oklch, var(--color-cyan) 30%, transparent);
+  --color-cp-yellow: #f5d800;
+  --color-cp-yellow-dim: #c4ac00;
+  --color-cp-red: #e63329;
+  --color-cp-red-dim: #8c1f1a;
+  --color-cp-cyan: #00d4ff;
+  --color-cp-cyan-dim: #007a94;
 
-  /* ========================================
-     YELLOW - Accent color (neon yellow/lime)
-     ======================================== */
-  --color-yellow: oklch(0.9062 0.1927 105.48);
-  --color-yellow-dark: oklch(0.1 0 0);
+  --color-cp-bg: #0a0a0c;
+  --color-cp-surface: #10100e;
+  --color-cp-surface2: #18180f;
+  --color-cp-text: #e8e0c8;
+  --color-cp-text-dim: #8a8270;
+  --color-cp-border: rgba(245, 216, 0, 0.25);
 
-  /* ========================================
-     RED - New cyberpunk accent (neon red)
-     ======================================== */
-  --color-red: oklch(0.5225 0.2091 16.74);
-  --color-red-dark: oklch(0.1 0 0);
-  --color-red-soft: color-mix(in oklch, var(--color-red) 45%, transparent);
-  --color-red-glow: color-mix(in oklch, var(--color-red) 35%, transparent);
+  --color-cyan: #00d4ff;
+  --color-cyan-dark: #0a0a0c;
+  --color-cyan-soft: rgba(0, 212, 255, 0.45);
+  --color-cyan-glow: rgba(0, 212, 255, 0.3);
 
-  /* ========================================
-     MUTED DARK - Secondary and muted colors
-     ======================================== */
-  --color-muted-dark: oklch(0.2 0.02 290);
-  --color-muted-text: oklch(0.65 0 0);
+  --color-yellow: #f5d800;
+  --color-yellow-dark: #0a0a0c;
 
-  /* ========================================
-     SEMANTIC COLORS - Usage in the UI
-     ======================================== */
-  
-  /* Layout */
-  --color-background: var(--color-black);
-  --color-foreground: var(--color-white);
-  --color-card: oklch(0.12 0 0);
-  --color-card-foreground: var(--color-white);
-  --color-popover: oklch(0.12 0 0);
-  --color-popover-foreground: var(--color-white);
-  
-  /* Branding */
-  --color-primary: var(--color-cyan);
-  --color-primary-foreground: var(--color-black);
-  --color-secondary: oklch(0.2 0.02 210);
-  --color-secondary-foreground: var(--color-white);
-  --color-accent: var(--color-yellow);
-  --color-accent-foreground: var(--color-black);
-  
-  /* States */
-  --color-destructive: oklch(0.75 0.2 95);
-  --color-destructive-foreground: var(--color-black);
-  
-  /* UI Chrome */
+  --color-red: #e63329;
+  --color-red-dark: #0a0a0c;
+  --color-red-soft: rgba(230, 51, 41, 0.25);
+  --color-red-glow: rgba(230, 51, 41, 0.2);
+
+  --color-muted-dark: #18180f;
+  --color-muted-text: #8a8270;
+
+  --color-background: var(--color-cp-bg);
+  --color-foreground: var(--color-cp-text);
+  --color-card: var(--color-cp-surface);
+  --color-card-foreground: var(--color-cp-text);
+  --color-popover: var(--color-cp-surface);
+  --color-popover-foreground: var(--color-cp-text);
+
+  --color-primary: var(--color-cp-yellow);
+  --color-primary-foreground: #0a0a0c;
+  --color-secondary: var(--color-cp-surface2);
+  --color-secondary-foreground: var(--color-cp-text);
+  --color-accent: var(--color-cp-yellow);
+  --color-accent-foreground: #0a0a0c;
+
+  --color-destructive: var(--color-cp-red);
+  --color-destructive-foreground: #0a0a0c;
+
   --color-muted: var(--color-muted-dark);
   --color-muted-foreground: var(--color-muted-text);
-  --color-border: oklch(0.25 0 0);
-  --color-input: oklch(0.2 0.02 210);
-  --color-ring: oklch(0.7 0.2 210);
-  
-  /* Spacing and styling */
-  --radius: 0.5rem;
+  --color-border: rgba(245, 216, 0, 0.2);
+  --color-input: var(--color-cp-surface);
+  --color-ring: var(--color-cp-yellow);
+
+  --radius: 0;
+
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
 }
 
 * {
@@ -81,15 +70,104 @@ body {
   margin: 0;
   background-color: var(--color-background);
   color: var(--color-foreground);
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+
+.cp-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(245, 216, 0, 0.018) 3px,
+    rgba(245, 216, 0, 0.018) 4px
+  );
+}
+
+.cp-cut-tr {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  position: relative;
+}
+
+.cp-cut-tr::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--color-cp-yellow);
+  clip-path: polygon(0 0, 100% 100%, 100% 0);
+  opacity: 0.5;
+  z-index: 1;
+}
+
+.cp-cut-tl::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--color-cp-red);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.5;
+  z-index: 1;
+}
+
+.cp-cut-both {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  position: relative;
+}
+
+.cp-cut-both::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--color-cp-yellow);
+  clip-path: polygon(0 0, 100% 100%, 100% 0);
+  opacity: 0.4;
+  z-index: 1;
+}
+
+.cp-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .typing-area {
-   border-color: var(--color-red-soft);
-   box-shadow: 0 0 0 1px var(--color-red-soft);
+  border-color: rgba(245, 216, 0, 0.3);
+  border-bottom: 2px solid var(--color-cp-yellow);
+  box-shadow: none;
 }
 
 .typing-area:focus,
 .typing-area:focus-visible {
-   border-color: var(--color-red);
-   box-shadow: 0 0 16px var(--color-red-glow);
+  border-color: var(--color-cp-yellow);
+  box-shadow: 0 0 12px rgba(245, 216, 0, 0.15);
+}
+
+@keyframes cp-blink {
+  50% { opacity: 0; }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cp-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 216, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 216, 0, 0.5);
 }

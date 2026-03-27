@@ -25,13 +25,18 @@ export function FileAttachments({
       {uploadedFiles.map((f, index) => (
         <div
           key={`${f.id}-${index}`}
-          className="flex items-center gap-1.5 rounded-md border border-border bg-primary/10 px-2 py-1 text-xs"
+          className="flex items-center gap-1.5 border px-2 py-1 text-xs"
+          style={{
+            borderColor: "rgba(245, 216, 0, 0.2)",
+            background: "rgba(245, 216, 0, 0.06)",
+            clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+          }}
         >
-          <File className="h-3.5 w-3.5 text-primary" />
+          <File className="h-3.5 w-3.5 text-primary/70" />
           <span className="text-primary font-medium">{f.filename}</span>
           <button
             onClick={() => onRemoveFile(f.id)}
-            className="ml-1 hover:text-destructive transition-colors"
+            className="ml-1 hover:text-[var(--color-cp-red)] transition-colors"
             aria-label={`Remove ${f.filename}`}
           >
             <X className="h-3.5 w-3.5" />
@@ -47,16 +52,21 @@ export function FileAttachments({
         return (
           <div
             key={`${entry.connectorId}-${entry.resourceId}`}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-blue-500/10 px-2 py-1 text-xs"
+            className="flex items-center gap-1.5 border px-2 py-1 text-xs"
+            style={{
+              borderColor: "rgba(0, 212, 255, 0.2)",
+              background: "rgba(0, 212, 255, 0.06)",
+              clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+            }}
           >
-            <LinkIcon className="h-3.5 w-3.5 text-blue-600" />
-            <span className="text-blue-600 font-medium">
+            <LinkIcon className="h-3.5 w-3.5 text-[var(--color-cp-cyan)]" />
+            <span className="text-[var(--color-cp-cyan)] font-medium">
               {entry.files.length} file{entry.files.length !== 1 ? "s" : ""} from{" "}
               {label}
             </span>
             <button
               onClick={() => onEditConnectorEntry(entry.connectorId, entry.resourceId)}
-              className="ml-1 hover:text-blue-700 transition-colors"
+              className="ml-1 hover:text-[var(--color-cp-cyan)]/80 transition-colors"
               aria-label="Edit connector entry"
             >
               <svg
@@ -75,7 +85,7 @@ export function FileAttachments({
             </button>
             <button
               onClick={() => onRemoveConnectorEntry(entry.connectorId, entry.resourceId)}
-              className="ml-1 hover:text-destructive transition-colors"
+              className="ml-1 hover:text-[var(--color-cp-red)] transition-colors"
               aria-label="Remove connector entry"
               title="Remove connector entry"
             >

@@ -63,7 +63,6 @@ export function ChatInput({
   fileInputRef,
   onFileChange,
 }: ChatInputProps) {
-  // Auto-resize textarea as user types
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -89,7 +88,6 @@ export function ChatInput({
   const [mentionStart, setMentionStart] = useState(-1);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 
-  // Load skills
   useEffect(() => {
     const loadSkills = async () => {
       try {
@@ -102,12 +100,10 @@ export function ChatInput({
     loadSkills();
   }, []);
 
-  // Filter skills based on search
   const filteredSkills = skills.filter(skill => 
     skill.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
-  // Show error message if recording fails
   useEffect(() => {
     if (recordingError) {
       console.error('Voice recording error:', recordingError);
@@ -139,7 +135,6 @@ export function ChatInput({
   const insertMention = (skillName: string) => {
     if (mentionStart === -1) return;
     const before = inputValue.substring(0, mentionStart);
-    // end = mentionStart + 1 (@) + mentionSearch.length
     const after = inputValue.substring(mentionStart + 1 + mentionSearch.length);
     onInputChange(`${before}@${skillName} ${after}`);
     setShowMentions(false);
@@ -179,18 +174,11 @@ export function ChatInput({
 
   const handleVoiceRecording = async () => {
     if (isRecording) {
-      // Stop recording and transcribe
       try {
         setProcessing(true);
         const audioBlob = await stopRecording();
-        
-        // Send to transcription endpoint
         const result = await api.transcribeAudio(audioBlob);
-        
-        // Add transcribed text to the input
         onInputChange(inputValue + (inputValue ? ' ' : '') + result.text);
-        
-        // Focus the textarea
         textareaRef.current?.focus();
       } catch (err) {
         console.error('Failed to transcribe audio:', err);
@@ -198,7 +186,6 @@ export function ChatInput({
         setProcessing(false);
       }
     } else {
-      // Start recording
       try {
         await startRecording();
       } catch (err) {
@@ -208,12 +195,21 @@ export function ChatInput({
   };
 
   return (
-    <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background">
+    <div
+      className="sticky bottom-0 z-20 shrink-0 bg-[#0a0a0c]"
+      style={{ borderTop: "1px solid rgba(245, 216, 0, 0.15)" }}
+    >
       <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
-        {/* Edit mode indicator */}
         {isEditingMode && (
-          <div className="mb-3 flex items-center justify-between rounded-md border border-blue-500/50 bg-blue-500/10 px-3 py-2">
-            <span className="text-xs font-medium text-blue-600">Editing message...</span>
+          <div
+            className="mb-3 flex items-center justify-between border px-3 py-2"
+            style={{
+              borderColor: "rgba(0, 212, 255, 0.3)",
+              background: "rgba(0, 212, 255, 0.06)",
+              clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%)",
+            }}
+          >
+            <span className="cp-label" style={{ color: 'var(--color-cp-cyan)' }}>Editing message...</span>
             <Button
               type="button"
               variant="ghost"
@@ -227,23 +223,35 @@ export function ChatInput({
           </div>
         )}
         
-        {/* Model and tools info */}
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
-            <Bot className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-medium">{chatSettings.baseModel}</span>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 border px-2 py-1"
+            style={{
+              borderColor: "rgba(245, 216, 0, 0.15)",
+              background: "rgba(245, 216, 0, 0.04)",
+              clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+            }}
+          >
+            <Bot className="h-3.5 w-3.5 text-primary/60" />
+            <span className="cp-label" style={{ color: '#f5d800' }}>{chatSettings.baseModel}</span>
           </div>
           {chatSettings.enabledTools.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1">
-              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground">
+            <div
+              className="flex items-center gap-1.5 border px-2 py-1"
+              style={{
+                borderColor: "rgba(245, 216, 0, 0.15)",
+                background: "rgba(245, 216, 0, 0.04)",
+                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+              }}
+            >
+              <Zap className="h-3.5 w-3.5 text-primary/60" />
+              <span className="cp-label text-muted-foreground">
                 {chatSettings.enabledTools.map((t) => getToolLabel(t)).join(", ")}
               </span>
             </div>
           )}
         </div>
 
-        {/* File attachments */}
         <FileAttachments
           uploadedFiles={uploadedFiles}
           connectorEntries={connectorEntries}
@@ -252,44 +260,51 @@ export function ChatInput({
           onEditConnectorEntry={onEditConnectorEntry}
         />
 
-        {/* Input area */}
         <div className="relative">
           <Textarea
             ref={textareaRef}
             value={inputValue}
             onChange={(e) => handleInputChangeWithMentions(e.target.value)}
             onKeyDown={handleKeyDownWithMentions}
-            placeholder="Type your message... (use @ to mention skills)"
+            placeholder="Type command..."
             className="typing-area min-h-[60px] resize-none pr-32 overflow-y-auto"
+            style={{
+              clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)",
+              background: "#10100e",
+            }}
             rows={1}
             disabled={isSending || !currentConversationId}
           />
 
-          {/* Skills mention popover */}
           {showMentions && filteredSkills.length > 0 && (
-            <div className="absolute bottom-full left-0 mb-2 w-64 rounded-md border border-border bg-popover shadow-lg z-50">
+            <div
+              className="absolute bottom-full left-0 mb-2 w-64 border shadow-lg z-50 bg-[#10100e]"
+              style={{
+                clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))",
+                borderColor: "rgba(245, 216, 0, 0.25)",
+              }}
+            >
               <div className="max-h-60 overflow-y-auto p-1">
                 {filteredSkills.map((skill, index) => (
                   <button
                     key={skill.name}
                     type="button"
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-sm transition-colors text-left ${
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${
                       index === selectedMentionIndex
-                        ? 'bg-accent text-accent-foreground'
-                        : 'hover:bg-accent/50'
+                        ? 'bg-primary/10 text-primary'
+                        : 'hover:bg-primary/5 text-foreground'
                     }`}
                     onClick={() => insertMention(skill.name)}
                     onMouseEnter={() => setSelectedMentionIndex(index)}
                   >
                     <AtSign className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="truncate font-medium">{skill.name}</span>
+                    <span className="truncate font-medium" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>{skill.name}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -298,7 +313,6 @@ export function ChatInput({
             onChange={onFileChange}
           />
 
-          {/* Action buttons */}
           <div className="absolute bottom-2 right-2 flex gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -358,8 +372,8 @@ export function ChatInput({
           </div>
         </div>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          Press Enter to send, Shift+Enter for new line
+        <p className="mt-2 cp-label text-muted-foreground">
+          Enter to transmit / Shift+Enter for new line
         </p>
       </div>
     </div>

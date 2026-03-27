@@ -93,8 +93,8 @@ export function AddConnectorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Connector Files</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="uppercase tracking-[0.15em] text-sm text-primary">Add Connector Files</DialogTitle>
+          <DialogDescription className="cp-label">
             Select files from a repository to add to your conversation
           </DialogDescription>
         </DialogHeader>

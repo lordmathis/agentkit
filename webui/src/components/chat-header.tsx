@@ -8,7 +8,14 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ sidebarOpen, onToggleSidebar, chatTitle }: ChatHeaderProps) {
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-muted/30 backdrop-blur-sm px-4 py-3 sm:px-6">
+    <div
+      className="sticky top-0 z-20 shrink-0 px-4 py-3 sm:px-6 overflow-hidden"
+      style={{
+        background: "linear-gradient(180deg, rgba(16,16,14,0.95) 0%, rgba(16,16,14,0.8) 100%)",
+        backdropFilter: "blur(8px)",
+        borderBottom: "1px solid rgba(245, 216, 0, 0.15)",
+      }}
+    >
       <div className="flex items-center gap-3">
         {!sidebarOpen && (
           <Button
@@ -28,23 +35,31 @@ export function ChatHeader({ sidebarOpen, onToggleSidebar, chatTitle }: ChatHead
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <rect width="18" height="18" x="3" y="3" />
               <path d="M9 3v18" />
             </svg>
             <span className="sr-only">Open sidebar</span>
           </Button>
         )}
         <div className="flex flex-col min-w-0 flex-1">
-          <h1 className="text-lg font-semibold text-foreground">
-            AgentKit Chat
+          <h1
+            className="text-sm font-bold text-primary uppercase tracking-[0.15em]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            AgentKit
           </h1>
           {chatTitle && (
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="cp-label text-muted-foreground truncate mt-0.5">
               {chatTitle}
             </p>
           )}
         </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-primary opacity-60" style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }} />
+          <span className="cp-label text-primary/60">ONLINE</span>
+        </div>
       </div>
+      <div className="h-[2px] mt-2 bg-gradient-to-r from-primary/40 via-primary/10 to-transparent" />
     </div>
   );
 }

@@ -26,12 +26,10 @@ export function MessagesList({
   onRetry,
   onEdit,
 }: MessagesListProps) {
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending, messagesEndRef]);
 
-  // Compute last user message index once (Phase 4a: hoisted out of render loop)
   const lastUserMessageIndex = messages.reduce(
     (acc, m, i) => (m.role === "user" ? i : acc),
     -1
@@ -42,21 +40,28 @@ export function MessagesList({
       <div className="mx-auto max-w-3xl pb-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-center text-muted-foreground">Loading messages...</div>
+            <div className="cp-label text-muted-foreground uppercase tracking-widest">
+              Loading data...
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <p className="text-lg font-medium text-foreground">No messages yet</p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <div className="text-2xl font-bold text-primary mb-2" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+                &gt;_
+              </div>
+              <p className="cp-label text-foreground mb-2" style={{ color: '#f5d800' }}>
+                SYSTEM READY
+              </p>
+              <p className="cp-label text-muted-foreground">
                 {currentConversationId
-                  ? "Start a conversation by typing a message below"
-                  : "Select a conversation from the sidebar or create a new one"}
+                  ? "Type a command below to begin transmission"
+                  : "Select a session from the sidebar or initialize a new one"}
               </p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {messages.map((message, index) => {
               const isLastMessage = index === messages.length - 1;
               const isLastAssistantMessage = isLastMessage && message.role === "assistant";
@@ -78,29 +83,47 @@ export function MessagesList({
               );
             })}
             {isSending && (
-                <div className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-muted/50">
+                <div
+                  className="group relative flex gap-4 px-4 py-6 sm:px-6 bg-[#12110e] overflow-hidden"
+                  style={{
+                    clipPath: "polygon(0 16px, 16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)",
+                    border: "1px solid rgba(230, 51, 41, 0.2)",
+                  }}
+                >
+                  <div
+                    className="absolute top-0 left-0 w-[16px] h-[16px] opacity-40"
+                    style={{ background: '#e63329', clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+                  />
                   <div className="flex-shrink-0">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground">
-                      <Bot className="h-5 w-5" />
+                    <div
+                      className="flex h-8 w-8 items-center justify-center"
+                      style={{
+                        background: "rgba(230, 51, 41, 0.15)",
+                        clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+                      }}
+                    >
+                      <Bot className="h-5 w-5 text-[var(--color-cp-red)]" />
                     </div>
                   </div>
                   <div className="flex-1 space-y-2 overflow-hidden">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold leading-none">Assistant</p>
+                      <p className="cp-label font-bold" style={{ color: '#e63329' }}>
+                        // DAEMON
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 cp-label text-muted-foreground">
                       <div className="flex gap-1">
-                        <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
-                          ●
+                        <span className="animate-bounce text-primary" style={{ animationDelay: "0ms" }}>
+                          &#9654;
                         </span>
-                        <span className="animate-bounce" style={{ animationDelay: "150ms" }}>
-                          ●
+                        <span className="animate-bounce text-primary" style={{ animationDelay: "150ms" }}>
+                          &#9654;
                         </span>
-                        <span className="animate-bounce" style={{ animationDelay: "300ms" }}>
-                          ●
+                        <span className="animate-bounce text-primary" style={{ animationDelay: "300ms" }}>
+                          &#9654;
                         </span>
                       </div>
-                      <span>Generating response...</span>
+                      <span className="text-[var(--color-cp-cyan)]">Generating response...</span>
                     </div>
                   </div>
                 </div>

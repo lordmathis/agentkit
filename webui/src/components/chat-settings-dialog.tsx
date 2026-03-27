@@ -175,10 +175,9 @@ export function ChatSettingsDialog({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chat Settings</DialogTitle>
-          <DialogDescription>
-            Configure the base model, system prompt, and available tools for
-            this conversation.
+          <DialogTitle className="uppercase tracking-[0.15em] text-sm text-primary">Chat Configuration</DialogTitle>
+          <DialogDescription className="cp-label">
+            Configure model, system prompt, and tools for this session.
           </DialogDescription>
         </DialogHeader>
 
@@ -259,8 +258,8 @@ export function ChatSettingsDialog({
           {/* Model Parameters Section */}
           <div className="space-y-4">
             <div>
-              <Label className="text-base font-semibold">Model Parameters</Label>
-              <p className="text-sm text-muted-foreground mt-1">
+              <Label className="text-xs uppercase tracking-[0.15em] text-primary">Model Parameters</Label>
+              <p className="cp-label mt-1">
                 Configure advanced model behavior settings.
               </p>
             </div>
@@ -348,9 +347,9 @@ export function ChatSettingsDialog({
           {/* Tools Section */}
           <div className="space-y-4">
             <div>
-              <Label className="text-base font-semibold">Tool Servers</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Select which tool servers the assistant can use during the conversation.
+              <Label className="text-xs uppercase tracking-[0.15em] text-primary">Tool Servers</Label>
+              <p className="cp-label mt-1">
+                Select which tool servers the assistant can use.
               </p>
             </div>
             {isLoadingTools ? (
