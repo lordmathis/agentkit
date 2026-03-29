@@ -132,7 +132,7 @@ export function Sidebar({
                             <div className="min-w-0 flex-1">
                               <div
                                 className="cp-label text-primary mb-1"
-                                style={{ color: currentConversationId === conversation.id ? '#f5d800' : '#8a8270' }}
+                                style={{ color: currentConversationId === conversation.id ? '#f5d800' : '#a89e88' }}
                               >
                                 LOG #{conversation.id.slice(0, 4).toUpperCase()} //
                               </div>
@@ -145,7 +145,7 @@ export function Sidebar({
                               >
                                 {conversation.title}
                               </div>
-                              <div className="cp-label mt-1" style={{ color: '#8a8270' }}>
+                              <div className="cp-label mt-1" style={{ color: '#a89e88' }}>
                                 {conversation.timestamp}
                               </div>
                             </div>

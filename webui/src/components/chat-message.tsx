@@ -210,8 +210,14 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
       <div className="flex-1 space-y-2 overflow-hidden relative z-10">
         <div className="flex items-center gap-2">
           <p
-            className="cp-label font-bold leading-none"
-            style={{ color: isUser ? '#f5d800' : '#e63329' }}
+            className="font-bold leading-none"
+            style={{
+              color: isUser ? '#f5d800' : '#e63329',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+            }}
           >
             {isUser ? "// UPLINK" : "// DAEMON"}
           </p>
@@ -234,7 +240,7 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
             <button
               onClick={() => setShowReasoning(!showReasoning)}
               className="flex items-center gap-2 cp-label hover:text-foreground transition-colors"
-              style={{ color: '#8a8270' }}
+              style={{ color: '#a89e88' }}
             >
               <Brain className="h-3.5 w-3.5" />
               <span>{showReasoning ? "Hide" : "Show"} reasoning</span>

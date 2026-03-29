@@ -50,7 +50,16 @@ export function ToolMessage({ message }: ToolMessageProps) {
       </div>
       <div className="flex-1 space-y-2 overflow-hidden relative z-10">
         <div className="flex items-center gap-2">
-          <p className="cp-label font-bold" style={{ color: '#00d4ff' }}>
+          <p
+            className="font-bold leading-none"
+            style={{
+              color: '#00d4ff',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+            }}
+          >
             // DATA_SHARD
           </p>
         </div>
@@ -58,7 +67,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
         <button
           onClick={() => setShowToolResult(!showToolResult)}
           className="flex items-center gap-2 cp-label transition-colors"
-          style={{ color: '#8a8270' }}
+          style={{ color: '#a89e88' }}
         >
           <Wrench className="h-3.5 w-3.5" />
           <span>{showToolResult ? "Hide" : "Show"} result</span>
