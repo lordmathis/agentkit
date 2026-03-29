@@ -57,8 +57,8 @@ export function Sidebar({
             className="flex shrink-0 items-center justify-between border-b px-4 py-3 overflow-hidden"
             style={{ maxWidth: '280px', borderColor: 'rgba(245, 216, 0, 0.15)' }}
           >
-            <h2 className="text-xs font-bold text-primary truncate uppercase tracking-[0.18em]"
-                style={{ fontFamily: 'var(--font-mono)' }}>
+            <h2 className="font-bold text-primary truncate uppercase tracking-[0.18em]"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '14px' }}>
               Sessions
             </h2>
             <Button

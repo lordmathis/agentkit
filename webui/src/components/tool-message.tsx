@@ -1,6 +1,11 @@
 import { Wrench } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import type { Message } from "../lib/api";
 
 interface ToolMessageProps {
@@ -55,7 +60,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
             style={{
               color: '#00d4ff',
               fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
+              fontSize: '14px',
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
             }}
@@ -90,13 +95,16 @@ export function ToolMessage({ message }: ToolMessageProps) {
         </button>
         
         {showToolResult && (
-          <div className="text-foreground">
-            <pre
-              className="text-xs whitespace-pre-wrap overflow-auto max-h-60 bg-[rgba(0,212,255,0.03)] border border-[rgba(0,212,255,0.1)] p-3"
-              style={{ clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%)" }}
-            >
-              {message.content}
-            </pre>
+          <div className="mt-2 border border-border bg-[rgba(0,212,255,0.03)] p-3"
+               style={{ clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%)" }}>
+            <div className="text-foreground/90" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.02em', lineHeight: '1.6' }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                rehypePlugins={[rehypeHighlight]}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>

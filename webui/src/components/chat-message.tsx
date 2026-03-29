@@ -214,7 +214,7 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
             style={{
               color: isUser ? '#f5d800' : '#e63329',
               fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
+              fontSize: '14px',
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
             }}
