@@ -150,8 +150,12 @@ class Database:
 
             chat.model = model
             chat.system_prompt = system_prompt
-            chat.tool_servers = json.dumps(tool_servers) if tool_servers else None
-            chat.model_params = json.dumps(model_params) if model_params else None
+            chat.tool_servers = (
+                json.dumps(tool_servers) if tool_servers is not None else None
+            )
+            chat.model_params = (
+                json.dumps(model_params) if model_params is not None else None
+            )
             chat.updated_at = datetime.now(UTC)
 
             session.commit()
@@ -170,7 +174,7 @@ class Database:
                 "system_prompt": chat.system_prompt,
                 "tool_servers": json.loads(chat.tool_servers)
                 if chat.tool_servers
-                else None,
+                else [],
                 "model_params": json.loads(chat.model_params)
                 if chat.model_params
                 else None,

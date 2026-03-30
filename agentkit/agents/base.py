@@ -41,7 +41,7 @@ class BaseAgent(ABC):
         self.tool_manager = tool_manager
         self.model_id = model_id
         self.system_prompt = system_prompt
-        self.tool_servers = list(tool_servers)
+        self.tool_servers = list(tool_servers or [])
         self.skill_registry = skill_registry
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -92,7 +92,7 @@ class BaseAgent(ABC):
             "created_at": msg.created_at.isoformat() if msg.created_at else None,
             "files": [],  # Files are only on user message so this shoul be fine
         }
-    
+
     @staticmethod
     async def _emit(queue: Optional[asyncio.Queue], event: StreamEvent) -> None:
         if queue is not None:

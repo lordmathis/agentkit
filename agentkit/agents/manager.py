@@ -139,8 +139,8 @@ class AgentManager:
         d = defaults or {}
 
         return {
-            "system_prompt": config.get("system_prompt", d.get("system_prompt", "")),
-            "tool_servers": config.get("tool_servers", d.get("tool_servers", [])),
+            "system_prompt": config.get("system_prompt") or d.get("system_prompt", ""),
+            "tool_servers": config.get("tool_servers") or d.get("tool_servers", []),
             "temperature": model_params.get("temperature", d.get("temperature")),
             "max_tokens": model_params.get("max_tokens", d.get("max_tokens")),
             "max_iterations": model_params.get(
@@ -214,7 +214,7 @@ class AgentManager:
 
         model = config.get("model")
         system_prompt = config.get("system_prompt")
-        tool_servers = config.get("tool_servers")
+        tool_servers = config.get("tool_servers") or []
         model_params = config.get("model_params") or {}
         self.db.save_chat_config(
             chat_id=chat_id,
