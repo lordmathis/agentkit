@@ -33,4 +33,5 @@ packages = ["agentkit"]
 [tool.hatch.build.targets.wheel.force-include]
 "webui/dist" = "agentkit/static"
 
-
+[tool.hatch.metadata]
+allow-direct-references = true
