@@ -37,7 +37,7 @@ jobs:
         run: uv python install
 
       - name: Build wheel
-        run: uv build
+        run: uv build --wheel
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
