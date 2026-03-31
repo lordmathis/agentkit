@@ -62,20 +62,31 @@ def _serve_with_compression(
     return FileResponse(file_path)
 
 
+def _find_webui_dist() -> Path | None:
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.exists():
+        return static_dir
+
+    dev_dir = Path(__file__).parent.parent / "webui" / "dist"
+    if dev_dir.exists():
+        return dev_dir
+
+    return None
+
+
 def setup_webui(app: FastAPI):
     """Register routes to serve the Web UI"""
-    webui_dist = Path(__file__).parent.parent / "webui" / "dist"
+    webui_dist = _find_webui_dist()
 
-    if not webui_dist.exists():
+    if webui_dist is None:
         logger.warning(
-            f"Web UI build not found at {webui_dist}. Run 'cd webui && npm run build' to build the frontend."
+            "Web UI build not found. Run 'cd webui && npm run build' to build the frontend."
         )
         return
 
     @app.get("/{full_path:path}")
     async def serve_static(full_path: str, request: Request):
         """Serve static files with compression support"""
-        # Serve index.html on root
         if not full_path:
             index_path = webui_dist / "index.html"
             return _serve_with_compression(index_path, request, "text/html")
@@ -84,7 +95,6 @@ def setup_webui(app: FastAPI):
         if file_path.exists() and file_path.is_file():
             return _serve_with_compression(file_path, request)
 
-        # For SPA routing, serve index.html for non-existent paths that don't look like files
         if "." not in full_path:
             index_path = webui_dist / "index.html"
             return _serve_with_compression(index_path, request, "text/html")

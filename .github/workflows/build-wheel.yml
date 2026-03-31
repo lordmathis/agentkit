@@ -1,0 +1,45 @@
+name: Build Wheel
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-wheel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Install Web UI dependencies
+        run: npm ci
+        working-directory: webui
+
+      - name: Build Web UI
+        run: npm run build
+        working-directory: webui
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Upload wheel to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
