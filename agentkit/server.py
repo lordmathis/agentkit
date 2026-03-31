@@ -2,13 +2,19 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from agentkit.routes import register_routes
 from agentkit.lifespan import lifespan
+from agentkit.middleware import InFlightMiddleware, InFlightRequests
+from agentkit.routes import register_routes
 from agentkit.webui import setup_webui
 
 logger = logging.getLogger(__name__)
 
+in_flight = InFlightRequests()
+
 app = FastAPI(lifespan=lifespan)
+app.state.in_flight = in_flight
+
+app.add_middleware(InFlightMiddleware, tracker=in_flight)
 
 # Configure CORS for web UI
 app.add_middleware(

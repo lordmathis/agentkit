@@ -9,6 +9,7 @@ from agentkit.agents import AgentManager, AgentRegistry
 from agentkit.config import AppConfig
 from agentkit.connectors.registry import ConnectorRegistry
 from agentkit.db import Database
+from agentkit.middleware import InFlightRequests
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.skills import SkillRegistry
 from agentkit.tools.manager import ToolManager
@@ -114,6 +115,10 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_orphan_file_cleanup_task(app))
 
     yield
+
+    # Drain in-flight requests before shutting down
+    in_flight: InFlightRequests = app.state.in_flight
+    await in_flight.drain()
 
     # Cancel background tasks
     cleanup_task.cancel()
