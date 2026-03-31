@@ -34,3 +34,5 @@ specs/
 
 # Logs
 *.log
+
+.ruff_cache/
