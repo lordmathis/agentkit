@@ -39,14 +39,6 @@ def configure_logging(cfg: LoggingConfig):
 if __name__ == "__main__":
     load_dotenv(override=True)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--watch",
-        action="store_true",
-        help="Exit on plugin/config changes (for use with Docker restart policy)",
-    )
-    args = parser.parse_args()
-
     app_config: AppConfig = load_config("config.yaml")
     configure_logging(app_config.logging)
     app.state.app_config = app_config
