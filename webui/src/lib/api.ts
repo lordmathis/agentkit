@@ -145,6 +145,17 @@ export interface TokenEstimate {
   files: Record<string, number>;
 }
 
+export interface AgentConfig {
+  name: string;
+  system_prompt: string;
+  provider: string;
+  model_id: string;
+  tool_servers: string[];
+  temperature: number | null;
+  max_tokens: number | null;
+  max_iterations: number;
+}
+
 export interface DefaultChatConfig {
   model?: string | null;
   system_prompt?: string | null;
@@ -346,6 +357,10 @@ class ApiClient {
   // Configuration endpoints
   async listModels(): Promise<{ object: string; data: Model[] }> {
     return this.request('/config/models');
+  }
+
+  async listAgents(): Promise<{ agents: AgentConfig[] }> {
+    return this.request('/config/agents');
   }
 
   async getDefaultChatConfig(): Promise<DefaultChatConfig> {

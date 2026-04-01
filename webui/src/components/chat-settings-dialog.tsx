@@ -20,7 +20,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Input } from "./ui/input";
-import { api, type Model, type ToolServer, type ModelParams } from "../lib/api";
+import { api, type Model, type ToolServer, type ModelParams, type AgentConfig } from "../lib/api";
 
 export interface ChatSettings {
   baseModel: string;
@@ -50,10 +50,11 @@ export function ChatSettingsDialog({
   const [toolServers, setToolServers] = useState<ToolServer[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
+  const [agentConfigs, setAgentConfigs] = useState<AgentConfig[]>([]);
 
   useEffect(() => {
     if (open) {
-      void Promise.all([fetchTools(), fetchModels()]);
+      void Promise.all([fetchTools(), fetchModels(), fetchAgents()]);
     }
   }, [open]);
 
@@ -124,6 +125,16 @@ export function ChatSettingsDialog({
     }
   };
 
+  const fetchAgents = async () => {
+    try {
+      const response = await api.listAgents();
+      setAgentConfigs(response.agents);
+    } catch (error) {
+      console.error("Failed to fetch agents:", error);
+      setAgentConfigs([]);
+    }
+  };
+
   const handleSave = async () => {
     // Update local state first
     onSettingsChange(localSettings);
@@ -189,10 +200,26 @@ export function ChatSettingsDialog({
               value={selectedProvider}
               onValueChange={(value) => {
                 setSelectedProvider(value);
-                // Reset model selection when provider changes
                 const modelsForProvider = modelsByProvider[value] || [];
                 if (modelsForProvider.length > 0 && !modelsForProvider.find(m => m.id === localSettings.baseModel)) {
-                  setLocalSettings((prev) => ({ ...prev, baseModel: modelsForProvider[0].id }));
+                  const firstModel = modelsForProvider[0];
+                  const agent = agentConfigs.find((a) => a.name === firstModel.id);
+                  if (agent) {
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      baseModel: firstModel.id,
+                      systemPrompt: agent.system_prompt,
+                      enabledTools: agent.tool_servers,
+                      modelParams: {
+                        ...prev.modelParams,
+                        max_iterations: agent.max_iterations,
+                        temperature: agent.temperature ?? prev.modelParams.temperature,
+                        max_tokens: agent.max_tokens ?? prev.modelParams.max_tokens,
+                      },
+                    }));
+                  } else {
+                    setLocalSettings((prev) => ({ ...prev, baseModel: firstModel.id }));
+                  }
                 }
               }}
               disabled={isLoadingModels}
@@ -215,9 +242,25 @@ export function ChatSettingsDialog({
             <Label htmlFor="base-model">Base Model</Label>
             <Select
               value={localSettings.baseModel}
-              onValueChange={(value) =>
-                setLocalSettings((prev) => ({ ...prev, baseModel: value }))
-              }
+              onValueChange={(value) => {
+                const agent = agentConfigs.find((a) => a.name === value);
+                if (agent) {
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    baseModel: value,
+                    systemPrompt: agent.system_prompt,
+                    enabledTools: agent.tool_servers,
+                    modelParams: {
+                      ...prev.modelParams,
+                      max_iterations: agent.max_iterations,
+                      temperature: agent.temperature ?? prev.modelParams.temperature,
+                      max_tokens: agent.max_tokens ?? prev.modelParams.max_tokens,
+                    },
+                  }));
+                } else {
+                  setLocalSettings((prev) => ({ ...prev, baseModel: value }));
+                }
+              }}
               disabled={isLoadingModels || !selectedProvider}
             >
               <SelectTrigger id="base-model" className="w-full">
