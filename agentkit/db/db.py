@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from agentkit.db.migrations import run_migrations
-from agentkit.db.models import Base, Chat, File, Message, PendingToolApproval
+from agentkit.db.models import Base, Chat, ChatState, File, Message, PendingToolApproval
 
 
 class Database:
@@ -179,6 +179,27 @@ class Database:
                 if chat.model_params
                 else None,
             }
+
+    def get_chat_state(self, chat_id: str) -> Dict:
+        with self.SessionLocal() as session:
+            state = session.get(ChatState, chat_id)
+            if not state:
+                return {}
+            return json.loads(state.state_json) if state.state_json else {}
+
+    def update_chat_state(self, chat_id: str, state: Dict):
+        with self.SessionLocal() as session:
+            existing = session.get(ChatState, chat_id)
+            if existing:
+                existing.state_json = json.dumps(state)
+                existing.updated_at = datetime.now(UTC)
+            else:
+                existing = ChatState(
+                    chat_id=chat_id,
+                    state_json=json.dumps(state),
+                )
+                session.add(existing)
+            session.commit()
 
     def close(self):
         """Close database connections and dispose of the engine"""

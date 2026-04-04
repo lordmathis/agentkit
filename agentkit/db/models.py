@@ -79,6 +79,17 @@ class File(Base):
     __table_args__ = (Index("idx_file_status", "status"),)
 
 
+class ChatState(Base):
+    __tablename__ = "chat_states"
+    chat_id: Mapped[str] = mapped_column(
+        String, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True
+    )
+    state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC)
+    )
+
+
 class PendingToolApproval(Base):
     __tablename__ = "pending_tool_approvals"
     id: Mapped[str] = mapped_column(String, primary_key=True)
