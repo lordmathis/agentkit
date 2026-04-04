@@ -51,7 +51,7 @@ class ToolSetHandler(ABC):
             )
 
     def get_persistent_storage(self):
-        self._tool_manager.get_persistent_storage(self.server_name)
+        return self._tool_manager.get_persistent_storage(self.server_name)
 
     def set_model_context(self, provider: Provider, model_id: str) -> None:
         self._provider = provider

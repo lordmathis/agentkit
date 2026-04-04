@@ -6,6 +6,7 @@ from typing import Dict, Optional, Type
 
 from agentkit.agents.base import BaseAgent
 from agentkit.agents.react import ReActAgent, ReActAgentPlugin
+from agentkit.agents.structured import StructuredAgentPlugin
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.skills.registry import SkillRegistry
@@ -58,7 +59,9 @@ class AgentRegistry:
                 spec.loader.exec_module(module)
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if not issubclass(obj, ReActAgentPlugin) or obj is ReActAgentPlugin:
+                    if not issubclass(
+                        obj, (ReActAgentPlugin, StructuredAgentPlugin)
+                    ) or obj in (ReActAgentPlugin, StructuredAgentPlugin):
                         continue
 
                     required_attrs = ["provider_id", "model_id"]

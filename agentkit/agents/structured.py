@@ -75,9 +75,46 @@ class StructuredAgent(BaseAgent):
         tools = await self._get_tools(self.tool_servers)
 
         try:
-            for _ in range(self.max_iterations):
+            for iteration in range(self.max_iterations):
+                logger.debug(
+                    "Iteration %d — Sending %d messages to LLM (model=%s)",
+                    iteration + 1,
+                    len(messages),
+                    self.model_id,
+                )
+                for i, m in enumerate(messages):
+                    role = m.get("role", "?")
+                    content = m.get("content")
+                    if isinstance(content, str) and len(content) > 500:
+                        content = content[:500] + "... [truncated]"
+                    logger.debug(
+                        "  messages[%d] role=%s content=%s",
+                        i,
+                        role,
+                        content,
+                    )
+
+                if tools:
+                    tool_names = [t["function"]["name"] for t in tools]
+                    logger.debug("Available tools: %s", tool_names)
+
                 response = await self._llm(messages, tools if tools else None)
+                logger.debug(
+                    "LLM raw response: %s",
+                    json.dumps(response, default=str, ensure_ascii=False)[:2000],
+                )
+
                 message_data = response["choices"][0]["message"]
+                logger.debug(
+                    "LLM message — finish_reason=%s, has_tool_calls=%s, content=%s",
+                    response["choices"][0].get("finish_reason"),
+                    bool(message_data.get("tool_calls")),
+                    (
+                        message_data.get("content", "")[:500]
+                        if message_data.get("content")
+                        else None
+                    ),
+                )
 
                 if (
                     not message_data.get("tool_calls")
@@ -85,6 +122,11 @@ class StructuredAgent(BaseAgent):
                 ):
                     user_msg, new_state = self._parse_final_response(
                         message_data.get("content", "")
+                    )
+                    logger.debug(
+                        "Final response — user_message=%s, new_state=%s",
+                        user_msg[:500] if isinstance(user_msg, str) else user_msg,
+                        json.dumps(new_state, default=str, ensure_ascii=False)[:1000],
                     )
                     merged_state = {**self.db.get_chat_state(self.chat_id), **new_state}
                     self.db.update_chat_state(self.chat_id, merged_state)
@@ -115,7 +157,11 @@ class StructuredAgent(BaseAgent):
                     else:
                         tool_args = tool_args_str
 
-                    logger.debug(f"Calling tool: {tool_name}")
+                    logger.debug(
+                        "Calling tool: %s args=%s",
+                        tool_name,
+                        json.dumps(tool_args, default=str, ensure_ascii=False)[:1000],
+                    )
 
                     try:
                         result = await self.tool_manager.call_tool(
@@ -127,6 +173,14 @@ class StructuredAgent(BaseAgent):
                         )
                     except ToolDeniedError as e:
                         result = f"Tool '{e.tool_name}' was denied by the user."
+
+                    result_str = str(result)
+                    logger.debug(
+                        "Tool %s result (len=%d): %s",
+                        tool_name,
+                        len(result_str),
+                        result_str[:1000],
+                    )
 
                     msg = await self._save_message(
                         "tool", str(result), tool_call_id=tool_call["id"]
@@ -160,13 +214,38 @@ class StructuredAgent(BaseAgent):
             logger.error(f"StructuredAgent loop error: {e}")
 
     def _parse_final_response(self, content: str) -> tuple:
+        if not content:
+            return content, {}
+
+        text = content.strip()
+
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+
         try:
-            parsed = json.loads(content)
+            parsed = json.loads(text)
             user_msg = parsed.get("user_message", content)
             new_state = parsed.get("new_state", {})
             return user_msg, new_state
         except (json.JSONDecodeError, TypeError):
-            return content, {}
+            pass
+
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                parsed = json.loads(text[start : end + 1])
+                user_msg = parsed.get("user_message", content)
+                new_state = parsed.get("new_state", {})
+                return user_msg, new_state
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return content, {}
 
     async def chat(self, message: str, file_ids: List[str] = []) -> Dict[str, Any]:
         await self._save_message("user", message, file_ids=file_ids)
