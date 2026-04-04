@@ -83,6 +83,11 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
+class TitleGenerationConfig(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
@@ -96,6 +101,7 @@ class AppConfig(BaseModel):
     transcription: TranscriptionConfig = TranscriptionConfig()
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24
+    title_generation: TitleGenerationConfig = TitleGenerationConfig()
 
 
 def load_config(path: str) -> AppConfig:

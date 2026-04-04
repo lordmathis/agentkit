@@ -7,6 +7,7 @@ from typing import Dict, Optional, Type
 from agentkit.agents.base import BaseAgent
 from agentkit.agents.react import ReActAgent, ReActAgentPlugin
 from agentkit.agents.structured import StructuredAgentPlugin
+from agentkit.config import TitleGenerationConfig
 from agentkit.db.db import Database
 from agentkit.providers.registry import ProviderRegistry
 from agentkit.skills.registry import SkillRegistry
@@ -27,7 +28,9 @@ class AgentRegistry:
         self.provider_registry = provider_registry
         self.tool_manager = tool_manager
         self.agents_dir = agents_dir
-        self._agent_classes: Dict[str, Type[ReActAgentPlugin | StructuredAgentPlugin]] = {}
+        self._agent_classes: Dict[
+            str, Type[ReActAgentPlugin | StructuredAgentPlugin]
+        ] = {}
         self._register_agents()
 
     def _register_agents(self):
@@ -90,7 +93,9 @@ class AgentRegistry:
 
         logger.info(f"Registered {len(self._agent_classes)} agent(s)")
 
-    def get_agent_class(self, name: str) -> Optional[Type[ReActAgentPlugin | StructuredAgentPlugin]]:
+    def get_agent_class(
+        self, name: str
+    ) -> Optional[Type[ReActAgentPlugin | StructuredAgentPlugin]]:
         """Retrieve an agent class by name."""
         return self._agent_classes.get(name)
 
@@ -116,12 +121,14 @@ class AgentManager:
         agent_registry: AgentRegistry,
         tool_manager: ToolManager,
         skill_registry: Optional[SkillRegistry] = None,
+        title_generation: Optional[TitleGenerationConfig] = None,
     ):
         self.db = db
         self.provider_registry = provider_registry
         self.agent_registry = agent_registry
         self.tool_manager = tool_manager
         self.skill_registry = skill_registry
+        self.title_generation = title_generation
         self._agents: Dict[str, BaseAgent] = {}
 
     def _resolve_agent_params(
@@ -151,6 +158,27 @@ class AgentManager:
             ),
         }
 
+    def _resolve_title_params(self) -> Dict:
+        if not self.title_generation:
+            return {}
+
+        title_provider = None
+        if self.title_generation.provider:
+            title_provider = self.provider_registry.get_provider(
+                self.title_generation.provider
+            )
+            if not title_provider:
+                logger.warning(
+                    f"Title generation provider '{self.title_generation.provider}' not found, "
+                    f"falling back to default"
+                )
+                return {}
+
+        return {
+            "title_provider": title_provider,
+            "title_model_id": self.title_generation.model,
+        }
+
     def _hydrate(self, chat_id: str, config: dict) -> BaseAgent:
         """Instantiate agent from config dict without persisting."""
         model = config.get("model")
@@ -164,6 +192,7 @@ class AgentManager:
                 raise ValueError(f"Provider '{provider_name}' not found")
 
             params = self._resolve_agent_params(config)
+            title_params = self._resolve_title_params()
             return ReActAgent(
                 chat_id=chat_id,
                 db=self.db,
@@ -172,6 +201,7 @@ class AgentManager:
                 model_id=model_id,
                 skill_registry=self.skill_registry,
                 **params,
+                **title_params,
             )
 
         agent_class = self.agent_registry.get_agent_class(model)
@@ -190,6 +220,7 @@ class AgentManager:
             "max_iterations": agent_class.max_iterations,
         }
         params = self._resolve_agent_params(config, defaults)
+        title_params = self._resolve_title_params()
 
         agent = agent_class(
             chat_id=chat_id,
@@ -199,6 +230,7 @@ class AgentManager:
             model_id=agent_class.model_id,
             skill_registry=self.skill_registry,
             **params,
+            **title_params,
         )
         agent.post_init()
         return agent

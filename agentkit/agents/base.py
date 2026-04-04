@@ -36,6 +36,8 @@ class BaseAgent(ABC):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         max_iterations: int = 5,
+        title_provider: Optional[Provider] = None,
+        title_model_id: Optional[str] = None,
     ):
         self.chat_id = chat_id
         self.db = db
@@ -49,6 +51,10 @@ class BaseAgent(ABC):
         self.max_tokens = max_tokens
         self.max_iterations = max_iterations
         self._llm_client = provider.get_llm_client()
+        self._title_llm_client = (
+            title_provider.get_llm_client() if title_provider else None
+        )
+        self._title_model_id = title_model_id
 
     @abstractmethod
     async def _get_iteration_context(
@@ -437,6 +443,6 @@ class BaseAgent(ABC):
         )
 
     async def _generate_title(self) -> None:
-        asyncio.create_task(
-            generate_title(self.chat_id, self.db, self._llm_client, self.model_id)
-        )
+        client = self._title_llm_client or self._llm_client
+        model = self._title_model_id or self.model_id
+        asyncio.create_task(generate_title(self.chat_id, self.db, client, model))

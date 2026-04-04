@@ -102,6 +102,7 @@ async def lifespan(app: FastAPI):
         agent_registry=model_registry,
         tool_manager=tool_manager,
         skill_registry=skill_registry,
+        title_generation=app_config.title_generation,
     )
     app.state.agent_manager = agent_manager
 
