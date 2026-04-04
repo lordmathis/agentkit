@@ -27,7 +27,7 @@ class AgentRegistry:
         self.provider_registry = provider_registry
         self.tool_manager = tool_manager
         self.agents_dir = agents_dir
-        self._agent_classes: Dict[str, Type[ReActAgentPlugin]] = {}
+        self._agent_classes: Dict[str, Type[ReActAgentPlugin | StructuredAgentPlugin]] = {}
         self._register_agents()
 
     def _register_agents(self):
@@ -90,7 +90,7 @@ class AgentRegistry:
 
         logger.info(f"Registered {len(self._agent_classes)} agent(s)")
 
-    def get_agent_class(self, name: str) -> Optional[Type[ReActAgentPlugin]]:
+    def get_agent_class(self, name: str) -> Optional[Type[ReActAgentPlugin | StructuredAgentPlugin]]:
         """Retrieve an agent class by name."""
         return self._agent_classes.get(name)
 
@@ -216,6 +216,10 @@ class AgentManager:
         self._agents[chat_id] = agent
 
         model = config.get("model")
+
+        if model is None:
+            raise ValueError("Model is required in config")
+
         system_prompt = config.get("system_prompt")
         tool_servers = config.get("tool_servers") or []
         model_params = config.get("model_params") or {}
