@@ -23,6 +23,9 @@ node_modules/
 # Config files
 config.yaml
 
+# Data
+data/
+
 # Uploads
 uploads/
 

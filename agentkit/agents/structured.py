@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class StructuredAgent(BaseAgent):
-    structured_system_prefix: str = (
+    system_prompt: str = (
         "You are a stateful agent that maintains persistent state across conversation "
         "turns. You receive a CURRENT STATE object and must return an updated state "
         "along with a message to the user.\n\n"
@@ -78,10 +78,7 @@ class StructuredAgent(BaseAgent):
         self, message: str
     ) -> List[ChatCompletionMessageParam]:
         state = self.db.get_chat_state(self.chat_id)
-        system_content = self.structured_system_prefix
-        if self.system_prompt:
-            system_content += "\n\n" + self.system_prompt
-        system_content += f"\n\nCURRENT STATE: {json.dumps(state)}"
+        system_content = self.system_prompt + f"\n\nCURRENT STATE: {json.dumps(state)}"
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system_content},
@@ -380,7 +377,6 @@ class StructuredAgentPlugin(StructuredAgent):
     name: str = ""
     provider_id: str = ""
     model_id: str = ""
-    system_prompt: str = ""
     tool_servers: List[str] = []
     max_iterations: int = 5
     temperature: Optional[float] = None
