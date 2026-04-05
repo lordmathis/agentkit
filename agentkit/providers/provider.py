@@ -4,7 +4,7 @@ from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 
 from agentkit.config import ProviderConfig, ProviderType
-from agentkit.providers.client_base import AnthropicClient, LLMClient, OpenAIClient
+from agentkit.providers.clients import AnthropicClient, LLMClient, OpenAIClient
 
 
 class Provider:

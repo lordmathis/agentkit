@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from agentkit.agents.context.messages import extract_text_content
 from agentkit.db.db import Database
-from agentkit.providers.client_base import LLMClient
+from agentkit.providers.clients import LLMClient
 
 logger = logging.getLogger(__name__)
 
