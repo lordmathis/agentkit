@@ -12,13 +12,13 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
     """
     Transcribe an audio file using the configured ASR service.
     """
-    transcription_cfg = request.app.state.app_config.transcription
+    transcription_cfg = request.app.state.app_config.audio.transcription
 
     # Check if transcription service is configured
     if not transcription_cfg.base_url:
         raise HTTPException(
             status_code=503,
-            detail="Transcription service not configured. Please set transcription.base_url in config.yaml",
+            detail="Transcription service not configured. Please set audio.transcription.base_url in config.yaml",
         )
 
     # Read the audio file
@@ -88,3 +88,52 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
                 os.unlink(temp_file.name)
             except Exception:
                 pass
+
+
+@router.post("/media/speech")
+async def generate_speech(request: Request, input: str):
+    """
+    Generate audio from text using the configured TTS service.
+    """
+    tts_cfg = request.app.state.app_config.audio.tts
+
+    if not tts_cfg.base_url:
+        raise HTTPException(
+            status_code=503,
+            detail="TTS service not configured. Please set audio.tts.base_url in config.yaml",
+        )
+
+    payload = {"model": tts_cfg.model, "input": input, "voice": tts_cfg.voice}
+    if tts_cfg.response_format:
+        payload["response_format"] = tts_cfg.response_format
+    if tts_cfg.speed:
+        payload["speed"] = tts_cfg.speed
+
+    headers = {"Content-Type": "application/json"}
+    if tts_cfg.api_key:
+        headers["Authorization"] = f"Bearer {tts_cfg.api_key}"
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{tts_cfg.base_url}/v1/audio/speech",
+                json=payload,
+                headers=headers,
+                timeout=60.0,
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"TTS service error: {response.text}",
+                )
+
+            return response.content
+
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="TTS service timeout")
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to connect to TTS service: {str(e)}",
+            )

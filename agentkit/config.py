@@ -76,6 +76,20 @@ class TranscriptionConfig(BaseModel):
     api_key: Optional[str] = None
 
 
+class TTSConfig(BaseModel):
+    model: str = "tts-1"
+    voice: str = "alloy"
+    response_format: Optional[str] = None
+    speed: Optional[float] = None
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class AudioConfig(BaseModel):
+    transcription: TranscriptionConfig = TranscriptionConfig()
+    tts: TTSConfig = TTSConfig()
+
+
 class LoggingConfig(BaseModel):
     target: str = "agentkit.log"  # file path, or "stdout"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -98,7 +112,7 @@ class AppConfig(BaseModel):
     data_dir: str = "data"
     mcp_timeout: int = 60
     connectors: Dict[str, ConnectorsConfig] = {}
-    transcription: TranscriptionConfig = TranscriptionConfig()
+    audio: AudioConfig = AudioConfig()
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24
     title_generation: TitleGenerationConfig = TitleGenerationConfig()
