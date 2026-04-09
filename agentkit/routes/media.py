@@ -91,7 +91,7 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
 
 
 @router.post("/media/speech")
-async def generate_speech(request: Request, input: str):
+async def generate_speech(request: Request, body: dict):
     """
     Generate audio from text using the configured TTS service.
     """
@@ -103,7 +103,8 @@ async def generate_speech(request: Request, input: str):
             detail="TTS service not configured. Please set audio.tts.base_url in config.yaml",
         )
 
-    payload = {"model": tts_cfg.model, "input": input, "voice": tts_cfg.voice}
+    input_text = body.get("input", "")
+    payload = {"model": tts_cfg.model, "input": input_text, "voice": tts_cfg.voice}
     if tts_cfg.response_format:
         payload["response_format"] = tts_cfg.response_format
     if tts_cfg.speed:

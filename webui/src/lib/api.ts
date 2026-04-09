@@ -449,6 +449,22 @@ class ApiClient {
 
     return response.json();
   }
+
+  async generateSpeech(text: string): Promise<Blob> {
+    const url = `${this.baseURL}/media/speech`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: text }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.blob();
+  }
 }
 
 export const api = new ApiClient();

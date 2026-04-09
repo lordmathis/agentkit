@@ -1,4 +1,4 @@
-import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check, Link } from "lucide-react";
+import { Bot, User, Brain, File, GitBranch, RotateCw, Edit2, Copy, Check, Link, Volume2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -88,6 +88,7 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
   const isUser = message.role === "user";
   const [showReasoning, setShowReasoning] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -96,6 +97,29 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleTTS = async () => {
+    if (isSpeaking) return;
+    try {
+      setIsSpeaking(true);
+      const { api } = await import("../lib/api");
+      const audioBlob = await api.generateSpeech(message.content);
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsSpeaking(false);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsSpeaking(false);
+      };
+      await audio.play();
+    } catch (err) {
+      console.error("Failed to speak:", err);
+      setIsSpeaking(false);
     }
   };
 
@@ -353,6 +377,28 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   <p>{copied ? "Copied!" : "Copy"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {!isUser && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleTTS}
+                    disabled={isSpeaking}
+                  >
+                    <Volume2 className={cn("h-4 w-4", isSpeaking && "animate-pulse")} />
+                    <span className="sr-only">Speak</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>{isSpeaking ? "Speaking..." : "Speak"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
