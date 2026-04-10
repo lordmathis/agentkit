@@ -271,6 +271,7 @@ export function ChatInput({
             style={{
               clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)",
               background: "#10100e",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             }}
             rows={1}
             disabled={isSending || !currentConversationId}
