@@ -3,6 +3,7 @@ import tempfile
 
 import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 
 router = APIRouter()
 
@@ -129,7 +130,10 @@ async def generate_speech(request: Request, body: dict):
                     detail=f"TTS service error: {response.text}",
                 )
 
-            return response.content
+            return Response(
+                content=response.content,
+                media_type=f"audio/{tts_cfg.response_format or 'wav'}",
+            )
 
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="TTS service timeout")
