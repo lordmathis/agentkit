@@ -69,8 +69,8 @@ export function Sidebar({
           {/* Action Bar */}
           <div className="px-3 py-4">
             <Button
-              variant="outline"
-              className="w-full justify-between gap-2 text-[10px] h-10 border-primary/20 hover:border-primary/50 bg-primary/5 group"
+variant="outline"
+               className="w-full justify-between gap-2 text-[14px] h-10 border-primary/20 hover:border-primary/50 bg-primary/5 group text-cyan"
               onClick={onNewConversation}
             >
               <span className="flex items-center gap-2">

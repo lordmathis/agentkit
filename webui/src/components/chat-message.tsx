@@ -344,7 +344,7 @@ export function ChatMessage({ message, onBranch, onRetry, onEdit, isLastUserMess
           </div>
         )}
         
-        <div className="text-foreground/90" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.02em', lineHeight: '1.6' }}>
+        <div className="text-foreground/90" style={{ lineHeight: '1.6' }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkBreaks]}
             rehypePlugins={[rehypeHighlight]}
