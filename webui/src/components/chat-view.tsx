@@ -49,9 +49,9 @@ export function ChatView() {
 
   useEffect(() => {
     if (currentChatTitle) {
-      document.title = `${currentChatTitle} - AgentKit Chat`;
+      document.title = `${currentChatTitle} - Mikoshi Chat`;
     } else {
-      document.title = "AgentKit Chat";
+      document.title = "Mikoshi Chat";
     }
   }, [currentChatTitle]);
 

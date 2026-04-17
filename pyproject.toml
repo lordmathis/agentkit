@@ -28,10 +28,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agentkit"]
+packages = ["mikoshi"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"webui/dist" = "agentkit/static"
+"webui/dist" = "mikoshi/static"
 
 [tool.hatch.metadata]
 allow-direct-references = true

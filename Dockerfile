@@ -24,7 +24,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 COPY pyproject.toml ./
 RUN uv sync --no-dev
 
-COPY agentkit/ ./agentkit/
+COPY mikoshi/ ./mikoshi/
 COPY --from=webui-builder /app/webui/dist ./webui/dist
 
 EXPOSE 8000
@@ -34,4 +34,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uv", "run", "python", "-m", "agentkit.main"]
+CMD ["uv", "run", "python", "-m", "mikoshi.main"]

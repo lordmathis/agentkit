@@ -1,4 +1,4 @@
-# AgentKit
+# Mikoshi
 
 A flexible chat client with Web UI that integrates multiple AI providers, tools, and agent frameworks through a unified plugin architecture.
 
@@ -44,7 +44,7 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
 2. **Start the server:**
    ```bash
    source .venv/bin/activate  # Activate virtual environment
-   python -m agentkit.main
+   python -m mikoshi.main
    ```
 
    Server will start on `http://localhost:8000` with the Web UI served at the same address
@@ -53,17 +53,17 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
 
 1. **Build the Docker image:**
     ```bash
-    docker build -t agentkit .
+    docker build -t mikoshi .
     ```
 
    For multi-platform builds (amd64 and arm64):
     ```bash
-    docker buildx build --platform linux/amd64,linux/arm64 -t agentkit --load .
+    docker buildx build --platform linux/amd64,linux/arm64 -t mikoshi --load .
     ```
 
    For arm64 only:
     ```bash
-    docker buildx build --platform linux/arm64 -t agentkit --load .
+    docker buildx build --platform linux/arm64 -t mikoshi --load .
     ```
 
 2. **Run the container:**
@@ -71,14 +71,14 @@ A flexible chat client with Web UI that integrates multiple AI providers, tools,
    ```bash
    docker run -p 8000:8000 \
      -v $(pwd)/config.yaml:/app/config.yaml \
-     -v $(pwd)/agentkit.db:/app/agentkit.db \
+     -v $(pwd)/mikoshi.db:/app/mikoshi.db \
      -e OPENROUTER_API_KEY=your_key_here \
-     agentkit
+     mikoshi
    ```
 
 ## Configuration
 
-AgentKit uses a YAML configuration file (`config.yaml`) to set up providers, MCP servers, and plugins. Environment variables can be referenced using `${ENV_VAR}` syntax, which will be automatically expanded with values from your environment.
+Mikoshi uses a YAML configuration file (`config.yaml`) to set up providers, MCP servers, and plugins. Environment variables can be referenced using `${ENV_VAR}` syntax, which will be automatically expanded with values from your environment.
 
 ### Server Configuration
 
@@ -211,7 +211,7 @@ transcription:
 
 ```yaml
 logging:
-  target: "agentkit.log"  # File path, or "stdout" for console output
+  target: "mikoshi.log"  # File path, or "stdout" for console output
   level: "INFO"           # DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   date_format: "%Y-%m-%d %H:%M:%S"
@@ -220,7 +220,7 @@ logging:
 ### Additional Configuration Options
 
 ```yaml
-history_db_path: "agentkit.db"       # SQLite database for conversation history
+history_db_path: "mikoshi.db"       # SQLite database for conversation history
 uploads_dir: "uploads"               # Directory for uploaded files
 data_dir: "data"                     # Directory for tool data storage
 file_retention_hours: 24             # Hours before orphan files are cleaned up
@@ -231,7 +231,7 @@ title_generation:                    # Optional: use a separate model for chat t
 
 ## Available Tools
 
-AgentKit provides tools from multiple sources that agents can use:
+Mikoshi provides tools from multiple sources that agents can use:
 
 ### Custom Tool Plugins
 
@@ -243,7 +243,7 @@ Configure any MCP-compatible server in your `config.yaml` under the `mcps:` sect
 
 ## Plugins
 
-AgentKit has a flexible plugin architecture supporting three types of plugins:
+Mikoshi has a flexible plugin architecture supporting three types of plugins:
 
 ### 1. Agent Plugins
 
@@ -254,7 +254,7 @@ Agent plugins allow you to create custom chat agents with specific configuration
 Standard ReAct-style tool-calling agents. Create a Python file in the configured `agents_dir` (e.g., `plugins/agents/my_agent.py`):
 
 ```python
-from agentkit.agents import ReActAgentPlugin
+from mikoshi.agents import ReActAgentPlugin
 
 
 class MyAgent(ReActAgentPlugin):
@@ -274,7 +274,7 @@ class MyAgent(ReActAgentPlugin):
 Stateful agents that maintain JSON state across conversation turns. Useful for agents that need to track context (e.g., workout logging, task management):
 
 ```python
-from agentkit.agents import StructuredAgentPlugin
+from mikoshi.agents import StructuredAgentPlugin
 
 
 class StatefulAgent(StructuredAgentPlugin):
@@ -313,7 +313,7 @@ class MyAgent(ReActAgentPlugin):
 
 ### 2. Tool Plugins
 
-Tool plugins extend AgentKit with custom capabilities. They inherit from `ToolSetHandler` and use decorators to define individual tools.
+Tool plugins extend Mikoshi with custom capabilities. They inherit from `ToolSetHandler` and use decorators to define individual tools.
 
 **Creating a Tool Plugin:**
 
@@ -321,7 +321,7 @@ Tool plugins extend AgentKit with custom capabilities. They inherit from `ToolSe
 2. Inherit from `ToolSetHandler`, set `server_name` as a class attribute, and define tools using the `@tool` decorator:
 
 ```python
-from agentkit.tools.toolset_handler import ToolSetHandler, tool
+from mikoshi.tools.toolset_handler import ToolSetHandler, tool
 
 
 class MyTools(ToolSetHandler):
@@ -359,7 +359,7 @@ class MyTools(ToolSetHandler):
 **Advanced Example:**
 
 ```python
-from agentkit.tools.toolset_handler import ToolSetHandler, tool
+from mikoshi.tools.toolset_handler import ToolSetHandler, tool
 
 
 class AdvancedTools(ToolSetHandler):

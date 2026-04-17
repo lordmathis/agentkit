@@ -9,7 +9,7 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "agentkit.main"
+            "module": "mikoshi.main"
         }
     ]
 }

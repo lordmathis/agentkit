@@ -46,7 +46,7 @@ export function ChatHeader({ sidebarOpen, onToggleSidebar, chatTitle }: ChatHead
             className="text-sm font-bold text-primary uppercase tracking-[0.15em]"
             style={{ fontFamily: 'var(--font-mono)', fontSize: '16px' }}
           >
-            AgentKit
+            Mikoshi
           </h1>
           {chatTitle && (
             <p className="cp-label text-muted-foreground truncate mt-0.5">
