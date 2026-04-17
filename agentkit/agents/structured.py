@@ -56,6 +56,8 @@ class StructuredAgent(BaseAgent):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         max_iterations: int = 5,
+        title_provider: Optional[Provider] = None,
+        title_model_id: Optional[str] = None,
     ):
         super().__init__(
             chat_id=chat_id,
@@ -69,6 +71,8 @@ class StructuredAgent(BaseAgent):
             temperature=temperature,
             max_tokens=max_tokens,
             max_iterations=max_iterations,
+            title_provider=title_provider,
+            title_model_id=title_model_id,
         )
 
     async def _get_iteration_context(
