@@ -10,6 +10,7 @@ def run_migrations(engine):
         _migrate_drop_file_attachments_table(conn)
         _migrate_tool_call_id_column(conn)
         _migrate_file_source_column(conn)
+        _migrate_chat_workspace_id_column(conn)
         conn.commit()
 
 
@@ -59,3 +60,19 @@ def _migrate_file_source_column(conn):
         logger.info("Column source added to files table.")
     else:
         logger.debug("Column source already exists in files table.")
+
+
+def _migrate_chat_workspace_id_column(conn):
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("chats")]
+
+    if "workspace_id" not in columns:
+        logger.info("Adding workspace_id column to chats table...")
+        conn.execute(
+            text(
+                "ALTER TABLE chats ADD COLUMN workspace_id TEXT REFERENCES workspaces(id) ON DELETE SET NULL"
+            )
+        )
+        logger.info("Column workspace_id added to chats table.")
+    else:
+        logger.debug("Column workspace_id already exists in chats table.")

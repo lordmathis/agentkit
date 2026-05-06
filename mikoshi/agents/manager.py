@@ -7,7 +7,7 @@ from typing import Dict, Optional, Type
 from mikoshi.agents.base import BaseAgent
 from mikoshi.agents.react import ReActAgent, ReActAgentPlugin
 from mikoshi.agents.structured import StructuredAgentPlugin
-from mikoshi.config import TitleGenerationConfig
+from mikoshi.config import TitleGenerationConfig, WorkspaceConfig
 from mikoshi.db.db import Database
 from mikoshi.providers.registry import ProviderRegistry
 from mikoshi.skills.registry import SkillRegistry
@@ -120,6 +120,8 @@ class AgentManager:
         provider_registry: ProviderRegistry,
         agent_registry: AgentRegistry,
         tool_manager: ToolManager,
+        data_dir: str,
+        workspace_config: WorkspaceConfig,
         skill_registry: Optional[SkillRegistry] = None,
         title_generation: Optional[TitleGenerationConfig] = None,
     ):
@@ -129,6 +131,8 @@ class AgentManager:
         self.tool_manager = tool_manager
         self.skill_registry = skill_registry
         self.title_generation = title_generation
+        self.data_dir = data_dir
+        self.workspace_config = workspace_config
         self._agents: Dict[str, BaseAgent] = {}
 
     def _resolve_agent_params(
@@ -185,6 +189,14 @@ class AgentManager:
         if not model:
             raise ValueError("Model is required")
 
+        chat = self.db.get_chat(chat_id)
+        workspace_id = chat.workspace_id if chat else None
+        connector_name = None
+        if workspace_id:
+            workspace = self.db.get_workspace(workspace_id)
+            if workspace:
+                connector_name = workspace.connector
+
         if ":" in model:
             provider_name, model_id = model.split(":", 1)
             provider = self.provider_registry.get_provider(provider_name)
@@ -192,6 +204,11 @@ class AgentManager:
                 raise ValueError(f"Provider '{provider_name}' not found")
 
             params = self._resolve_agent_params(config)
+            if workspace_id:
+                servers = list(params.get("tool_servers", []))
+                if "workspace" not in servers:
+                    servers.append("workspace")
+                params["tool_servers"] = servers
             title_params = self._resolve_title_params()
             return ReActAgent(
                 chat_id=chat_id,
@@ -200,6 +217,10 @@ class AgentManager:
                 tool_manager=self.tool_manager,
                 model_id=model_id,
                 skill_registry=self.skill_registry,
+                workspace_id=workspace_id,
+                data_dir=self.data_dir,
+                connector_name=connector_name,
+                workspace_config=self.workspace_config,
                 **params,
                 **title_params,
             )
@@ -220,6 +241,11 @@ class AgentManager:
             "max_iterations": agent_class.max_iterations,
         }
         params = self._resolve_agent_params(config, defaults)
+        if workspace_id:
+            servers = list(params.get("tool_servers", []))
+            if "workspace" not in servers:
+                servers.append("workspace")
+            params["tool_servers"] = servers
         title_params = self._resolve_title_params()
 
         agent = agent_class(
@@ -229,6 +255,10 @@ class AgentManager:
             tool_manager=self.tool_manager,
             model_id=agent_class.model_id,
             skill_registry=self.skill_registry,
+            workspace_id=workspace_id,
+            data_dir=self.data_dir,
+            connector_name=connector_name,
+            workspace_config=self.workspace_config,
             **params,
             **title_params,
         )

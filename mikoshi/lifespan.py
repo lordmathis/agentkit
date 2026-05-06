@@ -13,6 +13,7 @@ from mikoshi.middleware import InFlightRequests
 from mikoshi.providers.registry import ProviderRegistry
 from mikoshi.skills import SkillRegistry
 from mikoshi.tools.manager import ToolManager
+from mikoshi.workspace import WorkspaceService
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,9 @@ async def lifespan(app: FastAPI):
             app_config.data_dir,
             app_config.plugins.tools_dir,
             app_config.mcps,
-            database,
+            app_config.connectors,
             app_config.mcp_timeout,
+            database,
         )
         await tool_manager.start()
         app.state.tool_manager = tool_manager
@@ -101,10 +103,20 @@ async def lifespan(app: FastAPI):
         provider_registry=provider_registry,
         agent_registry=model_registry,
         tool_manager=tool_manager,
+        data_dir=app_config.data_dir,
+        workspace_config=app_config.workspace,
         skill_registry=skill_registry,
         title_generation=app_config.title_generation,
     )
     app.state.agent_manager = agent_manager
+
+    # Initialize workspace service
+    logger.info("Initializing workspace service...")
+    workspace_service = WorkspaceService(
+        data_dir=app_config.data_dir,
+        connectors_config=app_config.connectors,
+    )
+    app.state.workspace_service = workspace_service
 
     # Initialize model cache
     app.state.models_cache = None

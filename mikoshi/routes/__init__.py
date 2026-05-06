@@ -5,10 +5,11 @@ from mikoshi.routes import (
     chats,
     config,
     connectors,
+    files,
     media,
     skills,
     tools,
-    files,
+    workspaces,
 )
 
 
@@ -23,3 +24,4 @@ def register_routes(app: FastAPI):
     app.include_router(media.router, prefix=prefix, tags=["media"])
     app.include_router(skills.router, prefix=prefix, tags=["skills"])
     app.include_router(tools.router, prefix=prefix, tags=["tools"])
+    app.include_router(workspaces.router, prefix=prefix, tags=["workspaces"])

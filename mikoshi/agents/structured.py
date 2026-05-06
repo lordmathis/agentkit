@@ -50,6 +50,7 @@ class StructuredAgent(BaseAgent):
         provider: Provider,
         tool_manager: ToolManager,
         model_id: str,
+        data_dir: str,
         system_prompt: str = "",
         tool_servers: List[str] = [],
         skill_registry: Optional[SkillRegistry] = None,
@@ -58,6 +59,9 @@ class StructuredAgent(BaseAgent):
         max_iterations: int = 5,
         title_provider: Optional[Provider] = None,
         title_model_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        connector_name: Optional[str] = None,
+        workspace_config=None,
     ):
         super().__init__(
             chat_id=chat_id,
@@ -73,6 +77,10 @@ class StructuredAgent(BaseAgent):
             max_iterations=max_iterations,
             title_provider=title_provider,
             title_model_id=title_model_id,
+            workspace_id=workspace_id,
+            data_dir=data_dir,
+            connector_name=connector_name,
+            workspace_config=workspace_config,
         )
 
     async def _get_iteration_context(

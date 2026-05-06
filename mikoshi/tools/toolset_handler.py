@@ -77,10 +77,15 @@ class ToolSetHandler(ABC):
             f"[{self.server_name}] Calling tool '{tool_name}' with arguments: {arguments}"
         )
 
+        kwargs = dict(arguments)
+        sig = inspect.signature(tool_def.func)
+        if "context" in sig.parameters:
+            kwargs["context"] = context
+
         if inspect.iscoroutinefunction(tool_def.func):
-            result = await tool_def.func(**arguments)
+            result = await tool_def.func(**kwargs)
         else:
-            result = tool_def.func(**arguments)
+            result = tool_def.func(**kwargs)
 
         logger.debug(
             f"[{self.server_name}] Tool '{tool_name}' returned: type={type(result)}, value={result}"

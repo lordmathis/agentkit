@@ -17,6 +17,19 @@ class Base(DeclarativeBase):
     pass
 
 
+class Workspace(Base):
+    __tablename__ = "workspaces"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    repo_url: Mapped[str] = mapped_column(String)
+    local_path: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    connector: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC)
+    )
+
+
 class Chat(Base):
     __tablename__ = "chats"
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -31,6 +44,9 @@ class Chat(Base):
     model_params: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
     )  # JSON object as string
+    workspace_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

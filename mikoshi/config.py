@@ -102,6 +102,11 @@ class TitleGenerationConfig(BaseModel):
     model: Optional[str] = None
 
 
+class WorkspaceConfig(BaseModel):
+    git_user_name: str = "Mikoshi Agent"
+    git_user_email: str = "agent@mikoshi"
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     providers: Dict[str, ProviderConfig] = {}
@@ -116,6 +121,7 @@ class AppConfig(BaseModel):
     logging: LoggingConfig = LoggingConfig()
     file_retention_hours: int = 24
     title_generation: TitleGenerationConfig = TitleGenerationConfig()
+    workspace: WorkspaceConfig = WorkspaceConfig()
 
 
 def load_config(path: str) -> AppConfig:

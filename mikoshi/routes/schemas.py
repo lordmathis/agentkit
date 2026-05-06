@@ -61,6 +61,7 @@ def serialize_chat(
         "system_prompt": chat.system_prompt,
         "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
         "model_params": json.loads(chat.model_params) if chat.model_params else None,
+        "workspace_id": chat.workspace_id,
     }
     if messages is not None:
         result["messages"] = [

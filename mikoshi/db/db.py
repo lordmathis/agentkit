@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from mikoshi.db.migrations import run_migrations
-from mikoshi.db.models import Base, Chat, ChatState, File, Message, PendingToolApproval
+from mikoshi.db.models import Base, Chat, ChatState, File, Message, PendingToolApproval, Workspace
 
 
 class Database:
@@ -461,3 +461,39 @@ class Database:
                 session.delete(f)
             session.commit()
         return ids
+
+    def create_workspace(
+        self, name: str, repo_url: str, connector: Optional[str] = None
+    ) -> Workspace:
+        with self.SessionLocal() as session:
+            workspace = Workspace(
+                id=str(uuid.uuid4()), name=name, repo_url=repo_url, connector=connector
+            )
+            session.add(workspace)
+            session.commit()
+            session.refresh(workspace)
+            return workspace
+
+    def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
+        with self.SessionLocal() as session:
+            return session.get(Workspace, workspace_id)
+
+    def list_workspaces(self) -> List[Workspace]:
+        with self.SessionLocal() as session:
+            stmt = select(Workspace).order_by(Workspace.updated_at.desc())
+            result = session.execute(stmt)
+            return list(result.scalars().all())
+
+    def delete_workspace(self, workspace_id: str):
+        with self.SessionLocal() as session:
+            workspace = session.get(Workspace, workspace_id)
+            if workspace:
+                session.delete(workspace)
+                session.commit()
+
+    def get_workspace_by_chat(self, chat_id: str) -> Optional[Workspace]:
+        with self.SessionLocal() as session:
+            chat = session.get(Chat, chat_id)
+            if not chat or not chat.workspace_id:
+                return None
+            return session.get(Workspace, chat.workspace_id)

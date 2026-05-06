@@ -6,7 +6,7 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from mikoshi.config import MCPConfig
+from mikoshi.config import ConnectorsConfig, MCPConfig
 from mikoshi.db.db import Database
 from mikoshi.storage import get_persistent_storage
 from mikoshi.tools.approval import PendingApproval, ToolDeniedError
@@ -24,8 +24,9 @@ class ToolManager:
         data_dir: str,
         tools_dir: str,
         servers: Dict[str, MCPConfig],
-        db: Optional[Database] = None,
+        connectors_config: Dict[str, ConnectorsConfig] = {},
         mcp_timeout: int = 30,
+        db: Optional[Database] = None,
     ):
         self._server_map: Dict[str, ToolHandler] = {}
         self._data_dir = data_dir
@@ -34,6 +35,7 @@ class ToolManager:
         self.mcp_timeout = mcp_timeout
         self.mcp_exit_stack = AsyncExitStack()
         self._pending_approvals: Dict[str, PendingApproval] = {}
+        self._connectors_config = connectors_config
 
         self._mcp_handlers: Dict[str, MCPToolHandler] = {}
         for server_name, config in servers.items():
@@ -95,6 +97,10 @@ class ToolManager:
 
     def get_persistent_storage(self, tool_server_name):
         return get_persistent_storage(self._data_dir, tool_server_name)
+
+    def get_connector_token(self, connector_name: str) -> str | None:
+        cfg = self._connectors_config.get(connector_name)
+        return cfg.token if cfg else None
 
     async def start(self):
         """Initialize all handlers"""

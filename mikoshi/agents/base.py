@@ -15,7 +15,7 @@ from mikoshi.db.models import Message
 from mikoshi.providers.provider import Provider
 from mikoshi.skills.registry import SkillRegistry
 from mikoshi.tools.approval import ToolDeniedError
-from mikoshi.tools.context import ToolCallContext
+from mikoshi.tools.context import ToolCallContext, WorkspaceContext
 from mikoshi.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ class BaseAgent(ABC):
         provider: Provider,
         tool_manager: ToolManager,
         model_id: str,
+        data_dir: str,
         system_prompt: str = "",
         tool_servers: List[str] = [],
         skill_registry: Optional[SkillRegistry] = None,
@@ -39,6 +40,9 @@ class BaseAgent(ABC):
         max_iterations: int = 5,
         title_provider: Optional[Provider] = None,
         title_model_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        connector_name: Optional[str] = None,
+        workspace_config=None,
     ):
         self.chat_id = chat_id
         self.db = db
@@ -51,6 +55,10 @@ class BaseAgent(ABC):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.max_iterations = max_iterations
+        self.workspace_id = workspace_id
+        self.data_dir = data_dir
+        self.connector_name = connector_name
+        self._workspace_config = workspace_config
         self._llm_client = provider.get_llm_client()
         self._title_llm_client = (
             title_provider.get_llm_client() if title_provider else None
@@ -160,10 +168,23 @@ class BaseAgent(ABC):
                     )
 
                     try:
+                        workspace_ctx = None
+                        if self.workspace_id:
+                            from mikoshi.config import WorkspaceConfig
+
+                            wc = self._workspace_config or WorkspaceConfig()
+                            workspace_ctx = WorkspaceContext(
+                                workspace_id=self.workspace_id,
+                                data_dir=self.data_dir,
+                                connector=self.connector_name,
+                                git_user_name=wc.git_user_name,
+                                git_user_email=wc.git_user_email,
+                            )
                         ctx = ToolCallContext(
                             provider=self.provider,
                             model_id=self.model_id,
                             chat_id=self.chat_id,
+                            workspace=workspace_ctx,
                         )
                         result = await self.tool_manager.call_tool(
                             tool_name,

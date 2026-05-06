@@ -1,0 +1,139 @@
+import json
+import logging
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
+
+from mikoshi.routes.schemas import format_timestamp, serialize_chat
+from mikoshi.workspace import WorkspaceError, WorkspaceNotFoundError
+
+router = APIRouter(prefix="/workspaces")
+logger = logging.getLogger(__name__)
+
+
+class CreateWorkspaceRequest(BaseModel):
+    name: str
+    repo_url: str
+    connector: Optional[str] = None
+
+
+def _serialize_workspace(workspace) -> dict:
+    return {
+        "id": workspace.id,
+        "name": workspace.name,
+        "repo_url": workspace.repo_url,
+        "connector": workspace.connector,
+        "created_at": format_timestamp(workspace.created_at),
+        "updated_at": format_timestamp(workspace.updated_at),
+    }
+
+
+def _get_workspace_service(request: Request):
+    service = getattr(request.app.state, "workspace_service", None)
+    if not service:
+        raise HTTPException(status_code=503, detail="Workspace service not available")
+    return service
+
+
+@router.post("")
+async def create_workspace(request: Request, body: CreateWorkspaceRequest):
+    database = request.app.state.database
+    workspace_service = _get_workspace_service(request)
+
+    workspace = database.create_workspace(
+        name=body.name, repo_url=body.repo_url, connector=body.connector
+    )
+
+    try:
+        workspace_service.initialize_workspace(
+            workspace_id=workspace.id,
+            repo_url=workspace.repo_url,
+            connector_name=workspace.connector,
+        )
+    except WorkspaceError as e:
+        database.delete_workspace(workspace.id)
+        raise HTTPException(status_code=400, detail=str(e))
+
+    updated = database.get_workspace(workspace.id)
+    return _serialize_workspace(updated)
+
+
+@router.get("")
+async def list_workspaces(request: Request):
+    database = request.app.state.database
+    workspaces = database.list_workspaces()
+    return {"workspaces": [_serialize_workspace(w) for w in workspaces]}
+
+
+@router.get("/{workspace_id}")
+async def get_workspace(request: Request, workspace_id: str):
+    database = request.app.state.database
+    workspace = database.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return _serialize_workspace(workspace)
+
+
+@router.get("/{workspace_id}/tree")
+async def get_workspace_tree(request: Request, workspace_id: str, path: str = ""):
+    database = request.app.state.database
+    workspace_service = _get_workspace_service(request)
+
+    workspace = database.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    try:
+        tree = workspace_service.get_file_tree(workspace_id, path)
+        return tree.model_dump()
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except WorkspaceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{workspace_id}/files/{path:path}")
+async def get_workspace_file(request: Request, workspace_id: str, path: str):
+    database = request.app.state.database
+    workspace_service = _get_workspace_service(request)
+
+    workspace = database.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    try:
+        content = workspace_service.read_file(workspace_id, path)
+        return PlainTextResponse(content)
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except WorkspaceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{workspace_id}")
+async def delete_workspace(request: Request, workspace_id: str):
+    database = request.app.state.database
+    workspace_service = _get_workspace_service(request)
+    agent_manager = request.app.state.agent_manager
+
+    workspace = database.get_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    from sqlalchemy import select
+    from mikoshi.db.models import Chat
+
+    with database.SessionLocal() as session:
+        stmt = select(Chat).where(Chat.workspace_id == workspace_id)
+        chats = session.execute(stmt).scalars().all()
+        for chat in chats:
+            agent_manager.remove(chat.id)
+            session.delete(chat)
+        session.commit()
+
+    workspace_service.delete_workspace_files(workspace_id)
+    database.delete_workspace(workspace_id)
+
+    return {"success": True}
