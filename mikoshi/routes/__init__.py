@@ -1,16 +1,7 @@
 from fastapi import FastAPI
 
-from mikoshi.routes import (
-    approvals,
-    chats,
-    config,
-    connectors,
-    files,
-    media,
-    skills,
-    tools,
-    workspaces,
-)
+from mikoshi.routes import (approvals, chats, config, connectors, files, media,
+                            skills, tools, workspaces)
 
 
 def register_routes(app: FastAPI):

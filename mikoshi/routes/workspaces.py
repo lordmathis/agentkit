@@ -123,6 +123,7 @@ async def delete_workspace(request: Request, workspace_id: str):
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     from sqlalchemy import select
+
     from mikoshi.db.models import Chat
 
     with database.SessionLocal() as session:

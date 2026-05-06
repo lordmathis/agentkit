@@ -1,5 +1,6 @@
 import logging
-from sqlalchemy import text, inspect
+
+from sqlalchemy import inspect, text
 
 logger = logging.getLogger(__name__)
 

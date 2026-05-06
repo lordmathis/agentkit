@@ -4,7 +4,8 @@ from typing import Dict, List
 
 import httpx
 
-from mikoshi.connectors.client_base import FileNode, ConnectorClient, TokenEstimate
+from mikoshi.connectors.client_base import (ConnectorClient, FileNode,
+                                            TokenEstimate)
 
 logger = logging.getLogger(__name__)
 

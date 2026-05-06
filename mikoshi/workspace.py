@@ -4,8 +4,8 @@ import shutil
 import subprocess
 from typing import List, Optional
 
-from mikoshi.connectors.client_base import FileNode
 from mikoshi.config import ConnectorsConfig
+from mikoshi.connectors.client_base import FileNode
 
 logger = logging.getLogger(__name__)
 

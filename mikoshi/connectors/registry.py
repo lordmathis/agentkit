@@ -1,10 +1,10 @@
-from typing import Dict
 import logging
+from typing import Dict
 
 from mikoshi.config import ConnectorsConfig, ConnectorType
 from mikoshi.connectors.client_base import ConnectorClient
-from mikoshi.connectors.github import GitHubClient
 from mikoshi.connectors.forgejo import ForgejoClient
+from mikoshi.connectors.github import GitHubClient
 
 logger = logging.getLogger(__name__)
 

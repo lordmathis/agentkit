@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
-from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 
 from mikoshi.config import ProviderConfig, ProviderType
 from mikoshi.providers.clients import AnthropicClient, LLMClient, OpenAIClient
