@@ -13,6 +13,7 @@ from mikoshi.providers.registry import ProviderRegistry
 from mikoshi.skills.registry import SkillRegistry
 from mikoshi.tools.manager import ToolManager
 from mikoshi.tools.workspace import WORKSPACE_SERVER_NAME
+from mikoshi.workspace import WorkspaceService
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ class AgentManager:
         workspace_config: WorkspaceConfig,
         skill_registry: Optional[SkillRegistry] = None,
         title_generation: Optional[TitleGenerationConfig] = None,
+        workspace_service: Optional[WorkspaceService] = None,
     ):
         self.db = db
         self.provider_registry = provider_registry
@@ -134,6 +136,7 @@ class AgentManager:
         self.title_generation = title_generation
         self.data_dir = data_dir
         self.workspace_config = workspace_config
+        self.workspace_service = workspace_service
         self._agents: Dict[str, BaseAgent] = {}
 
     def _resolve_agent_params(
@@ -222,6 +225,7 @@ class AgentManager:
                 data_dir=self.data_dir,
                 connector_name=connector_name,
                 workspace_config=self.workspace_config,
+                workspace_service=self.workspace_service,
                 **params,
                 **title_params,
             )
@@ -260,6 +264,7 @@ class AgentManager:
             data_dir=self.data_dir,
             connector_name=connector_name,
             workspace_config=self.workspace_config,
+            workspace_service=self.workspace_service,
             **params,
             **title_params,
         )

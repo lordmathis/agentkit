@@ -62,6 +62,7 @@ class StructuredAgent(BaseAgent):
         workspace_id: Optional[str] = None,
         connector_name: Optional[str] = None,
         workspace_config=None,
+        workspace_service=None,
     ):
         super().__init__(
             chat_id=chat_id,
@@ -81,6 +82,7 @@ class StructuredAgent(BaseAgent):
             data_dir=data_dir,
             connector_name=connector_name,
             workspace_config=workspace_config,
+            workspace_service=workspace_service,
         )
 
     async def _get_iteration_context(

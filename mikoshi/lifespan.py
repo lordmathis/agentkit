@@ -96,6 +96,14 @@ async def lifespan(app: FastAPI):
     connector_registry = await ConnectorRegistry.create(app_config.connectors)
     app.state.connector_registry = connector_registry
 
+    # Initialize workspace service
+    logger.info("Initializing workspace service...")
+    workspace_service = WorkspaceService(
+        data_dir=app_config.data_dir,
+        connectors_config=app_config.connectors,
+    )
+    app.state.workspace_service = workspace_service
+
     # Initialize agent manager
     logger.info("Initializing agent manager...")
     agent_manager = AgentManager(
@@ -107,16 +115,9 @@ async def lifespan(app: FastAPI):
         workspace_config=app_config.workspace,
         skill_registry=skill_registry,
         title_generation=app_config.title_generation,
+        workspace_service=workspace_service,
     )
     app.state.agent_manager = agent_manager
-
-    # Initialize workspace service
-    logger.info("Initializing workspace service...")
-    workspace_service = WorkspaceService(
-        data_dir=app_config.data_dir,
-        connectors_config=app_config.connectors,
-    )
-    app.state.workspace_service = workspace_service
 
     # Initialize model cache
     app.state.models_cache = None
