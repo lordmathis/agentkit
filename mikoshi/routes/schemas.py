@@ -64,9 +64,7 @@ def serialize_chat(
         "workspace_id": chat.workspace_id,
     }
     if messages is not None:
-        result["messages"] = [
-            serialize_message(msg, files_by_id) for msg in messages
-        ]
+        result["messages"] = [serialize_message(msg, files_by_id) for msg in messages]
     return result
 
 

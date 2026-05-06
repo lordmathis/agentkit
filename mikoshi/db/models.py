@@ -1,8 +1,15 @@
 from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import (DateTime, ForeignKey, Index, Integer, String, Text,
-                        UniqueConstraint)
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

@@ -241,9 +241,7 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
 
     files_by_id = database.get_files(all_file_ids)
 
-    return serialize_chat(
-        branched_chat, messages=messages, files_by_id=files_by_id
-    )
+    return serialize_chat(branched_chat, messages=messages, files_by_id=files_by_id)
 
 
 @router.post("/chats/{chat_id}/messages")

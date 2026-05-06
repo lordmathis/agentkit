@@ -6,11 +6,9 @@ from typing import Any, Dict, List, Optional
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from mikoshi.agents.context import (format_history, generate_title,
-                                    parse_mentions)
+from mikoshi.agents.context import format_history, generate_title, parse_mentions
 from mikoshi.agents.context.messages import extract_assistant_content
-from mikoshi.agents.context.skills import (apply_skill_context,
-                                           build_skill_context)
+from mikoshi.agents.context.skills import apply_skill_context, build_skill_context
 from mikoshi.agents.streaming import STREAM_DONE, StreamEvent
 from mikoshi.db.db import Database
 from mikoshi.db.models import Message

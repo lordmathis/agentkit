@@ -98,15 +98,15 @@ class ToolSetHandler(ABC):
     async def cleanup(self) -> None:
         pass
 
-    async def call_other_tool(self, call_name: str, arguments: dict, context: ToolCallContext) -> Any:
+    async def call_other_tool(
+        self, call_name: str, arguments: dict, context: ToolCallContext
+    ) -> Any:
         if not self._tool_manager:
             raise RuntimeError("ToolManager not set")
 
         logger.debug(f"[{self.server_name}] Calling {call_name}")
 
-        result = await self._tool_manager.call_tool(
-            call_name, arguments, context
-        )
+        result = await self._tool_manager.call_tool(call_name, arguments, context)
         return result
 
 

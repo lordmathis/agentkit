@@ -35,9 +35,7 @@ class WorkspaceService:
 
     def _build_auth_url(self, repo_url: str, token: str) -> str:
         if "github.com" in repo_url:
-            return repo_url.replace(
-                "https://", f"https://x-access-token:{token}@"
-            )
+            return repo_url.replace("https://", f"https://x-access-token:{token}@")
         return repo_url.replace("https://", f"https://x-access-token:{token}@")
 
     def _workspace_root(self, workspace_id: str) -> str:
@@ -52,9 +50,7 @@ class WorkspaceService:
                         f"Symlink points outside workspace: {resolved_path}"
                     )
         if not resolved_path.startswith(workspace_root):
-            raise PathTraversalError(
-                f"Path traversal detected: {resolved_path}"
-            )
+            raise PathTraversalError(f"Path traversal detected: {resolved_path}")
 
     def initialize_workspace(
         self,
@@ -140,9 +136,7 @@ class WorkspaceService:
             )
 
         dir_name = os.path.basename(resolved) if path else ""
-        return FileNode(
-            path=path, name=dir_name, type="directory", children=children
-        )
+        return FileNode(path=path, name=dir_name, type="directory", children=children)
 
     def read_file(self, workspace_id: str, path: str) -> str:
         root = self.get_workspace_path(workspace_id)

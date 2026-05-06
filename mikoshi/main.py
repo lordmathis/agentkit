@@ -36,6 +36,7 @@ def configure_logging(cfg: LoggingConfig):
         uvicorn_logger.handlers = [handler]
         uvicorn_logger.propagate = False
 
+
 if __name__ == "__main__":
     load_dotenv(override=True)
 

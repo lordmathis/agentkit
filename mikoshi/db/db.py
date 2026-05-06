@@ -9,8 +9,15 @@ from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from mikoshi.db.migrations import run_migrations
-from mikoshi.db.models import (Base, Chat, ChatState, File, Message,
-                               PendingToolApproval, Workspace)
+from mikoshi.db.models import (
+    Base,
+    Chat,
+    ChatState,
+    File,
+    Message,
+    PendingToolApproval,
+    Workspace,
+)
 
 
 class Database:
