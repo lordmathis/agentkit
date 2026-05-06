@@ -1,6 +1,5 @@
 import asyncio
 import json
-from datetime import datetime
 from typing import AsyncGenerator, List, Optional
 
 from dataclasses import asdict
@@ -10,16 +9,7 @@ from pydantic import BaseModel
 
 from mikoshi.agents.manager import AgentManager
 from mikoshi.agents.streaming import StreamEvent
-
-
-def format_timestamp(dt: datetime) -> str:
-    """Format datetime as ISO string with UTC timezone indicator."""
-    iso = dt.isoformat()
-    if iso.endswith("+00:00"):
-        return iso[:-6] + "Z"
-    if not iso.endswith("Z") and "+" not in iso and "-" not in iso[10:]:
-        return iso + "Z"
-    return iso
+from mikoshi.routes.schemas import serialize_chat
 
 
 async def event_stream(
@@ -106,20 +96,7 @@ async def create_chat(request: Request, body: CreateChatRequest):
 
     updated_chat = database.get_chat(chat.id)
 
-    return {
-        "id": updated_chat.id,
-        "title": updated_chat.title,
-        "created_at": format_timestamp(updated_chat.created_at),
-        "updated_at": format_timestamp(updated_chat.updated_at),
-        "model": updated_chat.model,
-        "system_prompt": updated_chat.system_prompt,
-        "tool_servers": json.loads(updated_chat.tool_servers)
-        if updated_chat.tool_servers
-        else None,
-        "model_params": json.loads(updated_chat.model_params)
-        if updated_chat.model_params
-        else None,
-    }
+    return serialize_chat(updated_chat)
 
 
 @router.get("/chats")
@@ -131,25 +108,7 @@ async def list_chats(request: Request, limit: int = 20):
 
     chats = database.list_chats(limit=limit)
 
-    return {
-        "chats": [
-            {
-                "id": chat.id,
-                "title": chat.title,
-                "created_at": format_timestamp(chat.created_at),
-                "updated_at": format_timestamp(chat.updated_at),
-                "model": chat.model,
-                "system_prompt": chat.system_prompt,
-                "tool_servers": json.loads(chat.tool_servers)
-                if chat.tool_servers
-                else None,
-                "model_params": json.loads(chat.model_params)
-                if chat.model_params
-                else None,
-            }
-            for chat in chats
-        ]
-    }
+    return {"chats": [serialize_chat(chat) for chat in chats]}
 
 
 @router.get("/chats/{chat_id}")
@@ -172,39 +131,7 @@ async def get_chat(request: Request, chat_id: str):
 
     files_by_id = database.get_files(all_file_ids)
 
-    return {
-        "id": chat.id,
-        "title": chat.title,
-        "created_at": format_timestamp(chat.created_at),
-        "updated_at": format_timestamp(chat.updated_at),
-        "model": chat.model,
-        "system_prompt": chat.system_prompt,
-        "tool_servers": json.loads(chat.tool_servers) if chat.tool_servers else None,
-        "model_params": json.loads(chat.model_params) if chat.model_params else None,
-        "messages": [
-            {
-                "id": msg.id,
-                "role": msg.role,
-                "content": msg.content,
-                "reasoning_content": msg.reasoning_content,
-                "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
-                "tool_call_id": msg.tool_call_id,
-                "sequence": msg.sequence,
-                "created_at": format_timestamp(msg.created_at),
-                "files": [
-                    {
-                        "id": files_by_id[fid].id,
-                        "filename": files_by_id[fid].filename,
-                        "content_type": files_by_id[fid].content_type,
-                        "source": files_by_id[fid].source,
-                    }
-                    for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
-                    if fid in files_by_id
-                ],
-            }
-            for msg in messages
-        ],
-    }
+    return serialize_chat(chat, messages=messages, files_by_id=files_by_id)
 
 
 @router.delete("/chats/{chat_id}")
@@ -258,20 +185,7 @@ async def update_chat(request: Request, chat_id: str, body: UpdateChatRequest):
     if not updated_chat:
         raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' not found")
 
-    return {
-        "id": updated_chat.id,
-        "title": updated_chat.title,
-        "created_at": format_timestamp(updated_chat.created_at),
-        "updated_at": format_timestamp(updated_chat.updated_at),
-        "model": updated_chat.model,
-        "system_prompt": updated_chat.system_prompt,
-        "tool_servers": json.loads(updated_chat.tool_servers)
-        if updated_chat.tool_servers
-        else None,
-        "model_params": json.loads(updated_chat.model_params)
-        if updated_chat.model_params
-        else None,
-    }
+    return serialize_chat(updated_chat)
 
 
 @router.post("/chats/{chat_id}/branch")
@@ -327,43 +241,9 @@ async def branch_chat(request: Request, chat_id: str, body: BranchChatRequest):
 
     files_by_id = database.get_files(all_file_ids)
 
-    return {
-        "id": branched_chat.id,
-        "title": branched_chat.title,
-        "created_at": format_timestamp(branched_chat.created_at),
-        "updated_at": format_timestamp(branched_chat.updated_at),
-        "model": branched_chat.model,
-        "system_prompt": branched_chat.system_prompt,
-        "tool_servers": json.loads(branched_chat.tool_servers)
-        if branched_chat.tool_servers
-        else None,
-        "model_params": json.loads(branched_chat.model_params)
-        if branched_chat.model_params
-        else None,
-        "messages": [
-            {
-                "id": msg.id,
-                "role": msg.role,
-                "content": msg.content,
-                "reasoning_content": msg.reasoning_content,
-                "tool_calls": json.loads(msg.tool_calls) if msg.tool_calls else None,
-                "tool_call_id": msg.tool_call_id,
-                "sequence": msg.sequence,
-                "created_at": format_timestamp(msg.created_at),
-                "files": [
-                    {
-                        "id": files_by_id[fid].id,
-                        "filename": files_by_id[fid].filename,
-                        "content_type": files_by_id[fid].content_type,
-                        "source": files_by_id[fid].source,
-                    }
-                    for fid in (json.loads(msg.file_ids) if msg.file_ids else [])
-                    if fid in files_by_id
-                ],
-            }
-            for msg in messages
-        ],
-    }
+    return serialize_chat(
+        branched_chat, messages=messages, files_by_id=files_by_id
+    )
 
 
 @router.post("/chats/{chat_id}/messages")
