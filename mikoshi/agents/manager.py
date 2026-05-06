@@ -12,6 +12,7 @@ from mikoshi.db.db import Database
 from mikoshi.providers.registry import ProviderRegistry
 from mikoshi.skills.registry import SkillRegistry
 from mikoshi.tools.manager import ToolManager
+from mikoshi.tools.workspace import WORKSPACE_SERVER_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +207,8 @@ class AgentManager:
             params = self._resolve_agent_params(config)
             if workspace_id:
                 servers = list(params.get("tool_servers", []))
-                if "workspace" not in servers:
-                    servers.append("workspace")
+                if WORKSPACE_SERVER_NAME not in servers:
+                    servers.append(WORKSPACE_SERVER_NAME)
                 params["tool_servers"] = servers
             title_params = self._resolve_title_params()
             return ReActAgent(

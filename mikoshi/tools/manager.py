@@ -14,6 +14,7 @@ from mikoshi.tools.context import ToolCallContext
 from mikoshi.tools.handler_base import ToolHandler
 from mikoshi.tools.mcp_handler import MCPToolHandler
 from mikoshi.tools.toolset_handler import ToolSetHandler
+from mikoshi.tools.workspace import WorkspaceToolSetHandler
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,17 @@ class ToolManager:
                     f"Error initializing toolset plugin '{class_name}': {e}",
                     exc_info=True,
                 )
+
+        # Register built-in workspace toolset
+        try:
+            workspace_handler = WorkspaceToolSetHandler()
+            workspace_handler.set_tool_manager(self)
+            await workspace_handler.initialize()
+            self._toolset_handlers[workspace_handler.server_name] = workspace_handler
+            self._server_map[workspace_handler.server_name] = workspace_handler
+            logger.info("Initialized built-in workspace toolset")
+        except Exception as e:
+            logger.error(f"Failed to initialize workspace toolset: {e}", exc_info=True)
 
         logger.info("ToolManager initialization completed successfully")
 
