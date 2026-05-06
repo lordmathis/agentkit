@@ -15,6 +15,7 @@ from mikoshi.db.models import Message
 from mikoshi.providers.provider import Provider
 from mikoshi.skills.registry import SkillRegistry
 from mikoshi.tools.approval import ToolDeniedError
+from mikoshi.tools.context import ToolCallContext
 from mikoshi.tools.manager import ToolManager
 
 logger = logging.getLogger(__name__)
@@ -159,12 +160,15 @@ class BaseAgent(ABC):
                     )
 
                     try:
+                        ctx = ToolCallContext(
+                            provider=self.provider,
+                            model_id=self.model_id,
+                            chat_id=self.chat_id,
+                        )
                         result = await self.tool_manager.call_tool(
                             tool_name,
                             tool_args,
-                            self.provider,
-                            self.model_id,
-                            self.chat_id,
+                            ctx,
                         )
                     except ToolDeniedError as e:
                         result = f"Tool '{e.tool_name}' was denied by the user."

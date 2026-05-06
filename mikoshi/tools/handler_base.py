@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from mikoshi.providers import Provider
+from mikoshi.tools.context import ToolCallContext
 
 
 class ToolHandler(ABC):
@@ -16,7 +16,7 @@ class ToolHandler(ABC):
 
     @abstractmethod
     async def call_tool(
-        self, tool_name: str, arguments: dict, provider: Provider, model_id: str
+        self, tool_name: str, arguments: dict, context: ToolCallContext
     ) -> Any:
         """Execute a tool"""
         pass

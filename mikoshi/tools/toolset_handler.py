@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel
 
-from mikoshi.providers import Provider
+from mikoshi.tools.context import ToolCallContext
 
 if TYPE_CHECKING:
     from mikoshi.tools.manager import ToolManager
@@ -20,7 +20,7 @@ class ToolDefinition(BaseModel):
     description: str
     parameters: Dict[str, Any]  # JSON Schema
     func: Callable
-    require_approval: bool = False  # NEW: Whether tool requires user approval
+    require_approval: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -34,15 +34,8 @@ class ToolSetHandler(ABC):
     def __init__(self):
         self._tools: Dict[str, ToolDefinition] = {}
         self._tool_manager: Optional["ToolManager"] = None
-        self._provider: Optional[Provider] = None
-        self._model_id: Optional[str] = None
 
     def set_tool_manager(self, tool_manager: "ToolManager") -> None:
-        """Set the ToolManager instance for cross-tool calls
-
-        Args:
-            tool_manager: The ToolManager instance to use for calling other tools
-        """
         if self._tool_manager is None:
             self._tool_manager = tool_manager
         else:
@@ -53,19 +46,12 @@ class ToolSetHandler(ABC):
     def get_persistent_storage(self):
         return self._tool_manager.get_persistent_storage(self.server_name)
 
-    def set_model_context(self, provider: Provider, model_id: str) -> None:
-        self._provider = provider
-        self._model_id = model_id
-
     async def initialize(self) -> None:
-        """Discover and register decorated tool functions"""
-        # Find all methods decorated with @tool
         for _, method in inspect.getmembers(self, predicate=inspect.ismethod):
             if not hasattr(method, "_tool_definition"):
                 continue
 
             tool_def = method._tool_definition
-            # Create a new ToolDefinition with the bound method instead of the unbound function
             bound_tool_def = ToolDefinition(
                 name=tool_def.name,
                 description=tool_def.description,
@@ -79,15 +65,13 @@ class ToolSetHandler(ABC):
             )
 
     async def call_tool(
-        self, tool_name: str, arguments: dict, provider: Provider, model_id: str
+        self, tool_name: str, arguments: dict, context: ToolCallContext
     ) -> Any:
-        """Execute a tool function"""
         tool_def = self._tools.get(tool_name)
         if not tool_def:
             raise ValueError(
                 f"Tool '{tool_name}' not found in toolset '{self.server_name}'"
             )
-        self.set_model_context(provider, model_id)
 
         logger.debug(
             f"[{self.server_name}] Calling tool '{tool_name}' with arguments: {arguments}"
@@ -104,22 +88,19 @@ class ToolSetHandler(ABC):
         return result
 
     async def list_tools(self) -> List[ToolDefinition]:
-        """List available tools"""
         return list(self._tools.values())
 
     async def cleanup(self) -> None:
-        """Default cleanup does nothing"""
         pass
 
-    async def call_other_tool(self, call_name: str, arguments: dict) -> Any:
-        """Call a tool by its full name (e.g. 'web_tools__fetch_page')."""
+    async def call_other_tool(self, call_name: str, arguments: dict, context: ToolCallContext) -> Any:
         if not self._tool_manager:
             raise RuntimeError("ToolManager not set")
 
         logger.debug(f"[{self.server_name}] Calling {call_name}")
 
         result = await self._tool_manager.call_tool(
-            call_name, arguments, self._provider, self._model_id
+            call_name, arguments, context
         )
         return result
 

@@ -1,6 +1,8 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
+
+from mikoshi.tools.context import ToolCallContext
 
 
 @dataclass
@@ -10,8 +12,7 @@ class PendingApproval:
     tool_name: str
     arguments: dict
     future: asyncio.Future
-    provider: Any = None
-    model_id: Optional[str] = None
+    context: ToolCallContext
 
 
 class ToolDeniedError(Exception):

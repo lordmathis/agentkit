@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 
 from mikoshi.config import MCPConfig
 from mikoshi.db.db import Database
-from mikoshi.providers import Provider
 from mikoshi.storage import get_persistent_storage
 from mikoshi.tools.approval import PendingApproval, ToolDeniedError
+from mikoshi.tools.context import ToolCallContext
 from mikoshi.tools.handler_base import ToolHandler
 from mikoshi.tools.mcp_handler import MCPToolHandler
 from mikoshi.tools.toolset_handler import ToolSetHandler
@@ -142,9 +142,7 @@ class ToolManager:
         self,
         call_name: str,
         arguments: dict,
-        provider: Provider,
-        model_id: str,
-        chat_id: Optional[str] = None,
+        context: ToolCallContext,
     ) -> Any:
         """Route tool calls to the appropriate handler"""
         try:
@@ -163,7 +161,7 @@ class ToolManager:
             logger.warning(f"Tool '{call_name}' requires approval - auto-denying")
             raise ToolDeniedError(call_name)
 
-        result = await handler.call_tool(tool_name, arguments, provider, model_id)
+        result = await handler.call_tool(tool_name, arguments, context)
         return result
 
     async def list_tools(self, server_name: str) -> list:
@@ -223,7 +221,7 @@ class ToolManager:
 
         tool_name = approval.tool_name.split("__", 1)[1]
         result = await handler.call_tool(
-            tool_name, approval.arguments, approval.provider, approval.model_id
+            tool_name, approval.arguments, approval.context
         )
         approval.future.set_result(result)
         return result
